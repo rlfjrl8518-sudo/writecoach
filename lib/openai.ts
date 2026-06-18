@@ -18,7 +18,7 @@ async function callOpenAI(
   const body: Record<string, unknown> = {
     model, max_tokens: maxTokens, temperature: temp, messages, stream: useStream,
   };
-  if (jsonMode && !useStream) body.response_format = { type: 'json_object' };
+  if (jsonMode) body.response_format = { type: 'json_object' };
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
