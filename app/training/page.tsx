@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { loadDB, saveDB, loadSettings, getTopEntries, type Mission, type DB } from '@/lib/db';
-import { generateMissions } from '@/lib/openai';
+import { loadDB, saveDB, loadSettings, getTopEntries, type Mission, type MissionEvaluation, type DB } from '@/lib/db';
+import { generateMissions, evaluateMission } from '@/lib/openai';
 
-function StarLoader() {
+function StarLoader({ label }: { label: string }) {
   const [f, setF] = useState(0);
   useEffect(() => { const t = setInterval(() => setF(n => (n + 1) % 3), 500); return () => clearInterval(t); }, []);
   return (
@@ -11,29 +11,104 @@ function StarLoader() {
       <div className="pixel-font" style={{ fontSize: 16, color: 'var(--moon)', letterSpacing: 8 }}>
         {['★ ☆ ☆', '★ ★ ☆', '★ ★ ★'][f]}
       </div>
-      <span className="star-loader-text">데이터를 분석하고 과제를 생성하고 있어요...</span>
+      <span className="star-loader-text">{label}</span>
     </div>
   );
 }
 
 const TYPE_COLOR: Record<string, string> = {
-  writing:    'var(--accent)',
-  expression: 'var(--moon)',
-  structure:  'var(--good)',
-  sense:      'var(--dim-star)',
-  copy:       'var(--bad)',
+  writing: 'var(--accent)', expression: 'var(--moon)', structure: 'var(--good)',
+  sense: 'var(--dim-star)', copy: 'var(--bad)',
 };
 const TYPE_LABEL: Record<string, string> = {
   writing: '글쓰기', expression: '표현', structure: '구조', sense: '감각', copy: '카피',
 };
 
-function MissionCard({ m, onToggle, onDelete }: { m: Mission; onToggle: () => void; onDelete: () => void }) {
-  const color = TYPE_COLOR[m.type] || 'var(--accent)';
+function EvalResult({ ev }: { ev: MissionEvaluation }) {
   return (
-    <div
-      className={`px-mission-card${m.completed ? ' completed' : ''}`}
-      style={{ borderLeft: `3px solid ${color}` }}
-    >
+    <div style={{
+      marginTop: 14, padding: '14px 16px',
+      background: ev.passed ? 'var(--good-dim)' : 'var(--bad-dim)',
+      border: `1px solid ${ev.passed ? 'var(--good-border)' : 'var(--bad-border)'}`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <span className="pixel-font" style={{
+          fontSize: 8,
+          color: ev.passed ? 'var(--good)' : 'var(--bad)',
+          padding: '3px 8px',
+          border: `1px solid ${ev.passed ? 'var(--good-border)' : 'var(--bad-border)'}`,
+        }}>
+          {ev.passed ? '✓ 합격' : '✕ 재도전'}
+        </span>
+        <span className="pixel-font" style={{ fontSize: 14, color: ev.passed ? 'var(--good)' : 'var(--moon)' }}>
+          {ev.score}pt
+        </span>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.8, margin: '0 0 10px', fontFamily: 'Pretendard, sans-serif' }}>
+        {ev.feedback}
+      </p>
+      {ev.strengths.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <span style={{ fontSize: 12, color: 'var(--good)', fontFamily: 'Pretendard, sans-serif', fontWeight: 600, display: 'block', marginBottom: 6 }}>잘된 점</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {ev.strengths.map((s, i) => (
+              <span key={i} style={{
+                display: 'inline-block',
+                fontSize: 12, color: 'var(--good)',
+                padding: '3px 10px', borderRadius: 6,
+                background: 'var(--good-dim)',
+                border: '1px solid var(--good-border)',
+                fontFamily: 'Pretendard, sans-serif', fontWeight: 500,
+              }}>{s}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {ev.improvements.length > 0 && (
+        <div>
+          <span style={{ fontSize: 12, color: 'var(--moon)', fontFamily: 'Pretendard, sans-serif', fontWeight: 600, display: 'block', marginBottom: 6 }}>발전시킬 점</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {ev.improvements.map((s, i) => (
+              <span key={i} style={{
+                display: 'inline-block',
+                fontSize: 12, color: 'var(--moon)',
+                padding: '3px 10px', borderRadius: 6,
+                background: 'var(--moon-dim)',
+                border: '1px solid rgba(255,159,10,0.35)',
+                fontFamily: 'Pretendard, sans-serif', fontWeight: 500,
+              }}>{s}</span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MissionCard({
+  m, onToggle, onDelete, onEvaluate,
+}: {
+  m: Mission;
+  onToggle: () => void;
+  onDelete: () => void;
+  onEvaluate: (id: number, submission: string) => Promise<void>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [text, setText] = useState(m.submission ?? '');
+  const [evaluating, setEvaluating] = useState(false);
+  const [streamLen, setStreamLen] = useState(0);
+  const color = TYPE_COLOR[m.type] || 'var(--accent)';
+
+  async function handleSubmit() {
+    if (!text.trim()) return;
+    setEvaluating(true);
+    setStreamLen(0);
+    await onEvaluate(m.id, text.trim());
+    setEvaluating(false);
+  }
+
+  return (
+    <div className={`px-mission-card${m.completed ? ' completed' : ''}`} style={{ borderLeft: `3px solid ${color}` }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         <button
           onClick={onToggle}
@@ -41,7 +116,8 @@ function MissionCard({ m, onToggle, onDelete }: { m: Mission; onToggle: () => vo
             width: 20, height: 20, flexShrink: 0, marginTop: 2,
             background: m.completed ? 'var(--good-border)' : 'transparent',
             border: `2px solid ${m.completed ? 'var(--good-border)' : 'var(--card-border)'}`,
-            cursor: 'pointer', color: '#001508', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', color: '#001508', fontSize: 12,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >
           {m.completed ? '✓' : ''}
@@ -51,16 +127,84 @@ function MissionCard({ m, onToggle, onDelete }: { m: Mission; onToggle: () => vo
             <span className="pixel-font" style={{ fontSize: 7, color }}>
               {TYPE_LABEL[m.type] || m.type}
             </span>
-            <span style={{ fontSize: 12, color: m.completed ? 'var(--dim-star)' : 'var(--text)', fontFamily: 'Pretendard, sans-serif', fontWeight: 600, textDecoration: m.completed ? 'line-through' : 'none' }}>
+            <span style={{
+              fontSize: 12, fontFamily: 'Pretendard, sans-serif', fontWeight: 600,
+              color: m.completed ? 'var(--dim-star)' : 'var(--text)',
+              textDecoration: m.completed ? 'line-through' : 'none',
+            }}>
               {m.title}
             </span>
+            {m.evaluation && (
+              <span className="pixel-font" style={{
+                fontSize: 7,
+                color: m.evaluation.passed ? 'var(--good)' : 'var(--bad)',
+                padding: '2px 6px',
+                border: `1px solid ${m.evaluation.passed ? 'var(--good-border)' : 'var(--bad-border)'}`,
+              }}>
+                {m.evaluation.score}pt
+              </span>
+            )}
           </div>
-          <p style={{ fontSize: 12, color: 'var(--dim-star)', lineHeight: 1.8, margin: 0, fontFamily: 'Pretendard, sans-serif' }}>
+          <p style={{ fontSize: 13, color: 'var(--dim-star)', lineHeight: 1.8, margin: 0, fontFamily: 'Pretendard, sans-serif' }}>
             {m.description}
           </p>
-          <div style={{ fontSize: 9, color: 'var(--card-border)', marginTop: 6 }}>
+          <div style={{ fontSize: 11, color: 'var(--card-border)', marginTop: 6, fontFamily: 'Pretendard, sans-serif' }}>
             {m.createdAt.slice(0, 10)}
           </div>
+
+          {/* 평가 결과 (이미 있으면 항상 표시) */}
+          {m.evaluation && !expanded && (
+            <EvalResult ev={m.evaluation} />
+          )}
+
+          {/* 제출 패널 */}
+          {expanded && (
+            <div style={{ marginTop: 14 }}>
+              <textarea
+                value={text}
+                onChange={e => setText(e.target.value)}
+                placeholder="이 미션에 맞게 작성한 글을 여기에 붙여넣으세요..."
+                style={{
+                  width: '100%', minHeight: 140, padding: '10px 12px',
+                  background: 'var(--bg-input)', border: '1px solid var(--card-border)',
+                  color: 'var(--text)', fontSize: 12, lineHeight: 1.8,
+                  fontFamily: 'Pretendard, sans-serif', resize: 'vertical',
+                  boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                <button
+                  className="px-btn px-btn-accent"
+                  onClick={handleSubmit}
+                  disabled={evaluating || !text.trim()}
+                >
+                  {evaluating
+                    ? (streamLen > 0 ? `★ ${streamLen}자 평가 중...` : '★ 연결 중...')
+                    : '✦ AI 평가 받기'}
+                </button>
+                <button
+                  className="px-btn-ghost-sm"
+                  onClick={() => setExpanded(false)}
+                >닫기</button>
+              </div>
+              {m.evaluation && <EvalResult ev={m.evaluation} />}
+            </div>
+          )}
+
+          {/* 제출하기 버튼 (평가 패널 열기) */}
+          {!expanded && (
+            <button
+              onClick={() => setExpanded(true)}
+              style={{
+                marginTop: 10, background: 'none', border: 'none',
+                cursor: 'pointer', color: color, fontSize: 13,
+                fontFamily: 'Pretendard, sans-serif', fontWeight: 600,
+                padding: 0, letterSpacing: '-0.01em',
+              }}
+            >
+              {m.evaluation ? '↺ 다시 제출' : '▶ 제출하고 평가 받기'}
+            </button>
+          )}
         </div>
         <button
           onClick={onDelete}
@@ -84,29 +228,23 @@ function DataSnapshot({ db }: { db: DB }) {
     <div className="px-card" style={{ marginBottom: 18 }}>
       <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 12 }}>✦ 현재 데이터 요약</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
-        <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderLeft: '2px solid var(--accent)' }}>
-          <div className="pixel-font" style={{ fontSize: 6, color: 'var(--dim-star)', marginBottom: 4 }}>평균 점수</div>
-          <div className="pixel-font" style={{ fontSize: 16, color: avgScore && avgScore >= 70 ? 'var(--good)' : 'var(--moon)' }}>
-            {avgScore ?? '—'}{avgScore ? 'pt' : ''}
+        <div style={{ padding: '12px 14px', background: 'var(--bg-subtle)', borderLeft: '3px solid var(--accent)', borderRadius: '0 8px 8px 0' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 6, letterSpacing: '-0.01em' }}>평균 점수</div>
+          <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.03em', color: avgScore && avgScore >= 70 ? 'var(--good)' : 'var(--moon)', lineHeight: 1 }}>
+            {avgScore ?? '—'}<span style={{ fontSize: 13, fontWeight: 500, marginLeft: 2 }}>{avgScore ? '점' : ''}</span>
           </div>
         </div>
-        <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderLeft: '2px solid var(--bad)' }}>
-          <div className="pixel-font" style={{ fontSize: 6, color: 'var(--dim-star)', marginBottom: 4 }}>주요 약점</div>
-          <div style={{ fontSize: 11, color: 'var(--bad)' }}>
-            {weakTop3.length ? weakTop3.join(', ') : '없음'}
-          </div>
+        <div style={{ padding: '12px 14px', background: 'var(--bg-subtle)', borderLeft: '3px solid var(--bad)', borderRadius: '0 8px 8px 0' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 6, letterSpacing: '-0.01em' }}>주요 약점</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--bad)', letterSpacing: '-0.01em' }}>{weakTop3.length ? weakTop3.join(', ') : '없음'}</div>
         </div>
-        <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderLeft: '2px solid var(--moon)' }}>
-          <div className="pixel-font" style={{ fontSize: 6, color: 'var(--dim-star)', marginBottom: 4 }}>부족한 감각</div>
-          <div style={{ fontSize: 11, color: 'var(--moon)' }}>
-            {senseBot2.length ? senseBot2.join(', ') : '없음'}
-          </div>
+        <div style={{ padding: '12px 14px', background: 'var(--bg-subtle)', borderLeft: '3px solid var(--moon)', borderRadius: '0 8px 8px 0' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 6, letterSpacing: '-0.01em' }}>부족한 감각</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--moon)', letterSpacing: '-0.01em' }}>{senseBot2.length ? senseBot2.join(', ') : '없음'}</div>
         </div>
-        <div style={{ padding: '10px 12px', background: 'rgba(0,0,0,0.3)', borderLeft: '2px solid var(--accent)' }}>
-          <div className="pixel-font" style={{ fontSize: 6, color: 'var(--dim-star)', marginBottom: 4 }}>자주 쓰는 구조</div>
-          <div style={{ fontSize: 11, color: 'var(--accent)' }}>
-            {structTop2.length ? structTop2.join(', ') : '없음'}
-          </div>
+        <div style={{ padding: '12px 14px', background: 'var(--bg-subtle)', borderLeft: '3px solid var(--accent)', borderRadius: '0 8px 8px 0' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 6, letterSpacing: '-0.01em' }}>자주 쓰는 구조</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)', letterSpacing: '-0.01em' }}>{structTop2.length ? structTop2.join(', ') : '없음'}</div>
         </div>
       </div>
     </div>
@@ -132,10 +270,7 @@ export default function TrainingPage() {
       const raw = await generateMissions(s, db);
       const now = new Date().toISOString();
       const newMissions: Mission[] = raw.map((m, i) => ({
-        ...m,
-        id: Date.now() + i,
-        completed: false,
-        createdAt: now,
+        ...m, id: Date.now() + i, completed: false, createdAt: now,
       }));
       const fresh = loadDB();
       fresh.missions = [...newMissions, ...fresh.missions];
@@ -144,6 +279,25 @@ export default function TrainingPage() {
     } catch (e: unknown) {
       setErr('오류: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setLoading(false); }
+  }
+
+  async function handleEvaluate(id: number, submission: string) {
+    const s = loadSettings();
+    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
+    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    const fresh = loadDB();
+    const mission = fresh.missions.find(m => m.id === id);
+    if (!mission) return;
+    try {
+      const ev = await evaluateMission(s, mission, submission);
+      mission.submission = submission;
+      mission.evaluation = ev;
+      if (ev.passed) mission.completed = true;
+      saveDB(fresh);
+      setSaved(v => !v);
+    } catch (e: unknown) {
+      setErr('평가 오류: ' + (e instanceof Error ? e.message : String(e)));
+    }
   }
 
   function toggleMission(id: number) {
@@ -176,9 +330,9 @@ export default function TrainingPage() {
 
   return (
     <div>
-      <div className="px-sec-title" style={{ marginBottom: 18 }}>◎ TRAINING MISSION</div>
+      <div className="px-sec-title" style={{ marginBottom: 18 }}>◎ 훈련 과제</div>
       <p className="serif-font" style={{ fontSize: 13, color: 'var(--dim-star)', marginBottom: 20, lineHeight: 1.8 }}>
-        내 글쓰기 데이터(약점, 감각 분포, 구조 분포)를 분석해 맞춤 훈련 과제를 자동으로 생성해요.
+        내 글쓰기 데이터를 분석해 맞춤 훈련 과제를 생성하고, 제출한 글을 AI가 직접 평가해요.
       </p>
 
       <DataSnapshot db={db} />
@@ -201,7 +355,7 @@ export default function TrainingPage() {
         </div>
       )}
 
-      {loading && <StarLoader />}
+      {loading && <StarLoader label="데이터를 분석하고 과제를 생성하고 있어요..." />}
 
       {!loading && db.missions.length === 0 && (
         <div className="px-empty">
@@ -216,7 +370,12 @@ export default function TrainingPage() {
           <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 12 }}>✦ 진행 중인 과제</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {pending.map(m => (
-              <MissionCard key={m.id} m={m} onToggle={() => toggleMission(m.id)} onDelete={() => deleteMission(m.id)} />
+              <MissionCard
+                key={m.id} m={m}
+                onToggle={() => toggleMission(m.id)}
+                onDelete={() => deleteMission(m.id)}
+                onEvaluate={handleEvaluate}
+              />
             ))}
           </div>
         </div>
@@ -228,7 +387,12 @@ export default function TrainingPage() {
           <div className="pixel-font" style={{ fontSize: 7, color: 'var(--card-border)', marginBottom: 12 }}>✓ 완료된 과제</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {completed.map(m => (
-              <MissionCard key={m.id} m={m} onToggle={() => toggleMission(m.id)} onDelete={() => deleteMission(m.id)} />
+              <MissionCard
+                key={m.id} m={m}
+                onToggle={() => toggleMission(m.id)}
+                onDelete={() => deleteMission(m.id)}
+                onEvaluate={handleEvaluate}
+              />
             ))}
           </div>
         </div>

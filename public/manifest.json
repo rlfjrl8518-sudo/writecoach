@@ -1,11 +1,11 @@
 {
-  "name": "WriteCoach",
-  "short_name": "WriteCoach",
+  "name": "글습관",
+  "short_name": "글습관",
   "description": "AI 글쓰기 훈련 플랫폼",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d0d1a",
-  "theme_color": "#0d0d1a",
+  "background_color": "#3182F6",
+  "theme_color": "#3182F6",
   "orientation": "portrait-primary",
   "icons": [
     {

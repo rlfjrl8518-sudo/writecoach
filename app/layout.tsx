@@ -1,42 +1,29 @@
 import type { Metadata } from 'next';
-import { Press_Start_2P, Noto_Serif_KR } from 'next/font/google';
 import './globals.css';
 import Navigation from '@/components/Navigation';
 import PixelCharacter from '@/components/PixelCharacter';
-
-/* next/font: 폰트를 빌드 타임에 셀프 호스팅 → CDN 왕복 없음 */
-const pixelFont = Press_Start_2P({
-  weight: '400',
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-pixel',
-});
-
-const serifFont = Noto_Serif_KR({
-  weight: ['300', '400', '700'],
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-serif',
-  preload: false,
-});
+import CloudSync from '@/components/CloudSync';
+import ClientLayout from '@/components/ClientLayout';
 
 export const metadata: Metadata = {
-  title: 'WriteCoach — 별헤는 밤',
+  title: '글습관 — AI 글쓰기 훈련',
   description: 'AI 글쓰기 훈련 플랫폼',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={`${pixelFont.variable} ${serifFont.variable}`}>
+    <html lang="ko">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#0d0d1a" />
+        <meta name="theme-color" content="#3182F6" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="WriteCoach" />
+        <meta name="apple-mobile-web-app-title" content="글습관" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        {/* 다크 모드 플리커 방지: 첫 렌더 전에 data-theme 세팅 */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var s=localStorage.getItem('theme'),p=window.matchMedia('(prefers-color-scheme:dark)').matches;document.documentElement.setAttribute('data-theme',(s==='dark'||(s===null&&p))?'dark':'light');})();` }} />
         {/* Pretendard: dynamic-subset (한국어 필요 글리프만 로드) */}
         <link rel="preconnect" href="https://cdn.jsdelivr.net" />
         <link
@@ -46,11 +33,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <Navigation />
-        <main style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 24px 120px' }}>
-          {children}
-        </main>
-        <PixelCharacter />
+        <CloudSync />
+        <ClientLayout>
+          <Navigation />
+          <main className="main-layout">
+            {children}
+          </main>
+          <PixelCharacter />
+        </ClientLayout>
       </body>
     </html>
   );

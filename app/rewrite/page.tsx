@@ -6,11 +6,11 @@ import { rewriteText, generateVariations, transformAuthorStyle } from '@/lib/ope
 const AUTHORS: AuthorStyle[] = ['윤동주', '김훈', '무라카미 하루키', '헤밍웨이'];
 
 const LEVELS = [
-  { key: 'level1', label: 'LEVEL 1', sub: '자연스럽게 수정', cls: 'px-level-1', color: 'var(--dim-star)' },
-  { key: 'level2', label: 'LEVEL 2', sub: '표현력 강화',     cls: 'px-level-2', color: 'var(--moon)' },
-  { key: 'level3', label: 'LEVEL 3', sub: '작가 수준',       cls: 'px-level-3', color: 'var(--accent)' },
-  { key: 'level4', label: 'LEVEL 4', sub: '광고 카피',       cls: 'px-level-4', color: 'var(--good)' },
-  { key: 'level5', label: 'LEVEL 5', sub: '기사 리드',       cls: 'px-level-5', color: 'var(--bad)' },
+  { key: 'level1', label: '1단계', sub: '자연스럽게 수정', cls: 'px-level-1', color: 'var(--dim-star)' },
+  { key: 'level2', label: '2단계', sub: '표현력 강화',     cls: 'px-level-2', color: 'var(--moon)' },
+  { key: 'level3', label: '3단계', sub: '작가 수준',       cls: 'px-level-3', color: 'var(--accent)' },
+  { key: 'level4', label: '4단계', sub: '광고 카피',       cls: 'px-level-4', color: 'var(--good)' },
+  { key: 'level5', label: '5단계', sub: '기사 리드',       cls: 'px-level-5', color: 'var(--bad)' },
 ] as const;
 
 function StarLoader({ text, streamLen = 0 }: { text: string; streamLen?: number }) {
@@ -53,6 +53,8 @@ export default function RewritePage() {
   const [loadingLevels, setLoadingLevels] = useState(false);
   const [loadingVars,   setLoadingVars]   = useState(false);
   const [loadingAuthor, setLoadingAuthor] = useState(false);
+  const [levelsOpen,    setLevelsOpen]    = useState(true);
+  const [varsOpen,      setVarsOpen]      = useState(true);
   const [streamLen, setStreamLen] = useState(0);
   const [err,           setErr]           = useState('');
 
@@ -71,6 +73,7 @@ export default function RewritePage() {
       const res = await rewriteText(s, original,
         (chunk) => setStreamLen(l => l + chunk.length));
       setLevels(res);
+      setLevelsOpen(true);
       const db = loadDB();
       db.rewrites.push({ id: Date.now(), original, levels: res, createdAt: new Date().toISOString() });
       saveDB(db);
@@ -87,6 +90,7 @@ export default function RewritePage() {
       const res = await generateVariations(s, original,
         (chunk) => setStreamLen(l => l + chunk.length));
       setVariations(res);
+      setVarsOpen(true);
     } catch (e: unknown) {
       setErr('오류: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setLoadingVars(false); }
@@ -106,7 +110,7 @@ export default function RewritePage() {
 
   return (
     <div>
-      <div className="px-sec-title" style={{ marginBottom: 18 }}>↔ REWRITE LAB</div>
+      <div className="px-sec-title" style={{ marginBottom: 18 }}>↔ 문장 변환</div>
       <p className="serif-font" style={{ fontSize: 13, color: 'var(--dim-star)', marginBottom: 20, lineHeight: 1.8 }}>
         같은 내용을 5가지 레벨로, 10가지 버전으로, 또는 특정 작가 스타일로 변환해요.
       </p>
@@ -138,10 +142,17 @@ export default function RewritePage() {
       {/* 5레벨 결과 */}
       {(loadingLevels || levels) && (
         <div style={{ marginBottom: 18 }}>
-          <div className="px-sec-title" style={{ marginBottom: 14 }}>✦ 5 LEVELS</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: levelsOpen ? 14 : 0 }} className="px-sec-title">
+            <span>✦ 5단계 변환</span>
+            {!loadingLevels && levels && (
+              <button onClick={() => setLevelsOpen(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--card-border)', fontSize: 11, lineHeight: 1, padding: '2px 4px', fontFamily: 'Pretendard, sans-serif' }}>
+                {levelsOpen ? '▲ 접기' : '▼ 펼치기'}
+              </button>
+            )}
+          </div>
           {loadingLevels
             ? <StarLoader text="5가지 레벨로 다시 쓰고 있어요..." streamLen={streamLen} />
-            : levels && (
+            : levelsOpen && levels && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
                 {LEVELS.map(lv => (
                   <div key={lv.key} className={`px-level-card ${lv.cls}`}>
@@ -164,13 +175,20 @@ export default function RewritePage() {
       {/* 10가지 버전 */}
       {(loadingVars || variations.length > 0) && (
         <div style={{ marginBottom: 18 }}>
-          <div className="px-sec-title" style={{ marginBottom: 14 }}>◈ 같은 의미 10가지 버전</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: varsOpen ? 14 : 0 }} className="px-sec-title">
+            <span>◈ 같은 의미 10가지 버전</span>
+            {!loadingVars && variations.length > 0 && (
+              <button onClick={() => setVarsOpen(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--card-border)', fontSize: 11, lineHeight: 1, padding: '2px 4px', fontFamily: 'Pretendard, sans-serif' }}>
+                {varsOpen ? '▲ 접기' : '▼ 펼치기'}
+              </button>
+            )}
+          </div>
           {loadingVars
             ? <StarLoader text="10가지 버전을 생성하고 있어요..." streamLen={streamLen} />
-            : (
+            : varsOpen && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
                 {variations.map((v, i) => (
-                  <div key={i} style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid var(--card-border)', padding: '12px 14px' }}>
+                  <div key={i} style={{ background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', padding: '12px 14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                       <div>
                         <span className="pixel-font" style={{ fontSize: 7, color: 'var(--accent)', marginRight: 8 }}>{String(i + 1).padStart(2, '0')}</span>
@@ -198,7 +216,7 @@ export default function RewritePage() {
               style={{
                 padding: '8px 16px', fontSize: 8, cursor: 'pointer', border: 'none',
                 background: selectedAuthor === a ? 'var(--accent)' : 'var(--card-border)',
-                color: selectedAuthor === a ? '#1a0a3a' : 'var(--dim-star)',
+                color: selectedAuthor === a ? '#fff' : 'var(--dim-star)',
                 clipPath: selectedAuthor === a
                   ? 'polygon(5px 0%,calc(100% - 5px) 0%,100% 5px,100% calc(100% - 5px),calc(100% - 5px) 100%,5px 100%,0% calc(100% - 5px),0% 5px)'
                   : 'none',
@@ -216,7 +234,7 @@ export default function RewritePage() {
         {loadingAuthor && <StarLoader text={`${selectedAuthor} 스타일로 변환 중...`} />}
 
         {!loadingAuthor && authorResult[selectedAuthor] && (
-          <div className="animate-fade-in" style={{ padding: '16px 18px', background: 'rgba(167,139,250,0.06)', border: '1px solid var(--accent)' }}>
+          <div className="animate-fade-in" style={{ padding: '16px 18px', background: 'var(--accent-dim)', border: '1px solid var(--accent)' }}>
             <div className="pixel-font" style={{ fontSize: 7, color: 'var(--accent)', marginBottom: 10 }}>{selectedAuthor} 스타일</div>
             <p className="serif-font" style={{ fontSize: 14, color: 'var(--text)', lineHeight: 2.1, margin: 0, whiteSpace: 'pre-wrap' }}>
               {authorResult[selectedAuthor]}

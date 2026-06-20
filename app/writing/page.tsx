@@ -1,12 +1,24 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import {
-  loadDB, saveDB, loadSettings, mergeExpressions, mergeWeaknesses,
+  loadDB, saveDB, saveDBLocal, loadSettings, mergeExpressions, mergeWeaknesses,
   mergeStructures, mergeSenses, type WritingAnalysis, type WriteType, type WritingEntry,
 } from '@/lib/db';
 import { analyzeWriting } from '@/lib/openai';
+import { pushData } from '@/lib/supabase';
 
-const TYPES: WriteType[] = ['에세이', '일기', '기획서', '논설', '소설', '리뷰', '기타'];
+const TYPES: WriteType[] = ['묘사문', '설명문', '감상문', '의견문', '기사 리드', '카피라이팅', '에세이', '스토리텔링'];
+
+const TYPE_GOALS: Record<WriteType, string> = {
+  '묘사문':     '표현력·감각 묘사 향상',
+  '설명문':     '전달력·구조화 능력 향상',
+  '감상문':     '감정·생각 정리 및 표현',
+  '의견문':     '논리적 주장·설득력 향상',
+  '기사 리드':  '핵심 요약 및 정보 전달',
+  '카피라이팅': '후킹·설득·행동 유도',
+  '에세이':     '경험·생각을 깊이 있게 서술',
+  '스토리텔링': '이야기 구성 및 몰입감 향상',
+};
 
 const BREAKDOWN_KEYS: (keyof WritingAnalysis['score_breakdown'])[] = [
   '표현력', '전달력', '구체성', '문장다양성', '카피라이팅적합성',
@@ -36,10 +48,10 @@ function BreakdownBar({ label, value }: { label: string; value: number }) {
   const cls = pct >= 70 ? 'px-bar-fill' : pct >= 45 ? 'px-bar-fill-moon' : 'px-bar-fill-bad';
   const col = pct >= 70 ? 'var(--accent)' : pct >= 45 ? 'var(--moon)' : 'var(--bad)';
   return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-        <span style={{ fontSize: 11, color: 'var(--dim-star)' }}>{label}</span>
-        <span className="pixel-font" style={{ fontSize: 7, color: col }}>{value}/10</span>
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--dim-star)', letterSpacing: '-0.01em' }}>{label}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: col, letterSpacing: '-0.02em' }}>{value}/10</span>
       </div>
       <div className="px-bar-wrap-thin"><div className={cls} style={{ width: `${pct}%` }} /></div>
     </div>
@@ -73,7 +85,7 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
         </div>
         <div>
           <StarRating score={a.score} />
-          <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginTop: 6 }}>TOTAL / 100</div>
+          <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginTop: 6 }}>총점 / 100</div>
         </div>
       </div>
 
@@ -97,7 +109,7 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
             <div key={i} style={{
               fontSize: 12, color: 'var(--text)', lineHeight: 1.9,
               marginBottom: 8, padding: '10px 14px',
-              background: 'rgba(167,139,250,0.07)',
+              background: 'var(--accent-dim)',
               borderLeft: '3px solid var(--accent)',
               borderRadius: '0 4px 4px 0',
             }}>
@@ -114,10 +126,11 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
           <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--moon)', marginBottom: 8 }}>✦ 이렇게 써보세요</div>
           {a.improvement_examples.map((ex, i) => (
             <div key={i} style={{
-              fontSize: 11, color: 'var(--text)', lineHeight: 1.8,
-              marginBottom: 6, padding: '8px 12px',
-              background: 'rgba(255,217,125,0.06)',
-              borderLeft: '2px solid var(--moon)',
+              fontSize: 13, color: 'var(--text)', lineHeight: 1.9,
+              marginBottom: 6, padding: '10px 14px',
+              background: 'var(--moon-dim)',
+              borderLeft: '3px solid var(--moon)',
+              borderRadius: '0 6px 6px 0',
             }}>
               {ex}
             </div>
@@ -131,7 +144,7 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
 
           {/* Breakdown */}
           <div style={{ marginBottom: 14 }}>
-            <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10, letterSpacing: '0.1em' }}>BREAKDOWN (각 10점)</div>
+            <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10, letterSpacing: '0.1em' }}>세부 점수 (각 10점)</div>
             {BREAKDOWN_KEYS.map(k => (
               <BreakdownBar key={k} label={k} value={a.score_breakdown?.[k] ?? 0} />
             ))}
@@ -150,12 +163,12 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
             <>
               <div className="px-divider" />
               <div>
-                <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 8 }}>✦ SENSES</div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 8 }}>✦ 오감 분포</div>
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
                   {Object.entries(a.senses).map(([k, v]) => (
                     <div key={k} style={{ textAlign: 'center', minWidth: 36 }}>
-                      <div className="pixel-font" style={{ fontSize: 9, color: 'var(--moon)' }}>{v}</div>
-                      <div style={{ fontSize: 9, color: 'var(--dim-star)', marginTop: 2 }}>{k}</div>
+                      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--moon)', letterSpacing: '-0.02em', lineHeight: 1 }}>{v}</div>
+                      <div style={{ fontSize: 11, color: 'var(--dim-star)', marginTop: 4, fontWeight: 500 }}>{k}</div>
                     </div>
                   ))}
                 </div>
@@ -177,10 +190,12 @@ export default function WritingPage() {
   const [loading, setLoading] = useState(false);
   const [streamLen, setStreamLen] = useState(0);
   const [result,  setResult]  = useState<WritingAnalysis | null>(null);
+  const [analysisOpen, setAnalysisOpen] = useState(true);
   const [err,    setErr]    = useState('');
   const [saved,  setSaved]  = useState(false);
   const [history, setHistory] = useState<WritingEntry[]>([]);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [analyzingId, setAnalyzingId] = useState<number | null>(null);
 
   useEffect(() => {
     const db = loadDB();
@@ -201,6 +216,7 @@ export default function WritingPage() {
       const res = await analyzeWriting(s, type, topic, text,
         (chunk) => setStreamLen(l => l + chunk.length));
       setResult(res);
+      setAnalysisOpen(true);
       dispatchScore(res.score);
       const db = loadDB();
       db.writings.push({ id: Date.now(), date, type, topic, text, status: '분석완료', analysis: res, createdAt: new Date().toISOString() });
@@ -223,23 +239,49 @@ export default function WritingPage() {
     setText(''); setTopic(''); setSaved(s => !s);
   }
 
-  function handleDelete(id: number) {
+  async function handleAnalyzeEntry(entry: WritingEntry) {
+    const s = loadSettings();
+    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
+    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    setAnalyzingId(entry.id); setErr('');
+    try {
+      const res = await analyzeWriting(s, entry.type, entry.topic, entry.text);
+      dispatchScore(res.score);
+      const db = loadDB();
+      const idx = db.writings.findIndex(w => w.id === entry.id);
+      if (idx !== -1) {
+        db.writings[idx] = { ...db.writings[idx], status: '분석완료', analysis: res };
+        mergeExpressions(db, res.expressions || []);
+        mergeWeaknesses(db, res.weaknesses || []);
+        mergeStructures(db, res.structures || []);
+        if (res.senses) mergeSenses(db, res.senses);
+        saveDB(db);
+      }
+      setSaved(s => !s);
+    } catch (e: unknown) {
+      setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));
+    } finally { setAnalyzingId(null); }
+  }
+
+  async function handleDelete(id: number) {
     if (!confirm('이 글을 삭제할까요?')) return;
     const db = loadDB();
     db.writings = db.writings.filter(w => w.id !== id);
-    saveDB(db);
+    db._deletedIds = [...(db._deletedIds ?? []), id];
+    saveDBLocal(db);
     setSaved(s => !s);
+    try { await pushData(db); } catch {}
   }
 
   return (
     <div>
-      <div className="px-sec-title" style={{ marginBottom: 18 }}>✏ WRITING LAB</div>
+      <div className="px-sec-title" style={{ marginBottom: 18 }}>✏ 글쓰기 연습</div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }} className="grid-2">
 
         {/* 입력 패널 */}
         <div className="px-card">
-          <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 14 }}>✦ NEW ENTRY</div>
+          <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 14 }}>✦ 새 글 작성</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
               <label className="px-label">날짜</label>
@@ -250,6 +292,9 @@ export default function WritingPage() {
               <select className="px-select" value={type} onChange={e => setType(e.target.value as WriteType)}>
                 {TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
+              <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 5, fontFamily: 'Pretendard, sans-serif' }}>
+                {TYPE_GOALS[type]}
+              </div>
             </div>
           </div>
           <div style={{ marginBottom: 12 }}>
@@ -269,7 +314,7 @@ export default function WritingPage() {
               {loading ? (streamLen > 0 ? `★ ${streamLen}자 수신 중...` : '★ 연결 중...') : '✦ AI 분석'}
             </button>
             <button className="px-btn-ghost" onClick={handleSaveOnly} disabled={loading}>저장만</button>
-            <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-pixel, monospace)', fontSize: 7, color: 'var(--card-border)' }}>
+            <span style={{ marginLeft: 'auto', fontFamily: 'Pretendard, sans-serif', fontSize: 12, fontWeight: 500, color: 'var(--dim-star)' }}>
               {text.length.toLocaleString()}자
             </span>
           </div>
@@ -281,26 +326,33 @@ export default function WritingPage() {
         </div>
 
         {/* 분석 결과 */}
-        <div className="px-card" style={{ minHeight: 340 }}>
-          <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 14 }}>✦ ANALYSIS</div>
+        <div className="px-card" style={{ minHeight: loading || !result ? 340 : 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: analysisOpen ? 14 : 0 }}>
+            <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)' }}>✦ 분석 결과</div>
+            {(result || loading) && (
+              <button onClick={() => setAnalysisOpen(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--card-border)', fontSize: 11, lineHeight: 1, padding: '2px 4px' }}>
+                {analysisOpen ? '▲ 접기' : '▼ 펼치기'}
+              </button>
+            )}
+          </div>
 
-          {loading && <StarLoader streamLen={streamLen} />}
+          {analysisOpen && loading && <StarLoader streamLen={streamLen} />}
 
-          {!loading && !result && (
+          {analysisOpen && !loading && !result && (
             <div className="px-empty">
               <div className="px-empty-icon">✦</div>
               <p className="px-empty-text">글을 작성하고<br />AI 분석 버튼을 눌러주세요</p>
             </div>
           )}
 
-          {result && <AnalysisDetail a={result} />}
+          {analysisOpen && result && <AnalysisDetail a={result} />}
         </div>
       </div>
 
       {/* 기록 목록 */}
       {history.length > 0 && (
         <div style={{ marginTop: 24 }}>
-          <div className="px-sec-title" style={{ marginBottom: 14 }}>✦ HISTORY ({history.length}편)</div>
+          <div className="px-sec-title" style={{ marginBottom: 14 }}>✦ 작성 기록 ({history.length}편)</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {history.map(entry => (
               <div key={entry.id}>
@@ -312,10 +364,10 @@ export default function WritingPage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)' }}>{entry.date}</span>
-                    <span className="px-badge px-badge-type">{entry.type}</span>
+                    <span className="px-badge px-badge-type" style={{ fontSize: 12 }}>{entry.type}</span>
                     {entry.analysis
-                      ? <span className="px-badge px-badge-accent">{entry.analysis.score}pt</span>
-                      : <span className="px-badge px-badge-pending">미분석</span>
+                      ? <span className="px-badge px-badge-accent" style={{ fontSize: 12 }}>{entry.analysis.score}점</span>
+                      : <span className="px-badge px-badge-pending" style={{ fontSize: 12 }}>미분석</span>
                     }
                     <span style={{ fontSize: 12, color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {entry.topic || entry.text.slice(0, 40)}
@@ -330,14 +382,31 @@ export default function WritingPage() {
 
                 {/* 확장 패널 */}
                 {expanded === entry.id && (
-                  <div style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid var(--card-border)', borderTop: 'none', padding: '16px' }}>
+                  <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderTop: 'none', padding: '16px' }}>
                     {/* 원문 */}
-                    <div style={{ marginBottom: entry.analysis ? 16 : 0 }}>
+                    <div style={{ marginBottom: 14 }}>
                       <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginBottom: 8 }}>✦ 원문</div>
-                      <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap', padding: '10px 14px', background: 'rgba(0,0,0,0.2)', borderLeft: '2px solid var(--card-border)' }}>
+                      <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap', padding: '10px 14px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--card-border)', marginBottom: 0 }}>
                         {entry.text}
                       </p>
                     </div>
+
+                    {/* 미분석 글 → 분석 버튼 */}
+                    {!entry.analysis && (
+                      <div style={{ marginBottom: 14 }}>
+                        <button
+                          className="px-btn px-btn-accent"
+                          onClick={() => handleAnalyzeEntry(entry)}
+                          disabled={analyzingId !== null}
+                          style={{ fontSize: 14 }}
+                        >
+                          {analyzingId === entry.id ? '★ 분석 중...' : '✦ 지금 AI 분석하기'}
+                        </button>
+                        {analyzingId === entry.id && (
+                          <span style={{ marginLeft: 12, fontSize: 12, color: 'var(--dim-star)' }}>잠시만 기다려주세요...</span>
+                        )}
+                      </div>
+                    )}
 
                     {/* 분석 전체 내역 */}
                     {entry.analysis && (
