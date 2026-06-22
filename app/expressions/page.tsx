@@ -107,10 +107,12 @@ function AnalysisView({ a, dict }: { a: ExpressionAnalysis; dict?: DictResult })
   );
 }
 
+interface RankedSuggestion extends ExpressionSuggestion { inDict: boolean; preview?: string }
+
 export default function ExpressionsPage() {
   const [query, setQuery] = useState('');
   const [suggestLoading, setSuggestLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<ExpressionSuggestion[] | null>(null);
+  const [suggestions, setSuggestions] = useState<RankedSuggestion[] | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [streamLen, setStreamLen] = useState(0);
   const [dictNote, setDictNote] = useState('');
@@ -144,6 +146,15 @@ export default function ExpressionsPage() {
     }
   }
 
+  // 추천 후보를 사전에 조용히 대조 — UI 메시지(dictNote)는 건드리지 않는다
+  async function peekDict(q: string): Promise<DictResult | undefined> {
+    try {
+      const res = await fetch(`/api/urimalsam?q=${encodeURIComponent(q)}`);
+      const json = await res.json() as { ok: boolean; data?: DictResult };
+      return json.ok ? json.data : undefined;
+    } catch { return undefined; }
+  }
+
   function checkApiKey(): boolean {
     const s = loadSettings();
     const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
@@ -153,12 +164,19 @@ export default function ExpressionsPage() {
 
   async function handleSuggest() {
     if (!checkApiKey()) return;
-    if (!query.trim()) { setErr('찾고 싶은 느낌·상황이나 표현을 입력해주세요.'); return; }
+    const q = query.trim();
+    if (!q) { setErr('찾고 싶은 느낌·상황이나 표현을 입력해주세요.'); return; }
     setSuggestLoading(true); setErr(''); setSuggestions(null); setResult(null); setSearchedText('');
 
     try {
-      const list = await suggestExpressions(loadSettings(), query.trim());
-      setSuggestions(list);
+      const wordOnly = /단어/.test(q);
+      const list = await suggestExpressions(loadSettings(), q);
+      const candidates = wordOnly ? list.filter(it => !it.text.includes(' ')) : list;
+      const checked: RankedSuggestion[] = await Promise.all(candidates.map(async it => {
+        const dict = await peekDict(it.text);
+        return { ...it, inDict: !!dict, preview: dict?.meaning };
+      }));
+      setSuggestions([...checked.filter(c => c.inDict), ...checked.filter(c => !c.inDict)]);
     } catch (e: unknown) {
       setErr('추천 오류: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setSuggestLoading(false); }
@@ -273,8 +291,14 @@ export default function ExpressionsPage() {
                       fontFamily: 'Pretendard, sans-serif',
                     }}
                   >
-                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{sug.text}</div>
-                    {sug.reason && <div style={{ fontSize: 11.5, color: 'var(--dim-star)', marginTop: 3, lineHeight: 1.5 }}>{sug.reason}</div>}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{sug.text}</span>
+                      <span className="px-badge" style={sug.inDict ? { background: 'var(--good-dim)', color: 'var(--good)', fontSize: 10 } : { background: 'var(--bg-input)', color: 'var(--dim-star)', fontSize: 10 }}>
+                        {sug.inDict ? '사전' : 'AI'}
+                      </span>
+                    </div>
+                    {sug.preview && <div style={{ fontSize: 11.5, color: 'var(--dim-star)', marginTop: 3, lineHeight: 1.5 }}>{sug.preview}</div>}
+                    {sug.reason && <div style={{ fontSize: 11.5, color: 'var(--dim-star)', marginTop: 3, lineHeight: 1.5, fontStyle: 'italic' }}>{sug.reason}</div>}
                   </button>
                 ))}
               </div>

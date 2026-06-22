@@ -574,7 +574,8 @@ export async function suggestExpressions(
   s: Settings, query: string,
   onStream?: (chunk: string) => void,
 ): Promise<ExpressionSuggestion[]> {
-  const user = `입력: "${query}"`;
+  const wordOnly = /단어/.test(query);
+  const user = `입력: "${query}"${wordOnly ? '\n사용자가 "단어"를 명시했으니, 여러 단어로 이루어진 구는 제외하고 한 단어로 된 표현만 추천하라.' : ''}`;
   const raw = await callAI(s, SUGGEST_SYS, user, 800, 0.7, true, onStream);
   const r = safeParseJSON<{ items: string }>(raw);
   return (r.items || '').split('|').map(chunk => {
