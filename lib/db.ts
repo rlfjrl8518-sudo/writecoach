@@ -160,6 +160,45 @@ export interface Mission {
 
 export interface ExpressionRecord { count: number; category: string; alternatives: string[]; }
 
+/* ── Expression Lab(표현 사전) ── */
+export type ExpressionCategory =
+  '평가 표현' | '감정 표현' | '행동 표현' | '상태 표현' | '묘사 표현' |
+  '시간 표현' | '공간 표현' | '비유 표현' | '설득 표현';
+export type ExpressionSense = '시각' | '청각' | '후각' | '미각' | '촉각' | '복합 감각';
+export type ExpressionLevel = '초급' | '중급' | '고급';
+export type ExpressionUseContext = '묘사문' | '설명문' | '기사 리드' | '에세이' | '광고 카피' | 'SNS 글';
+
+export interface DictResult {
+  meaning: string;
+  pos: string;
+  examples: string[];
+  synonyms: string[];
+  related: string[];
+}
+
+export interface ExpressionAnalysis {
+  easyMeaning: string;
+  category: ExpressionCategory | '';
+  sense: ExpressionSense | '';
+  level: ExpressionLevel | '';
+  useContexts: ExpressionUseContext[];
+  similar: string[];
+  opposite: string[];
+  sampleSentences: { descriptive: string; explanatory: string; copy: string };
+  mission: string;
+}
+
+export interface ExpressionLabEntry {
+  id: number;
+  text: string;
+  dict?: DictResult;
+  analysis?: ExpressionAnalysis;
+  favorite: boolean;
+  useCount: number;
+  createdAt: string;
+  lastStudiedAt?: string;
+}
+
 export interface ImageEntry {
   id: number;
   imageData: string;
@@ -181,6 +220,7 @@ export interface DB {
   sentenceRoles: Record<string, number>;           // v4 새 필드
   sentenceExpressionTypes: Record<string, number>; // v4 새 필드
   images: ImageEntry[];
+  expressionEntries: ExpressionLabEntry[];
   _deletedIds: number[];
   // legacy — 데이터 호환용, 더 이상 신규 기록 안 함
   structures: Record<string, number>;
@@ -196,6 +236,7 @@ const EMPTY: DB = {
   missions: [],
   sentenceTypes: {}, sentenceRoles: {}, sentenceExpressionTypes: {},
   images: [],
+  expressionEntries: [],
   _deletedIds: [],
   structures: {}, senses: {}, sentenceStructures: {}, sentenceCopyStructures: {},
 };

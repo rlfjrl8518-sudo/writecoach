@@ -154,6 +154,7 @@ export function mergeDBs(local: DB, remote: DB): DB {
     sentenceRoles:            mergeRec(local.sentenceRoles ?? {}, remote.sentenceRoles ?? {}),
     sentenceExpressionTypes:  mergeRec(local.sentenceExpressionTypes ?? {}, remote.sentenceExpressionTypes ?? {}),
     images:                   mergeArr(local.images ?? [], remote.images ?? []),
+    expressionEntries:        mergeArr(local.expressionEntries ?? [], remote.expressionEntries ?? []),
     _deletedIds:              Array.from(deletedIds),
   };
 }

@@ -2,6 +2,7 @@ import { jsonrepair } from 'jsonrepair';
 import type {
   WritingAnalysis, SentenceAnalysis, CopyAnalysis, RewriteLevels,
   Settings, DB, Mission, MissionEvaluation, SentenceExamples,
+  DictResult, ExpressionAnalysis, ExpressionCategory, ExpressionSense, ExpressionLevel, ExpressionUseContext,
 } from './db';
 
 /* ── OpenAI 호출 (스트리밍 지원) ── */
@@ -546,6 +547,67 @@ ${submission}
 score 0-100 / passed는 score >= 60 이면 true`;
   const raw = await callAI(s, sys, user, 1500, 0.3, true, onStream);
   return safeParseJSON<MissionEvaluation>(raw);
+}
+
+/* ── Expression Lab(표현 사전) ── */
+const EXPR_CATEGORIES: ExpressionCategory[] = ['평가 표현', '감정 표현', '행동 표현', '상태 표현', '묘사 표현', '시간 표현', '공간 표현', '비유 표현', '설득 표현'];
+const EXPR_SENSES: ExpressionSense[] = ['시각', '청각', '후각', '미각', '촉각', '복합 감각'];
+const EXPR_LEVELS: ExpressionLevel[] = ['초급', '중급', '고급'];
+const EXPR_CONTEXTS: ExpressionUseContext[] = ['묘사문', '설명문', '기사 리드', '에세이', '광고 카피', 'SNS 글'];
+
+const EXPRESSION_SYS = `너는 한국어 표현(어휘·구) 학습 콘텐츠를 만드는 전문가다. JSON 객체만 출력하라. 설명·마크다운 금지.
+사전 정보가 주어지면 그 의미·품사·예문을 우선 참고하고, 없으면 표현 자체의 형태와 맥락으로 직접 추론하라.
+
+[category] 아래 9개 중 하나만:
+${EXPR_CATEGORIES.join(' / ')}
+
+[sense] 아래 6개 중 하나만. 감각과 무관한 표현(예: 설득·논리 표현)이면 빈 문자열:
+${EXPR_SENSES.join(' / ')}
+
+[level] 아래 3개 중 하나:
+초급(일상에서 흔히 쓰는 표현) / 중급(글쓰기에서 의도적으로 골라 쓰는 표현) / 고급(문학적·전문적이거나 낯선 표현)
+
+[contexts] 이 표현이 잘 어울리는 글 유형을 아래 6개 중 1-3개 골라 "|"로 구분:
+${EXPR_CONTEXTS.join(' / ')}
+
+[similar] 의미가 비슷한 대체 표현 3-4개. 사전 유의어가 있으면 우선 활용하고, 없으면 직접 생각해낸다.
+[opposite] 의미가 반대되는 표현 2-3개. 자연스러운 반대말이 없으면 빈 문자열로 둔다.
+[descEx] 이 표현을 활용한 묘사문 예문 1개 (1-2문장)
+[explEx] 이 표현을 활용한 설명문 예문 1개 (1-2문장)
+[copyEx] 이 표현을 활용한 광고 카피 예문 1개 (짧고 강하게)
+[mission] 이 표현을 직접 사용해보는 짧은 글쓰기 과제 1개. "'표현'을 사용해 [구체적 상황/대상]을 [글자 수]자 내외로 써보세요" 형태로 구체적으로 작성.`;
+
+interface FlatExpressionAnalysis {
+  meaning: string; category: string; sense: string; level: string; contexts: string;
+  similar: string; opposite: string; descEx: string; explEx: string; copyEx: string; mission: string;
+}
+
+export async function analyzeExpression(
+  s: Settings, text: string, dict: DictResult | null,
+  onStream?: (chunk: string) => void,
+): Promise<ExpressionAnalysis> {
+  const dictInfo = dict
+    ? `뜻: ${dict.meaning || '없음'}\n품사: ${dict.pos || '없음'}\n예문: ${dict.examples.join(' / ') || '없음'}\n유의어: ${dict.synonyms.join(', ') || '없음'}`
+    : '사전 검색 결과 없음 — 표현 자체로 직접 추론할 것';
+  const user = `표현: "${text}"\n[사전 정보]\n${dictInfo}\n\n아래 JSON 형식 그대로 출력 (값만 교체, 모든 값은 큰따옴표 문자열):\n{"meaning":"쉬운 재해석 문장","category":"묘사 표현","sense":"시각","level":"중급","contexts":"묘사문|에세이","similar":"표현1|표현2|표현3","opposite":"표현1|표현2","descEx":"묘사문 예문","explEx":"설명문 예문","copyEx":"광고 카피 예문","mission":"미션 지시문"}`;
+
+  const raw = await callAI(s, EXPRESSION_SYS, user, 1500, 0.4, true, onStream);
+  const r = safeParseJSON<FlatExpressionAnalysis>(raw);
+  const sp = (v: string) => (v || '').split('|').map(x => x.trim()).filter(Boolean);
+
+  const category = (EXPR_CATEGORIES as string[]).includes(r.category) ? r.category as ExpressionCategory : '';
+  const sense = (EXPR_SENSES as string[]).includes(r.sense) ? r.sense as ExpressionSense : '';
+  const level = (EXPR_LEVELS as string[]).includes(r.level) ? r.level as ExpressionLevel : '';
+  const useContexts = sp(r.contexts).filter((c): c is ExpressionUseContext => (EXPR_CONTEXTS as string[]).includes(c));
+
+  return {
+    easyMeaning: r.meaning || '',
+    category, sense, level, useContexts,
+    similar: sp(r.similar),
+    opposite: sp(r.opposite),
+    sampleSentences: { descriptive: r.descEx || '', explanatory: r.explEx || '', copy: r.copyEx || '' },
+    mission: r.mission || '',
+  };
 }
 
 export interface DrillEvaluation {

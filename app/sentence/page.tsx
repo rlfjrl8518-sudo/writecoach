@@ -106,6 +106,30 @@ function AnalysisView({
   exStreamLen?: number;
 }) {
   const isNew = !!(a.sentenceRole);
+  const [savedExprs, setSavedExprs] = useState<Set<string>>(new Set());
+
+  function saveExpr(text: string) {
+    const db = loadDB();
+    db.expressionEntries = db.expressionEntries ?? [];
+    if (!db.expressionEntries.some(e => e.text === text)) {
+      db.expressionEntries.push({ id: Date.now(), text, favorite: false, useCount: 0, createdAt: new Date().toISOString() });
+      saveDB(db);
+    }
+    setSavedExprs(s => new Set(s).add(text));
+  }
+
+  function ExprTag({ text }: { text: string }) {
+    const isSaved = savedExprs.has(text);
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, margin: '2px 2px' }}>
+        <span className="px-tag-expr" style={{ margin: 0 }}>{text}</span>
+        <button onClick={() => saveExpr(text)} disabled={isSaved} title="표현사전에 저장"
+          style={{ background: 'none', border: 'none', cursor: isSaved ? 'default' : 'pointer', color: isSaved ? 'var(--good)' : 'var(--dim-star)', fontSize: 12, padding: 0, opacity: isSaved ? 1 : 0.6 }}>
+          {isSaved ? '✓' : '辭+'}
+        </button>
+      </span>
+    );
+  }
 
   if (!isNew) {
     return (
@@ -128,9 +152,7 @@ function AnalysisView({
         )}
         {(a.keyExpressions || []).length > 0 && (
           <Section title="✦ 핵심 표현" color="var(--good)">
-            {(a.keyExpressions || []).map(e => (
-              <span key={e} className="px-tag-expr">{e}</span>
-            ))}
+            {(a.keyExpressions || []).map(e => <ExprTag key={e} text={e} />)}
           </Section>
         )}
         <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--bg-subtle)', borderRadius: 6, fontSize: 12, color: 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif' }}>
@@ -258,9 +280,7 @@ function AnalysisView({
       {/* 핵심 표현 */}
       {(a.keyExpressions || []).length > 0 && (
         <Section title="✦ 핵심 표현" color="var(--good)">
-          {(a.keyExpressions || []).map(e => (
-            <span key={e} className="px-tag-expr">{e}</span>
-          ))}
+          {(a.keyExpressions || []).map(e => <ExprTag key={e} text={e} />)}
         </Section>
       )}
 
@@ -500,6 +520,14 @@ function SentencePageInner() {
           color: activeTab === 'image' ? '#fff' : 'var(--dim-star)',
           fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
         }}>📷 이미지</button>
+        <Link href="/expressions" style={{ textDecoration: 'none' }}>
+          <button style={{
+            padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+            border: '1.5px solid var(--card-border)',
+            background: 'transparent', color: 'var(--dim-star)',
+            fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
+          }}>辭 표현사전</button>
+        </Link>
       </div>
 
       {activeTab === 'text' && (<div>
