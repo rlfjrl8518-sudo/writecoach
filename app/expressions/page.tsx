@@ -121,6 +121,8 @@ export default function ExpressionsPage() {
   const [saved, setSaved] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [searchedText, setSearchedText] = useState('');
+  const [savedNow, setSavedNow] = useState(false);
 
   useEffect(() => {
     const db = loadDB();
@@ -140,33 +142,40 @@ export default function ExpressionsPage() {
     }
   }
 
-  async function handleRegister() {
+  async function handleSearch() {
     const s = loadSettings();
     const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
     if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
-    if (!text.trim()) { setErr('등록할 표현을 입력해주세요.'); return; }
-    setLoading(true); setErr(''); setResult(null); setStreamLen(0); setDictNote('');
+    if (!text.trim()) { setErr('검색할 표현을 입력해주세요.'); return; }
+    setLoading(true); setErr(''); setResult(null); setStreamLen(0); setDictNote(''); setSavedNow(false);
 
     try {
-      const dict = await lookupDict(text.trim());
-      const analysis = await analyzeExpression(s, text.trim(), dict ?? null,
+      const query = text.trim();
+      const dict = await lookupDict(query);
+      const analysis = await analyzeExpression(s, query, dict ?? null,
         (chunk) => setStreamLen(l => l + chunk.length));
       setResult(analysis);
       setResultDict(dict);
+      setSearchedText(query);
       setAnalysisOpen(true);
-
-      const db = loadDB();
-      db.expressionEntries = db.expressionEntries ?? [];
-      db.expressionEntries.push({
-        id: Date.now(), text: text.trim(), dict, analysis,
-        favorite: false, useCount: 0, createdAt: new Date().toISOString(),
-      });
-      saveDB(db);
-      setText('');
-      setSaved(v => !v);
+      setSavedNow(entries.some(e => e.text === query));
     } catch (e: unknown) {
       setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setLoading(false); }
+  }
+
+  function handleSaveToLab() {
+    if (!result || !searchedText) return;
+    const db = loadDB();
+    db.expressionEntries = db.expressionEntries ?? [];
+    if (db.expressionEntries.some(e => e.text === searchedText)) { setSavedNow(true); return; }
+    db.expressionEntries.push({
+      id: Date.now(), text: searchedText, dict: resultDict, analysis: result,
+      favorite: false, useCount: 0, createdAt: new Date().toISOString(),
+    });
+    saveDB(db);
+    setSavedNow(true);
+    setSaved(v => !v);
   }
 
   async function handleDelete(id: number) {
@@ -204,24 +213,24 @@ export default function ExpressionsPage() {
     <div>
       <div className="px-sec-title" style={{ marginBottom: 18 }}>辭 표현 사전</div>
       <p className="serif-font" style={{ fontSize: 13, color: 'var(--dim-star)', marginBottom: 20, lineHeight: 1.8 }}>
-        마음에 든 표현을 등록하면 의미·유의어·예문·미션까지 AI가 정리해줘요.
+        궁금한 표현을 검색하면 의미·유의어·예문·미션까지 AI가 정리해줘요. 마음에 들면 저장해보세요.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }} className="grid-2">
 
         {/* 입력 */}
         <div className="px-card">
-          <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 14 }}>✦ 표현 등록</div>
+          <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 14 }}>✦ 표현 검색</div>
           <div style={{ marginBottom: 12 }}>
             <label className="px-label">표현</label>
             <input
               className="px-input" placeholder="예) 빛바랜, 예고 없이, 누런 손때가 묻은..."
               value={text} onChange={e => setText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !loading) handleRegister(); }}
+              onKeyDown={e => { if (e.key === 'Enter' && !loading) handleSearch(); }}
             />
           </div>
-          <button className="px-btn px-btn-accent" onClick={handleRegister} disabled={loading}>
-            {loading ? '★ 분석 중...' : '✦ 등록 & AI 분석'}
+          <button className="px-btn px-btn-accent" onClick={handleSearch} disabled={loading}>
+            {loading ? '★ 검색 중...' : '✦ 표현 검색'}
           </button>
           {dictNote && (
             <div style={{ marginTop: 10, fontSize: 11, color: 'var(--dim-star)' }}>{dictNote}</div>
@@ -257,10 +266,22 @@ export default function ExpressionsPage() {
           {analysisOpen && !loading && !result && (
             <div className="px-empty">
               <div className="px-empty-icon">辭</div>
-              <p className="px-empty-text">표현을 입력하고<br />등록 버튼을 눌러주세요</p>
+              <p className="px-empty-text">표현을 입력하고<br />검색 버튼을 눌러주세요</p>
             </div>
           )}
-          {analysisOpen && result && <AnalysisView a={result} dict={resultDict} />}
+          {analysisOpen && result && (
+            <>
+              <AnalysisView a={result} dict={resultDict} />
+              <button
+                className={savedNow ? 'px-btn-ghost' : 'px-btn px-btn-accent'}
+                style={{ marginTop: 4 }}
+                onClick={handleSaveToLab}
+                disabled={savedNow}
+              >
+                {savedNow ? '✓ 표현사전에 저장됨' : '辭 내 표현사전에 저장'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
