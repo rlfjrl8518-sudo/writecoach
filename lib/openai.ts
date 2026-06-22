@@ -555,6 +555,34 @@ const EXPR_SENSES: ExpressionSense[] = ['시각', '청각', '후각', '미각', 
 const EXPR_LEVELS: ExpressionLevel[] = ['초급', '중급', '고급'];
 const EXPR_CONTEXTS: ExpressionUseContext[] = ['묘사문', '설명문', '기사 리드', '에세이', '광고 카피', 'SNS 글'];
 
+export interface ExpressionSuggestion { text: string; reason: string }
+
+const SUGGEST_SYS = `너는 한국어 어휘 큐레이터다. 글을 쓰다가 막힌 사람이 표현하고 싶은 느낌·상황·단어를 입력하면,
+그 자리에 바로 쓸 수 있는 실제로 존재하는 자연스러운 한국어 표현(단어 또는 짧은 구) 6-8개를 추천한다.
+
+[원칙]
+- 입력이 막연한 느낌·상황 묘사("쓸쓸한 가을 저녁 분위기")면 그 느낌에 어울리는 표현들을 추천한다.
+- 입력이 이미 구체적인 표현("빛바랜")이면 같은 결의 유의어·인접 표현들을 폭넓게 추천한다.
+- 추천 표현은 서로 다른 결·어감을 보여줘야 한다. 같은 말을 토씨만 바꾼 표현 금지.
+- 실제로 쓰이지 않는 억지 조합·신조어는 만들지 않는다.
+- 각 표현마다 "왜 이 자리에 어울리는지" 한 줄 이유를 단다.
+
+JSON 객체만 출력 (설명·마크다운 금지):
+{"items":"표현1::이유1|표현2::이유2|표현3::이유3|표현4::이유4|표현5::이유5|표현6::이유6"}`;
+
+export async function suggestExpressions(
+  s: Settings, query: string,
+  onStream?: (chunk: string) => void,
+): Promise<ExpressionSuggestion[]> {
+  const user = `입력: "${query}"`;
+  const raw = await callAI(s, SUGGEST_SYS, user, 800, 0.7, true, onStream);
+  const r = safeParseJSON<{ items: string }>(raw);
+  return (r.items || '').split('|').map(chunk => {
+    const [text, ...rest] = chunk.split('::');
+    return { text: (text || '').trim(), reason: rest.join('::').trim() };
+  }).filter(it => it.text);
+}
+
 const EXPRESSION_SYS = `너는 한국어 표현(어휘·구) 학습 콘텐츠를 만드는 전문가다. JSON 객체만 출력하라. 설명·마크다운 금지.
 사전 정보가 주어지면 그 의미·품사·예문을 우선 참고하고, 없으면 표현 자체의 형태와 맥락으로 직접 추론하라.
 

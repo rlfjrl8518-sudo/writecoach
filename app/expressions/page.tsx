@@ -6,7 +6,7 @@ import {
   type ExpressionCategory,
 } from '@/lib/db';
 import { pushData } from '@/lib/supabase';
-import { analyzeExpression } from '@/lib/openai';
+import { analyzeExpression, suggestExpressions, type ExpressionSuggestion } from '@/lib/openai';
 
 const CATEGORIES: ExpressionCategory[] = ['평가 표현', '감정 표현', '행동 표현', '상태 표현', '묘사 표현', '시간 표현', '공간 표현', '비유 표현', '설득 표현'];
 
@@ -108,8 +108,10 @@ function AnalysisView({ a, dict }: { a: ExpressionAnalysis; dict?: DictResult })
 }
 
 export default function ExpressionsPage() {
-  const [text, setText] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<ExpressionSuggestion[] | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [streamLen, setStreamLen] = useState(0);
   const [dictNote, setDictNote] = useState('');
   const [result, setResult] = useState<ExpressionAnalysis | null>(null);
@@ -142,26 +144,42 @@ export default function ExpressionsPage() {
     }
   }
 
-  async function handleSearch() {
+  function checkApiKey(): boolean {
     const s = loadSettings();
     const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
-    if (!text.trim()) { setErr('검색할 표현을 입력해주세요.'); return; }
-    setLoading(true); setErr(''); setResult(null); setStreamLen(0); setDictNote(''); setSavedNow(false);
+    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return false; }
+    return true;
+  }
+
+  async function handleSuggest() {
+    if (!checkApiKey()) return;
+    if (!query.trim()) { setErr('찾고 싶은 느낌·상황이나 표현을 입력해주세요.'); return; }
+    setSuggestLoading(true); setErr(''); setSuggestions(null); setResult(null); setSearchedText('');
 
     try {
-      const query = text.trim();
-      const dict = await lookupDict(query);
-      const analysis = await analyzeExpression(s, query, dict ?? null,
+      const list = await suggestExpressions(loadSettings(), query.trim());
+      setSuggestions(list);
+    } catch (e: unknown) {
+      setErr('추천 오류: ' + (e instanceof Error ? e.message : String(e)));
+    } finally { setSuggestLoading(false); }
+  }
+
+  async function handleInspect(candidate: string) {
+    if (!checkApiKey()) return;
+    setDetailLoading(true); setErr(''); setResult(null); setStreamLen(0); setDictNote(''); setSavedNow(false);
+
+    try {
+      const dict = await lookupDict(candidate);
+      const analysis = await analyzeExpression(loadSettings(), candidate, dict ?? null,
         (chunk) => setStreamLen(l => l + chunk.length));
       setResult(analysis);
       setResultDict(dict);
-      setSearchedText(query);
+      setSearchedText(candidate);
       setAnalysisOpen(true);
-      setSavedNow(entries.some(e => e.text === query));
+      setSavedNow(entries.some(e => e.text === candidate));
     } catch (e: unknown) {
       setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));
-    } finally { setLoading(false); }
+    } finally { setDetailLoading(false); }
   }
 
   function handleSaveToLab() {
@@ -213,61 +231,76 @@ export default function ExpressionsPage() {
     <div>
       <div className="px-sec-title" style={{ marginBottom: 18 }}>辭 표현 사전</div>
       <p className="serif-font" style={{ fontSize: 13, color: 'var(--dim-star)', marginBottom: 20, lineHeight: 1.8 }}>
-        궁금한 표현을 검색하면 의미·유의어·예문·미션까지 AI가 정리해줘요. 마음에 들면 저장해보세요.
+        글이 막힐 때, 표현하고 싶은 느낌이나 상황을 적으면 어울리는 표현을 AI가 추천해줘요.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }} className="grid-2">
 
         {/* 입력 */}
         <div className="px-card">
-          <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 14 }}>✦ 표현 검색</div>
+          <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 14 }}>✦ 표현 찾기</div>
           <div style={{ marginBottom: 12 }}>
-            <label className="px-label">표현</label>
+            <label className="px-label">어떤 느낌·상황을 표현하고 싶나요?</label>
             <input
-              className="px-input" placeholder="예) 빛바랜, 예고 없이, 누런 손때가 묻은..."
-              value={text} onChange={e => setText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !loading) handleSearch(); }}
+              className="px-input" placeholder="예) 쓸쓸한 가을 저녁 분위기, 예고 없이 닥친 위험, 빛바랜..."
+              value={query} onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !suggestLoading) handleSuggest(); }}
             />
           </div>
-          <button className="px-btn px-btn-accent" onClick={handleSearch} disabled={loading}>
-            {loading ? '★ 검색 중...' : '✦ 표현 검색'}
+          <button className="px-btn px-btn-accent" onClick={handleSuggest} disabled={suggestLoading}>
+            {suggestLoading ? '★ 추천 중...' : '✦ 표현 추천받기'}
           </button>
-          {dictNote && (
-            <div style={{ marginTop: 10, fontSize: 11, color: 'var(--dim-star)' }}>{dictNote}</div>
-          )}
           {err && (
             <div style={{ marginTop: 10, fontSize: 11, color: 'var(--bad)', padding: '8px 12px', borderLeft: '2px solid var(--bad-border)', background: 'var(--bad-dim)' }}>
               {err}
             </div>
           )}
 
-          <div style={{ marginTop: 20 }}>
-            <div className="px-divider-dim" />
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 12, letterSpacing: '-0.01em' }}>표현 카테고리</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {CATEGORIES.map(c => (
-                <span key={c} className="px-tag-expr" style={{ background: badgeStyle(CATEGORY_STYLE, c).bg, color: badgeStyle(CATEGORY_STYLE, c).color }}>{c}</span>
-              ))}
+          {suggestions && suggestions.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <div className="px-divider-dim" />
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 12, letterSpacing: '-0.01em' }}>추천 표현 — 골라서 자세히 보기</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {suggestions.map(sug => (
+                  <button
+                    key={sug.text}
+                    onClick={() => handleInspect(sug.text)}
+                    disabled={detailLoading}
+                    style={{
+                      textAlign: 'left', cursor: 'pointer', padding: '10px 12px', borderRadius: 8,
+                      border: `1.5px solid ${searchedText === sug.text ? 'var(--accent)' : 'var(--card-border)'}`,
+                      background: searchedText === sug.text ? 'var(--accent-dim)' : 'var(--bg-subtle)',
+                      fontFamily: 'Pretendard, sans-serif',
+                    }}
+                  >
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{sug.text}</div>
+                    {sug.reason && <div style={{ fontSize: 11.5, color: 'var(--dim-star)', marginTop: 3, lineHeight: 1.5 }}>{sug.reason}</div>}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 분석 결과 */}
-        <div className="px-card" style={{ minHeight: loading || !result ? 280 : 'auto' }}>
+        <div className="px-card" style={{ minHeight: detailLoading || !result ? 280 : 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: analysisOpen ? 14 : 0 }}>
-            <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)' }}>✦ 분석 결과</div>
-            {(result || loading) && (
+            <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)' }}>✦ {searchedText || '분석 결과'}</div>
+            {(result || detailLoading) && (
               <button onClick={() => setAnalysisOpen(v => !v)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--card-border)', fontSize: 11, lineHeight: 1, padding: '2px 4px' }}>
                 {analysisOpen ? '▲ 접기' : '▼ 펼치기'}
               </button>
             )}
           </div>
-          {analysisOpen && loading && <StarLoader streamLen={streamLen} />}
-          {analysisOpen && !loading && !result && (
+          {analysisOpen && detailLoading && <StarLoader streamLen={streamLen} />}
+          {analysisOpen && !detailLoading && !result && (
             <div className="px-empty">
               <div className="px-empty-icon">辭</div>
-              <p className="px-empty-text">표현을 입력하고<br />검색 버튼을 눌러주세요</p>
+              <p className="px-empty-text">느낌·상황을 입력해 표현을 추천받고<br />그중 하나를 골라보세요</p>
             </div>
+          )}
+          {dictNote && result && (
+            <div style={{ marginBottom: 10, fontSize: 11, color: 'var(--dim-star)' }}>{dictNote}</div>
           )}
           {analysisOpen && result && (
             <>
