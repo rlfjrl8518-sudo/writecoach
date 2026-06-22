@@ -1,18 +1,13 @@
 export type WriteType = '묘사문' | '설명문' | '감상문' | '의견문' | '기사 리드' | '카피라이팅' | '에세이' | '스토리텔링';
-export type CopyType = '문제 해결형' | '공감 제안형' | '위험 대비형' | '호기심 자극형' | '혜택 강조형' | '질문 답변형' | '근거 설득형' | '반전 제시형' | '스토리 전달형' | '행동 유도형';
-export type StructureType =
-  '장소→대상' | '대상→상태' | '주체→행동' | '행동→결과' | '원인→결과' |
-  '목표→행동' | '감상→설명' | '비교→결론' | '문제→원인' | '현상→해석';
+export type CopyType = '브랜딩형' | '혜택 전달형' | '문제 제기형' | '위험 환기형' | '감성 공감형' | '행동 유도형' | '신뢰 확보형' | '정보 전달형' | '혼합형';
 export type AuthorStyle = '윤동주' | '김훈' | '무라카미 하루키' | '헤밍웨이';
 
-/* ── Sentence Lab 전용 타입 ── */
+/* ── 문장 수집 전용 타입 ── */
 export type SentenceType = '기사 리드' | '칼럼' | '에세이' | '소설' | 'SNS 게시글' | '기타';
 
 export type CopyStructureType =
   '문제→해결' | '공감→제안' | '위험→대비' | '숫자→혜택' | '호기심→정보' |
   '질문→답변' | '증거→결론' | '반전→메시지' | '스토리→교훈' | '행동→보상';
-
-export type SentenceRole = '묘사' | '설명' | '주장' | '설득' | '정보전달' | '공감' | '문제제기' | '행동유도';
 
 export type CopyTechnique =
   '대조' | '반복' | '숫자' | '질문' | '명령' | '비유' |
@@ -29,12 +24,15 @@ export interface SentenceExamples {
 
 /* ── Writing ── */
 export interface ScoreBreakdown {
-  표현력: number; 전달력: number; 구체성: number; 문장다양성: number;
-  카피라이팅적합성: number; 논리성: number; 가독성: number;
-  구조다양성: number; 감각표현다양성: number;
+  표현력: number; 전달력: number; 구체성: number; 논리성: number; 가독성: number;
 }
-export interface SenseCount { 시각: number; 청각: number; 후각: number; 미각: number; 촉각: number; }
 export interface Expression { text: string; category: string; alternative: string[]; }
+
+// legacy — only in old stored data
+export interface SenseCount { 시각: number; 청각: number; 후각: number; 미각: number; 촉각: number; }
+export type StructureType =
+  '장소→대상' | '대상→상태' | '주체→행동' | '행동→결과' | '원인→결과' |
+  '목표→행동' | '감상→설명' | '비교→결론' | '문제→원인' | '현상→해석';
 export interface Structure { type: StructureType; example: string; }
 
 export interface WritingAnalysis {
@@ -42,12 +40,13 @@ export interface WritingAnalysis {
   score_breakdown: ScoreBreakdown;
   strengths: string[];
   weaknesses: string[];
-  repeated_words: string[];
   improvement_examples: string[];
   improvement_suggestions: string[];
   expressions: Expression[];
-  structures: Structure[];
-  senses: SenseCount;
+  // legacy compat — old saved data may have these
+  repeated_words?: string[];
+  structures?: Structure[];
+  senses?: SenseCount;
 }
 
 export interface WritingEntry {
@@ -63,15 +62,26 @@ export interface WritingEntry {
 
 /* ── Sentence Lab ── */
 export interface SentenceAnalysis {
-  // v2 (new)
+  // v4 — 새 분석 구조 (2026)
+  sentenceRole?: string;        // 장면 묘사 | 대상 설명 | 행동 전개 | 감정 표현 | 분위기 형성 | 생각 전달 | 정보 전달
+  expressionType?: string;      // 구체적 표현 | 추상적 표현 | 감각 표현 | 감정 표현 | 비유 표현 | 강조 표현
+  expressionSense?: string;     // (감각 표현일 때) 시각 | 청각 | 후각 | 미각 | 촉각
+  expressionEffect?: string;    // 독자에게 미치는 효과
+  sentenceStrengths?: string;   // 강점
+  sentenceImprovement?: string; // 개선 방향
+  improvedExample?: string;     // 개선 예시 문장
+  keyExpressions?: string[];
+  // v3 legacy
+  sentenceKind?: string;
+  sentenceRoleDesc?: string;
+  // v2 legacy
   structures?: StructureType[];
   copyStructures?: CopyStructureType[];
-  roles?: SentenceRole[];
+  roles?: string[];
   semanticBreakdown?: SemanticUnit[];
   copyTechniques?: CopyTechnique[];
   learningPoints?: string[];
-  keyExpressions: string[];
-  // v1 legacy (backward compat)
+  // v1 legacy
   structure?: StructureType;
   role?: string;
   deliveryMethod?: string;
@@ -81,7 +91,9 @@ export interface SentenceAnalysis {
 export interface SentenceEntry {
   id: number;
   source: string;
+  sourceUrl?: string;
   sentence: string;
+  memo?: string;
   type?: SentenceType;
   analysis?: SentenceAnalysis;
   examples?: SentenceExamples;
@@ -90,11 +102,17 @@ export interface SentenceEntry {
 
 /* ── Copy ── */
 export interface CopyAnalysis {
-  hookStrength: number;
-  type: CopyType;
-  techniques: string[];
-  targetAudience: string;
-  improvement: string;
+  copyType?: string;
+  mainTarget?: string;
+  persuasionPoints?: string[];
+  coreMessage?: string;
+  expressionFeatures?: string[];
+  analysisSummary?: string;
+  hookStrength?: number;
+  type?: CopyType;
+  techniques?: string[];
+  targetAudience?: string;
+  improvement?: string;
 }
 
 export interface CopyEntry {
@@ -102,6 +120,8 @@ export interface CopyEntry {
   copy: string;
   brand: string;
   source: string;
+  sourceUrl?: string;
+  memo?: string;
   analysis?: CopyAnalysis;
   createdAt: string;
 }
@@ -110,7 +130,6 @@ export interface CopyEntry {
 export interface RewriteLevels {
   level1: string; level2: string; level3: string; level4: string; level5: string;
 }
-
 export interface RewriteEntry {
   id: number;
   original: string;
@@ -128,12 +147,11 @@ export interface MissionEvaluation {
   strengths: string[];
   improvements: string[];
 }
-
 export interface Mission {
   id: number;
   title: string;
   description: string;
-  type: 'writing' | 'expression' | 'structure' | 'sense' | 'copy';
+  type: 'writing' | 'expression' | 'sense' | 'copy' | 'structure';
   completed: boolean;
   createdAt: string;
   submission?: string;
@@ -157,27 +175,29 @@ export interface DB {
   rewrites: RewriteEntry[];
   expressions: Record<string, ExpressionRecord>;
   weaknesses: Record<string, number>;
-  structures: Record<string, number>;
-  senses: Record<string, number>;
   copyTypes: Record<string, number>;
   missions: Mission[];
-  sentenceStructures: Record<string, number>;
-  sentenceCopyStructures: Record<string, number>;
   sentenceTypes: Record<string, number>;
+  sentenceRoles: Record<string, number>;           // v4 새 필드
+  sentenceExpressionTypes: Record<string, number>; // v4 새 필드
   images: ImageEntry[];
   _deletedIds: number[];
+  // legacy — 데이터 호환용, 더 이상 신규 기록 안 함
+  structures: Record<string, number>;
+  senses: Record<string, number>;
+  sentenceStructures: Record<string, number>;
+  sentenceCopyStructures: Record<string, number>;
 }
 
 const DB_KEY = 'wc_v2_data';
 const EMPTY: DB = {
   writings: [], sentences: [], copies: [], rewrites: [],
-  expressions: {}, weaknesses: {}, structures: {}, senses: {}, copyTypes: {},
+  expressions: {}, weaknesses: {}, copyTypes: {},
   missions: [],
-  sentenceStructures: {},
-  sentenceCopyStructures: {},
-  sentenceTypes: {},
+  sentenceTypes: {}, sentenceRoles: {}, sentenceExpressionTypes: {},
   images: [],
   _deletedIds: [],
+  structures: {}, senses: {}, sentenceStructures: {}, sentenceCopyStructures: {},
 };
 
 export function loadDB(): DB {
@@ -188,9 +208,7 @@ export function loadDB(): DB {
     return { ...EMPTY, ...(JSON.parse(raw) as Partial<DB>) };
   } catch { return { ...EMPTY }; }
 }
-// 로컬 저장만 (클라우드 sync 이벤트 없음)
 export function saveDBLocal(db: DB) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
-// 로컬 저장 + 클라우드 sync 트리거
 export function saveDB(db: DB) {
   saveDBLocal(db);
   if (typeof window !== 'undefined') {
@@ -214,25 +232,17 @@ export function mergeExpressions(db: DB, exprs: Expression[]) {
 export function mergeWeaknesses(db: DB, list: string[]) {
   list.forEach(w => { if (w) db.weaknesses[norm(w)] = (db.weaknesses[norm(w)] || 0) + 1; });
 }
-export function mergeStructures(db: DB, list: Structure[]) {
-  list.forEach(s => { if (s.type) db.structures[s.type] = (db.structures[s.type] || 0) + 1; });
-}
-export function mergeSenses(db: DB, s: SenseCount) {
-  (Object.entries(s) as [string, number][]).forEach(([k, v]) => {
-    db.senses[k] = (db.senses[k] || 0) + v;
-  });
-}
 export function mergeCopyType(db: DB, t: string) {
   if (t) db.copyTypes[t] = (db.copyTypes[t] || 0) + 1;
 }
-export function mergeSentenceStructures(db: DB, structs: string[]) {
-  structs.forEach(s => { if (s) db.sentenceStructures[s] = (db.sentenceStructures[s] || 0) + 1; });
-}
-export function mergeSentenceCopyStructures(db: DB, structs: string[]) {
-  structs.forEach(s => { if (s) db.sentenceCopyStructures[s] = (db.sentenceCopyStructures[s] || 0) + 1; });
-}
 export function mergeSentenceType(db: DB, type: string) {
   if (type) db.sentenceTypes[type] = (db.sentenceTypes[type] || 0) + 1;
+}
+export function mergeSentenceRole(db: DB, role: string) {
+  if (role) db.sentenceRoles[role] = (db.sentenceRoles[role] || 0) + 1;
+}
+export function mergeSentenceExpressionType(db: DB, type: string) {
+  if (type) db.sentenceExpressionTypes[type] = (db.sentenceExpressionTypes[type] || 0) + 1;
 }
 export function mergeSentenceExpressions(db: DB, exprs: string[]) {
   exprs.forEach(e => {
@@ -244,11 +254,9 @@ export function mergeSentenceExpressions(db: DB, exprs: string[]) {
 }
 
 export function getAnalyzedWritings(db: DB) { return db.writings.filter(w => w.analysis); }
-
 export function getTotalChars(db: DB) {
   return db.writings.reduce((s, w) => s + w.text.length, 0);
 }
-
 export function getLast30DaysScores(db: DB) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
@@ -257,7 +265,6 @@ export function getLast30DaysScores(db: DB) {
     .sort((a, b) => a.date.localeCompare(b.date))
     .map(w => ({ date: w.date.slice(5), score: w.analysis!.score, topic: w.topic || w.type }));
 }
-
 export function getMonthlyWritingStats(db: DB) {
   const map: Record<string, number[]> = {};
   getAnalyzedWritings(db).forEach(w => {
@@ -271,14 +278,12 @@ export function getMonthlyWritingStats(db: DB) {
     count: map[m].length,
   }));
 }
-
 export function getTopEntries(rec: Record<string, number>, n = 10) {
   return Object.entries(rec).sort((a, b) => b[1] - a[1]).slice(0, n);
 }
 export function getTopExpressions(db: DB, n = 10) {
   return Object.entries(db.expressions).sort((a, b) => b[1].count - a[1].count).slice(0, n);
 }
-
 export function getAvgScore(db: DB): number | null {
   const a = getAnalyzedWritings(db);
   if (!a.length) return null;

@@ -1,17 +1,14 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import {
   loadDB, loadSettings, getLast30DaysScores, getTopEntries,
-  getTopExpressions, getTotalChars, getAvgScore, getMonthlyWritingStats,
+  getTotalChars, getAvgScore, getMonthlyWritingStats,
   type DB,
 } from '@/lib/db';
 import { generateMonthlyReport } from '@/lib/openai';
+import dynamic from 'next/dynamic';
 
 const ScoreChart        = dynamic(() => import('@/components/ReportCharts').then(m => ({ default: m.ScoreChart })),        { ssr: false });
-const StructureChart    = dynamic(() => import('@/components/ReportCharts').then(m => ({ default: m.StructureChart })),    { ssr: false });
-const SenseChart        = dynamic(() => import('@/components/ReportCharts').then(m => ({ default: m.SenseChart })),        { ssr: false });
 const MonthlyCountChart = dynamic(() => import('@/components/ReportCharts').then(m => ({ default: m.MonthlyCountChart })), { ssr: false });
 
 /* ── 섹션 헤더 ── */
@@ -36,7 +33,7 @@ function StatChip({ label, value, unit, color }: { label: string; value: string 
   );
 }
 
-/* ── 바 리스트 (약점/표현) ── */
+/* ── 바 리스트 ── */
 function BarList({ items, color }: { items: { name: string; count: number }[]; color: string }) {
   if (!items.length) return <p style={{ fontSize: 13, color: 'var(--dim-star)' }}>아직 데이터가 없어요</p>;
   const max = items[0].count;
@@ -57,7 +54,42 @@ function BarList({ items, color }: { items: { name: string; count: number }[]; c
   );
 }
 
-/* ── 월간 리포트 콘텐츠 렌더링 ── */
+/* ── 역할 분포 (도넛형 바) ── */
+const ROLE_COLORS: Record<string, string> = {
+  '장면 묘사':  'var(--good)',
+  '대상 설명':  'var(--accent)',
+  '행동 전개':  'var(--moon)',
+  '감정 표현':  '#E07B7B',
+  '분위기 형성': '#9B7BE0',
+  '생각 전달':  'var(--dim-star)',
+  '정보 전달':  'var(--card-border)',
+};
+
+function RoleDistribution({ items }: { items: { name: string; count: number }[] }) {
+  if (!items.length) return <p style={{ fontSize: 13, color: 'var(--dim-star)' }}>아직 데이터가 없어요</p>;
+  const total = items.reduce((s, i) => s + i.count, 0);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {items.map(item => {
+        const pct = Math.round((item.count / total) * 100);
+        const color = ROLE_COLORS[item.name] || 'var(--accent)';
+        return (
+          <div key={item.name}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontSize: 13, color: 'var(--text)', fontFamily: 'Pretendard, sans-serif' }}>{item.name}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color }}>{pct}% ({item.count}회)</span>
+            </div>
+            <div style={{ height: 5, background: 'var(--bg-input)', borderRadius: 100, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 100, transition: 'width 0.7s ease' }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── 월간 리포트 콘텐츠 ── */
 function ReportContent({ text }: { text: string }) {
   const sections = text.split(/^###\s+/m).filter(Boolean);
   if (!sections.length) {
@@ -71,9 +103,7 @@ function ReportContent({ text }: { text: string }) {
         const body  = nl === -1 ? '' : sec.slice(nl + 1).trim();
         return (
           <div key={i} style={{ marginBottom: 24, paddingBottom: 20, borderBottom: i < sections.length - 1 ? '1px solid var(--card-border)' : 'none' }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 10, letterSpacing: '-0.01em' }}>
-              {title}
-            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 10, letterSpacing: '-0.01em' }}>{title}</div>
             <p style={{ fontSize: 14, color: 'var(--dim-star)', lineHeight: 1.9, margin: 0, whiteSpace: 'pre-wrap' }}>{body}</p>
           </div>
         );
@@ -116,26 +146,47 @@ export default function ReportPage() {
 
     setLoading(true); setErr(''); setReport('');
 
-    const scores      = monthWritings.map(w => w.analysis!.score);
-    const partialDB   = { ...db, writings: monthWritings };
-    const weakTop5    = getTopEntries(db.weaknesses, 5).map(([k, v]) => `${k}(${v}회)`);
-    const exprTop5    = getTopExpressions(partialDB, 5).map(([k, v]) => `${k}(${v.count}회)`);
-    const structTop5  = getTopEntries(db.structures, 5).map(([k, v]) => `${k}(${v}회)`);
-    const allWords    = monthWritings.flatMap(w => w.analysis!.repeated_words || []);
-    const wordCount: Record<string, number> = {};
-    allWords.forEach(w => { wordCount[w] = (wordCount[w] || 0) + 1; });
+    const scores = monthWritings.map(w => w.analysis!.score);
+
+    const mWeaknesses: Record<string, number> = {};
+    monthWritings.forEach(w => {
+      (w.analysis!.weaknesses || []).forEach(wk => {
+        const k = wk.trim().toLowerCase().replace(/\s+/g, ' ');
+        mWeaknesses[k] = (mWeaknesses[k] || 0) + 1;
+      });
+    });
+
+    const mExpressions: Record<string, number> = {};
+    monthWritings.forEach(w => {
+      (w.analysis!.expressions || []).forEach(e => {
+        if (e.text) { const k = e.text.trim(); mExpressions[k] = (mExpressions[k] || 0) + 1; }
+      });
+    });
+
+    // 이번 달 문장 역할 분포
+    const monthSentences = db.sentences.filter(s => s.createdAt?.startsWith(month) && s.analysis?.sentenceRole);
+    const mRoles: Record<string, number> = {};
+    monthSentences.forEach(s => {
+      const r = s.analysis!.sentenceRole!;
+      mRoles[r] = (mRoles[r] || 0) + 1;
+    });
+
+    const weakTop5 = getTopEntries(mWeaknesses, 5).map(([k, v]) => `${k}(${v}회)`);
+    const exprTop5 = Object.entries(mExpressions).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k}(${v}회)`);
+    const roleTop  = getTopEntries(mRoles, 7).map(([k, v]) => `${k}(${v}회)`);
 
     const payload = {
       year: month.slice(0, 4), month: month.slice(5, 7),
-      total_count: monthWritings.length,
-      avg_score:   Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
-      max_score:   Math.max(...scores), min_score: Math.min(...scores),
-      top5_weaknesses: weakTop5, top5_expressions: exprTop5, top5_structures: structTop5,
-      sense_distribution:        db.senses,
-      top10_repeated_words:      Object.entries(wordCount).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([w]) => w),
-      total_writings_lifetime:   db.writings.length,
-      total_sentences_collected: db.sentences.length,
-      total_copies_collected:    db.copies.length,
+      total_count:              monthWritings.length,
+      avg_score:                Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
+      max_score:                Math.max(...scores),
+      min_score:                Math.min(...scores),
+      top5_weaknesses:          weakTop5,
+      top5_expressions:         exprTop5,
+      sentence_role_distribution: roleTop,
+      total_writings_lifetime:    db.writings.length,
+      total_sentences_collected:  db.sentences.length,
+      total_copies_collected:     db.copies.length,
     };
 
     try {
@@ -153,11 +204,43 @@ export default function ReportPage() {
   const totalChars   = getTotalChars(db);
   const last30       = getLast30DaysScores(db);
   const monthlyStats = getMonthlyWritingStats(db);
-  const structures   = getTopEntries(db.structures, 7).map(([k, v]) => ({ name: k, v }));
-  const senses       = ['시각', '청각', '후각', '미각', '촉각'].map(k => ({ subject: k, value: db.senses[k] || 0 }));
-  const weakTop      = getTopEntries(db.weaknesses, 5).map(([k, v]) => ({ name: k, count: v }));
-  const exprTop      = getTopExpressions(db, 5).map(([k, v]) => ({ name: k, count: v.count }));
-  const noData       = db.writings.length === 0;
+
+  // 약점 집계 (현재 저장된 writings 기준)
+  const liveWeaknesses: Record<string, number> = {};
+  analyzed.forEach(w => {
+    (w.analysis!.weaknesses || []).forEach(s => {
+      const k = s.trim().toLowerCase().replace(/\s+/g, ' ');
+      liveWeaknesses[k] = (liveWeaknesses[k] || 0) + 1;
+    });
+  });
+
+  // 표현 집계
+  const liveExpressions: Record<string, number> = {};
+  analyzed.forEach(w => {
+    (w.analysis!.expressions || []).forEach(e => {
+      if (e.text) { const k = e.text.trim().toLowerCase().replace(/\s+/g, ' '); liveExpressions[k] = (liveExpressions[k] || 0) + 1; }
+    });
+  });
+
+  // 문장 역할 분포 (전체 누적)
+  const liveRoles = Object.entries(db.sentenceRoles || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 7)
+    .map(([k, v]) => ({ name: k, count: v }));
+
+  // 이번 달 문장 역할도 실시간 계산
+  const sentencesWithRole = db.sentences.filter(s => s.analysis?.sentenceRole);
+  if (sentencesWithRole.length > 0 && liveRoles.length === 0) {
+    sentencesWithRole.forEach(s => {
+      const r = s.analysis!.sentenceRole!;
+      if (!db.sentenceRoles) db.sentenceRoles = {};
+      db.sentenceRoles[r] = (db.sentenceRoles[r] || 0) + 1;
+    });
+  }
+
+  const weakTop  = getTopEntries(liveWeaknesses, 5).map(([k, v]) => ({ name: k, count: v }));
+  const exprTop  = Object.entries(liveExpressions).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => ({ name: k, count: v }));
+  const noData   = db.writings.length === 0;
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
@@ -178,9 +261,9 @@ export default function ReportPage() {
           <div className="px-card" style={{ marginBottom: 20 }}>
             <SectionHeader title="전체 현황" />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-              <StatChip label="총 작성 글"  value={db.writings.length} unit="편" />
-              <StatChip label="분석 완료"   value={analyzed.length}    unit="편"  color="var(--accent)" />
-              <StatChip label="평균 점수"   value={avgScore ?? '—'}    unit={avgScore ? '점' : ''}  color={avgScore && avgScore >= 70 ? 'var(--good)' : 'var(--moon)'} />
+              <StatChip label="총 작성 글"  value={db.writings.length}  unit="편" />
+              <StatChip label="분석 완료"   value={analyzed.length}     unit="편"  color="var(--accent)" />
+              <StatChip label="평균 점수"   value={avgScore ?? '—'}     unit={avgScore ? '점' : ''} color={avgScore && avgScore >= 70 ? 'var(--good)' : 'var(--moon)'} />
               <StatChip label="누적 글자"   value={totalChars >= 10000 ? `${(totalChars / 10000).toFixed(1)}만` : totalChars.toLocaleString()} unit="자" color="var(--dim-star)" />
             </div>
           </div>
@@ -213,25 +296,11 @@ export default function ReportPage() {
             </div>
           </div>
 
-          {/* ── 5. 구조 & 감각 ── */}
-          {(structures.length > 0 || senses.some(s => s.value > 0)) && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }} className="grid-2">
-              <div className="px-card">
-                <SectionHeader title="문장 구조" sub={
-                  <span>가장 많이 쓴 구조 · <Link href="/guide#structure" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>용어 설명 →</Link></span>
-                } />
-                {structures.length > 0
-                  ? <StructureChart data={structures} />
-                  : <p style={{ fontSize: 13, color: 'var(--dim-star)' }}>아직 데이터가 없어요</p>
-                }
-              </div>
-              <div className="px-card">
-                <SectionHeader title="감각 표현" sub="5감 활용 현황" />
-                {senses.some(s => s.value > 0)
-                  ? <SenseChart data={senses} />
-                  : <p style={{ fontSize: 13, color: 'var(--dim-star)' }}>아직 데이터가 없어요</p>
-                }
-              </div>
+          {/* ── 5. 문장 역할 분포 ── */}
+          {liveRoles.length > 0 && (
+            <div className="px-card" style={{ marginBottom: 20 }}>
+              <SectionHeader title="문장 역할 분포" sub="수집한 문장들의 역할 분석 누적 현황" />
+              <RoleDistribution items={liveRoles} />
             </div>
           )}
         </>

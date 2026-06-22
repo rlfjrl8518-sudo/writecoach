@@ -150,8 +150,10 @@ export function mergeDBs(local: DB, remote: DB): DB {
     copyTypes:             mergeRec(local.copyTypes, remote.copyTypes),
     sentenceStructures:    mergeRec(local.sentenceStructures, remote.sentenceStructures),
     sentenceCopyStructures: mergeRec(local.sentenceCopyStructures, remote.sentenceCopyStructures),
-    sentenceTypes:         mergeRec(local.sentenceTypes, remote.sentenceTypes),
-    images:                mergeArr(local.images ?? [], remote.images ?? []),
-    _deletedIds:           Array.from(deletedIds),
+    sentenceTypes:            mergeRec(local.sentenceTypes, remote.sentenceTypes),
+    sentenceRoles:            mergeRec(local.sentenceRoles ?? {}, remote.sentenceRoles ?? {}),
+    sentenceExpressionTypes:  mergeRec(local.sentenceExpressionTypes ?? {}, remote.sentenceExpressionTypes ?? {}),
+    images:                   mergeArr(local.images ?? [], remote.images ?? []),
+    _deletedIds:              Array.from(deletedIds),
   };
 }

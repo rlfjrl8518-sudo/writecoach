@@ -231,7 +231,8 @@ export default function SettingsPage() {
             <label className="px-label">모델</label>
             {provider === 'openai' ? (
               <select className="px-select" value={model} onChange={e => setModel(e.target.value)}>
-                <option value="gpt-4o-mini">gpt-4o-mini — 빠름 · 저렴 (추천)</option>
+                <option value="gpt-5-chat-latest">gpt-5-chat-latest — 최신 최고성능</option>
+                <option value="gpt-4o-mini">gpt-4o-mini — 빠름 · 저렴</option>
                 <option value="gpt-4o">gpt-4o — 고성능</option>
                 <option value="gpt-4-turbo">gpt-4-turbo — 구형 고성능</option>
               </select>

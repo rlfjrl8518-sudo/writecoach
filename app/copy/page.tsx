@@ -6,17 +6,28 @@ import { pushData } from '@/lib/supabase';
 import { analyzeCopy } from '@/lib/openai';
 
 const COPY_GUIDE = [
-  { type: '문제 해결형',  struct: '문제→해결',   desc: '문제를 제시하고 해결책 제안' },
-  { type: '공감 제안형',  struct: '공감→제안',   desc: '상황 공감 후 행동 제안' },
-  { type: '위험 대비형',  struct: '위험→대비',   desc: '리스크를 상기시키고 대비 필요성 제시' },
-  { type: '호기심 자극형', struct: '호기심→정보', desc: '궁금증 유발 후 정보 제공' },
-  { type: '혜택 강조형',  struct: '숫자→혜택',   desc: '수치·조건으로 혜택 강조' },
-  { type: '질문 답변형',  struct: '질문→답변',   desc: '질문으로 시작해 답 제시' },
-  { type: '근거 설득형',  struct: '증거→결론',   desc: '데이터·후기·사례 기반 설득' },
-  { type: '반전 제시형',  struct: '반전→메시지', desc: '상식을 뒤집어 관심 유도' },
-  { type: '스토리 전달형', struct: '스토리→교훈', desc: '경험·사례로 메시지 전달' },
-  { type: '행동 유도형',  struct: '행동→보상',   desc: '행동 시 얻는 결과 강조' },
+  { type: '브랜딩형',    desc: '브랜드 이미지·정체성 인식' },
+  { type: '혜택 전달형', desc: '얻을 수 있는 이득·결과 제시' },
+  { type: '문제 제기형', desc: '독자가 가진 문제를 먼저 꺼냄' },
+  { type: '위험 환기형', desc: '손실·불안을 상기시켜 행동 촉구' },
+  { type: '감성 공감형', desc: '감정·경험에 공명해 연결 형성' },
+  { type: '행동 유도형', desc: '지금 당장 특정 행동을 직접 요청' },
+  { type: '신뢰 확보형', desc: '수치·후기·인증으로 신뢰 구축' },
+  { type: '정보 전달형', desc: '유용한 사실·정보로 관심 유도' },
+  { type: '혼합형',      desc: '두 가지 이상 유형 결합' },
 ];
+
+function RefLink({ url }: { url: string }) {
+  return (
+    <a
+      href={url.trim()} target="_blank" rel="noopener noreferrer"
+      onClick={e => e.stopPropagation()}
+      style={{ fontSize: 10, color: 'var(--accent)', opacity: 0.8, textDecoration: 'none', wordBreak: 'break-all', display: 'block', marginTop: 3 }}
+    >
+      🔗 {url}
+    </a>
+  );
+}
 
 function StarLoader({ streamLen }: { streamLen: number }) {
   const [f, setF] = useState(0);
@@ -33,50 +44,84 @@ function StarLoader({ streamLen }: { streamLen: number }) {
   );
 }
 
-function HookGauge({ value }: { value: number }) {
-  const pct = value * 10;
-  const color = value >= 8 ? 'var(--good)' : value >= 5 ? 'var(--moon)' : 'var(--bad)';
-  const cls   = value >= 8 ? 'px-bar-fill-good' : value >= 5 ? 'px-bar-fill-moon' : 'px-bar-fill-bad';
-  const label = value >= 8 ? '강력함' : value >= 5 ? '보통' : '약함';
+function CopySection({ label, color, children }: { label: string; color?: string; children: React.ReactNode }) {
   return (
-    <div style={{ textAlign: 'center', padding: '12px 0' }}>
-      <div className="pixel-font" style={{ fontSize: 28, color, marginBottom: 4 }}>
-        {value}<span style={{ fontSize: 11 }}>/10</span>
-      </div>
-      <div style={{ fontSize: 10, color, marginBottom: 8 }}>{label}</div>
-      <div className="px-bar-wrap"><div className={cls} style={{ width: `${pct}%` }} /></div>
-      <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginTop: 6 }}>후킹 강도</div>
+    <div style={{ marginBottom: 14 }}>
+      <div className="pixel-font" style={{ fontSize: 6.5, color: color || 'var(--dim-star)', marginBottom: 7 }}>{label}</div>
+      {children}
     </div>
   );
 }
 
 function AnalysisView({ a }: { a: CopyAnalysis }) {
+  // v2
+  if (a.copyType || a.mainTarget) {
+    return (
+      <div className="animate-fade-in">
+        <CopySection label="✦ 카피 유형">
+          <span className="px-badge px-badge-moon" style={{ fontSize: 13, padding: '4px 14px' }}>{a.copyType}</span>
+        </CopySection>
+        {a.mainTarget && (
+          <CopySection label="✦ 주요 타겟" color="var(--accent)">
+            <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7, padding: '8px 12px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--accent)' }}>
+              {a.mainTarget}
+            </div>
+          </CopySection>
+        )}
+        {a.persuasionPoints && a.persuasionPoints.length > 0 && (
+          <CopySection label="✦ 설득 포인트" color="var(--bad)">
+            {a.persuasionPoints.map(p => <span key={p} className="px-tag-expr">{p}</span>)}
+          </CopySection>
+        )}
+        {a.coreMessage && (
+          <CopySection label="✦ 핵심 메시지" color="var(--moon)">
+            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.8, padding: '10px 14px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--moon)', fontWeight: 500 }}>
+              {a.coreMessage}
+            </div>
+          </CopySection>
+        )}
+        {a.expressionFeatures && a.expressionFeatures.length > 0 && (
+          <CopySection label="✦ 표현 특징" color="var(--good)">
+            {a.expressionFeatures.map(f => <span key={f} className="px-tag-expr">{f}</span>)}
+          </CopySection>
+        )}
+        {a.analysisSummary && (
+          <CopySection label="✦ 분석 요약" color="var(--dim-star)">
+            <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.8 }}>{a.analysisSummary}</div>
+          </CopySection>
+        )}
+      </div>
+    );
+  }
+  // v1 legacy
   return (
     <div className="animate-fade-in">
-      <HookGauge value={a.hookStrength} />
-      <div className="px-divider" />
-      <div style={{ marginBottom: 12 }}>
-        <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 8 }}>카피 유형</div>
-        <span className="px-badge px-badge-moon" style={{ fontSize: 13, padding: '4px 12px' }}>{a.type}</span>
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 6 }}>사용 기법</div>
-        {(a.techniques || []).map(t => <span key={t} className="px-tag-expr">{t}</span>)}
-      </div>
-      <div>
-        <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 6 }}>예상 타겟</div>
-        <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7, padding: '8px 12px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--accent)' }}>
-          {a.targetAudience}
-        </div>
-      </div>
+      {a.type && (
+        <CopySection label="✦ 카피 유형">
+          <span className="px-badge px-badge-moon" style={{ fontSize: 13, padding: '4px 12px' }}>{a.type}</span>
+        </CopySection>
+      )}
+      {a.techniques && a.techniques.length > 0 && (
+        <CopySection label="✦ 표현 특징">
+          {a.techniques.map(t => <span key={t} className="px-tag-expr">{t}</span>)}
+        </CopySection>
+      )}
+      {a.targetAudience && (
+        <CopySection label="✦ 주요 타겟" color="var(--accent)">
+          <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7, padding: '8px 12px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--accent)' }}>
+            {a.targetAudience}
+          </div>
+        </CopySection>
+      )}
     </div>
   );
 }
 
 export default function CopyPage() {
-  const [copy,    setCopy]    = useState('');
-  const [brand,   setBrand]   = useState('');
-  const [source,  setSource]  = useState('');
+  const [copy,      setCopy]      = useState('');
+  const [brand,     setBrand]     = useState('');
+  const [source,    setSource]    = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [streamLen, setStreamLen] = useState(0);
   const [result,  setResult]  = useState<CopyAnalysis | null>(null);
@@ -85,6 +130,12 @@ export default function CopyPage() {
   const [history, setHistory] = useState<CopyEntry[]>([]);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [saved,   setSaved]   = useState(false);
+  const [memo,        setMemo]        = useState('');
+  const [editingId,   setEditingId]   = useState<number | null>(null);
+  const [editBrand,   setEditBrand]   = useState('');
+  const [editSource,  setEditSource]  = useState('');
+  const [editUrl,     setEditUrl]     = useState('');
+  const [editMemo,    setEditMemo]    = useState('');
 
   useEffect(() => {
     const db = loadDB();
@@ -103,9 +154,10 @@ export default function CopyPage() {
       setResult(res);
       setAnalysisOpen(true);
       const db = loadDB();
-      db.copies.push({ id: Date.now(), copy, brand, source, analysis: res, createdAt: new Date().toISOString() });
-      mergeCopyType(db, res.type);
+      db.copies.push({ id: Date.now(), copy, brand, source, sourceUrl: sourceUrl || undefined, memo: memo || undefined, analysis: res, createdAt: new Date().toISOString() });
+      mergeCopyType(db, res.copyType ?? res.type ?? '');
       saveDB(db);
+      setMemo('');
       setSaved(v => !v);
     } catch (e: unknown) {
       setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));
@@ -115,9 +167,9 @@ export default function CopyPage() {
   function handleSaveOnly() {
     if (!copy.trim()) { setErr('카피를 입력해주세요.'); return; }
     const db = loadDB();
-    db.copies.push({ id: Date.now(), copy, brand, source, createdAt: new Date().toISOString() });
+    db.copies.push({ id: Date.now(), copy, brand, source, sourceUrl: sourceUrl || undefined, memo: memo || undefined, createdAt: new Date().toISOString() });
     saveDB(db);
-    setCopy(''); setBrand(''); setSource(''); setSaved(v => !v);
+    setCopy(''); setBrand(''); setSource(''); setSourceUrl(''); setMemo(''); setSaved(v => !v);
   }
 
   async function handleDelete(id: number) {
@@ -128,6 +180,27 @@ export default function CopyPage() {
     saveDBLocal(db);
     setSaved(v => !v);
     try { await pushData(db); } catch {}
+  }
+
+  function handleEditStart(entry: CopyEntry, e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditingId(entry.id);
+    setEditBrand(entry.brand || '');
+    setEditSource(entry.source || '');
+    setEditUrl(entry.sourceUrl || '');
+    setEditMemo(entry.memo || '');
+  }
+
+  function handleEditSave(id: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    const db = loadDB();
+    const found = db.copies.find(c => c.id === id);
+    if (found) { found.brand = editBrand; found.source = editSource; found.sourceUrl = editUrl || undefined; found.memo = editMemo || undefined; saveDB(db); }
+    setEditingId(null); setSaved(v => !v);
+  }
+
+  function handleEditCancel(e: React.MouseEvent) {
+    e.stopPropagation(); setEditingId(null);
   }
 
   return (
@@ -174,15 +247,28 @@ export default function CopyPage() {
               style={{ minHeight: 100 }}
             />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <div>
               <label className="px-label">브랜드</label>
               <input className="px-input" placeholder="브랜드명" value={brand} onChange={e => setBrand(e.target.value)} />
             </div>
             <div>
-              <label className="px-label">출처</label>
-              <input className="px-input" placeholder="광고 출처" value={source} onChange={e => setSource(e.target.value)} />
+              <label className="px-label">경로</label>
+              <input className="px-input" placeholder="TV·SNS·유튜브 등" value={source} onChange={e => setSource(e.target.value)} />
             </div>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label className="px-label">참고</label>
+            <input className="px-input" placeholder="https://..." value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label className="px-label">나의 메모 <span style={{ fontSize: 10, color: 'var(--dim-star)', fontWeight: 400 }}>(선택)</span></label>
+            <textarea
+              className="px-textarea" rows={2}
+              placeholder="인사이트, 느낌, 활용 아이디어..."
+              value={memo} onChange={e => setMemo(e.target.value)}
+              style={{ minHeight: 56 }}
+            />
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="px-btn px-btn-accent" onClick={handleAnalyze} disabled={loading}>
@@ -199,7 +285,7 @@ export default function CopyPage() {
           {/* 카피 구조 가이드 */}
           <div style={{ marginTop: 20 }}>
             <div className="px-divider-dim" />
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 12, letterSpacing: '-0.01em' }}>카피 구조 참고</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 12, letterSpacing: '-0.01em' }}>카피 유형 참고</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {COPY_GUIDE.map((g, i) => (
                 <div key={g.type} style={{
@@ -208,7 +294,6 @@ export default function CopyPage() {
                   borderBottom: i < COPY_GUIDE.length - 1 ? '1px solid var(--card-border)' : 'none',
                 }}>
                   <span style={{ fontSize: 13, color: 'var(--text)', fontFamily: 'Pretendard, sans-serif', fontWeight: 600, flexShrink: 0, minWidth: 88, letterSpacing: '-0.01em' }}>{g.type}</span>
-                  <span style={{ fontSize: 12, color: 'var(--accent)', fontFamily: 'Pretendard, sans-serif', fontWeight: 500, flexShrink: 0, minWidth: 76 }}>{g.struct}</span>
                   <span style={{ fontSize: 12, color: 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif', lineHeight: 1.5 }}>{g.desc}</span>
                 </div>
               ))}
@@ -249,30 +334,76 @@ export default function CopyPage() {
                   style={{ cursor: 'pointer', padding: '12px 16px' }}
                   onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
                 >
+                  {editingId === entry.id ? (
+                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <div>
+                          <label className="px-label">브랜드</label>
+                          <input className="px-input" value={editBrand} onChange={e => setEditBrand(e.target.value)} placeholder="브랜드명" />
+                        </div>
+                        <div>
+                          <label className="px-label">경로</label>
+                          <input className="px-input" value={editSource} onChange={e => setEditSource(e.target.value)} placeholder="TV·SNS·유튜브 등" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="px-label">참고 URL</label>
+                        <input className="px-input" value={editUrl} onChange={e => setEditUrl(e.target.value)} placeholder="https://..." />
+                      </div>
+                      <div>
+                        <label className="px-label">나의 메모</label>
+                        <textarea className="px-textarea" rows={3} placeholder="인사이트, 느낌, 활용 아이디어..." value={editMemo} onChange={e => setEditMemo(e.target.value)} style={{ minHeight: 72 }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="px-btn px-btn-accent" style={{ fontSize: 11, padding: '5px 14px' }} onClick={e => handleEditSave(entry.id, e)}>저장</button>
+                        <button className="px-btn-ghost" style={{ fontSize: 11, padding: '5px 14px' }} onClick={handleEditCancel}>취소</button>
+                      </div>
+                    </div>
+                  ) : (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {entry.createdAt && (
+                          <span style={{ fontSize: 10, color: 'var(--dim-star)', background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderRadius: 4, padding: '2px 7px' }}>
+                            {new Date(entry.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                          </span>
+                        )}
                         {entry.brand && <span className="px-badge px-badge-type" style={{ fontSize: 12, padding: '3px 10px' }}>{entry.brand}</span>}
                         {entry.analysis && (
-                          <>
-                            <span className="px-badge px-badge-moon" style={{ fontSize: 12, padding: '3px 10px' }}>{entry.analysis.type}</span>
-                            <span className="px-badge px-badge-accent" style={{ fontSize: 12, padding: '3px 10px' }}>후킹 {entry.analysis.hookStrength}/10</span>
-                          </>
+                          <span className="px-badge px-badge-moon" style={{ fontSize: 12, padding: '3px 10px' }}>
+                            {entry.analysis.copyType || entry.analysis.type}
+                          </span>
                         )}
                       </div>
                       <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, margin: 0 }}>
                         {entry.copy.length > 80 ? entry.copy.slice(0, 80) + '…' : entry.copy}
                       </p>
+                      {entry.source && <span style={{ fontSize: 10, color: 'var(--dim-star)', marginTop: 4, display: 'block' }}>— {entry.source}</span>}
+                      {entry.sourceUrl && <RefLink url={entry.sourceUrl} />}
+                      {entry.memo && (
+                        <div style={{ marginTop: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
+                          <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 700, display: 'block', marginBottom: 3, letterSpacing: '0.02em' }}>MY NOTE</span>
+                          {entry.memo}
+                        </div>
+                      )}
                     </div>
-                    <button onClick={e => { e.stopPropagation(); handleDelete(entry.id); }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bad)', fontSize: 12, opacity: 0.6, flexShrink: 0 }}>✕</button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+                      <button onClick={e => handleEditStart(entry, e)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 12, opacity: 0.6 }}>✎</button>
+                      <button onClick={e => { e.stopPropagation(); handleDelete(entry.id); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bad)', fontSize: 12, opacity: 0.6 }}>✕</button>
+                    </div>
                   </div>
+                  )}
                 </div>
                 {expanded === entry.id && (
                   <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderTop: 'none', padding: '14px 16px' }}>
-                    <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap', marginBottom: entry.analysis ? 14 : 0 }}>
+                    <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap', marginBottom: 6 }}>
                       {entry.copy}
                     </p>
+                    {entry.source && <span style={{ fontSize: 10, color: 'var(--dim-star)', display: 'block', marginBottom: 3 }}>— {entry.source}</span>}
+                    {entry.sourceUrl && <RefLink url={entry.sourceUrl} />}
+                    {(entry.source || entry.sourceUrl) && entry.analysis && <div style={{ height: 10 }} />}
                     {entry.analysis && <AnalysisView a={entry.analysis} />}
                   </div>
                 )}

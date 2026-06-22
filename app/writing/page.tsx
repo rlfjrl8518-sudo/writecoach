@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   loadDB, saveDB, saveDBLocal, loadSettings, mergeExpressions, mergeWeaknesses,
-  mergeStructures, mergeSenses, type WritingAnalysis, type WriteType, type WritingEntry,
+  type WritingAnalysis, type WriteType, type WritingEntry,
 } from '@/lib/db';
 import { analyzeWriting } from '@/lib/openai';
 import { pushData } from '@/lib/supabase';
@@ -21,8 +21,7 @@ const TYPE_GOALS: Record<WriteType, string> = {
 };
 
 const BREAKDOWN_KEYS: (keyof WritingAnalysis['score_breakdown'])[] = [
-  '표현력', '전달력', '구체성', '문장다양성', '카피라이팅적합성',
-  '논리성', '가독성', '구조다양성', '감각표현다양성',
+  '표현력', '전달력', '구체성', '논리성', '가독성',
 ];
 
 function StarLoader({ streamLen = 0 }: { streamLen?: number }) {
@@ -73,7 +72,6 @@ function scoreColor(s: number) {
   return s >= 80 ? 'var(--good)' : s >= 60 ? 'var(--moon)' : 'var(--bad)';
 }
 
-/* 분석 결과 + 히스토리 두 곳에서 공통으로 사용 */
 function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: boolean }) {
   return (
     <div className="animate-fade-in">
@@ -93,15 +91,19 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
       <div style={{ display: 'flex', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--good-border)', marginBottom: 6 }}>✦ 잘 된 부분</div>
-          <div>{(a.strengths || []).map(s => <span key={s} className="px-tag-good">{s}</span>)}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {(a.strengths || []).map(s => <span key={s} className="px-tag-good" style={{ display: 'block' }}>{s}</span>)}
+          </div>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--bad-border)', marginBottom: 6 }}>✦ 개선 필요</div>
-          <div>{(a.weaknesses || []).map(w => <span key={w} className="px-tag-weak">{w}</span>)}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {(a.weaknesses || []).map(w => <span key={w} className="px-tag-weak" style={{ display: 'block' }}>{w}</span>)}
+          </div>
         </div>
       </div>
 
-      {/* 코치 코멘트 — 수정 방향성 */}
+      {/* 코치 코멘트 */}
       {(a.improvement_suggestions || []).length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--accent)', marginBottom: 8 }}>✦ 코치 코멘트</div>
@@ -124,24 +126,34 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
       {(a.improvement_examples || []).length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--moon)', marginBottom: 8 }}>✦ 이렇게 써보세요</div>
-          {a.improvement_examples.map((ex, i) => (
-            <div key={i} style={{
-              fontSize: 13, color: 'var(--text)', lineHeight: 1.9,
-              marginBottom: 6, padding: '10px 14px',
-              background: 'var(--moon-dim)',
-              borderLeft: '3px solid var(--moon)',
-              borderRadius: '0 6px 6px 0',
-            }}>
-              {ex}
-            </div>
-          ))}
+          {a.improvement_examples.map((ex, i) => {
+            const arrow = ex.indexOf('→');
+            const before = arrow !== -1 ? ex.slice(0, arrow).trim() : ex;
+            const after  = arrow !== -1 ? ex.slice(arrow + 1).trim() : '';
+            return (
+              <div key={i} style={{
+                marginBottom: 8, padding: '10px 14px',
+                background: 'var(--moon-dim)',
+                borderLeft: '3px solid var(--moon)',
+                borderRadius: '0 6px 6px 0',
+              }}>
+                {after ? (
+                  <>
+                    <div style={{ fontSize: 12, color: 'var(--dim-star)', textDecoration: 'line-through', marginBottom: 5, lineHeight: 1.7 }}>{before}</div>
+                    <div style={{ fontSize: 13, color: 'var(--moon)', lineHeight: 1.8, fontWeight: 500 }}>→ {after}</div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.8 }}>{ex}</div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {!compact && (
         <>
           <div className="px-divider" />
-
           {/* Breakdown */}
           <div style={{ marginBottom: 14 }}>
             <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10, letterSpacing: '0.1em' }}>세부 점수 (각 10점)</div>
@@ -149,32 +161,6 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
               <BreakdownBar key={k} label={k} value={a.score_breakdown?.[k] ?? 0} />
             ))}
           </div>
-
-          {/* 반복 단어 */}
-          {(a.repeated_words || []).length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 6 }}>✦ 반복 단어</div>
-              {a.repeated_words.map(w => <span key={w} className="px-tag-dim">{w}</span>)}
-            </div>
-          )}
-
-          {/* 감각 분포 */}
-          {a.senses && (
-            <>
-              <div className="px-divider" />
-              <div>
-                <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 8 }}>✦ 오감 분포</div>
-                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                  {Object.entries(a.senses).map(([k, v]) => (
-                    <div key={k} style={{ textAlign: 'center', minWidth: 36 }}>
-                      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--moon)', letterSpacing: '-0.02em', lineHeight: 1 }}>{v}</div>
-                      <div style={{ fontSize: 11, color: 'var(--dim-star)', marginTop: 4, fontWeight: 500 }}>{k}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
         </>
       )}
     </div>
@@ -222,8 +208,6 @@ export default function WritingPage() {
       db.writings.push({ id: Date.now(), date, type, topic, text, status: '분석완료', analysis: res, createdAt: new Date().toISOString() });
       mergeExpressions(db, res.expressions || []);
       mergeWeaknesses(db, res.weaknesses || []);
-      mergeStructures(db, res.structures || []);
-      if (res.senses) mergeSenses(db, res.senses);
       saveDB(db);
       setSaved(s => !s);
     } catch (e: unknown) {
@@ -253,8 +237,6 @@ export default function WritingPage() {
         db.writings[idx] = { ...db.writings[idx], status: '분석완료', analysis: res };
         mergeExpressions(db, res.expressions || []);
         mergeWeaknesses(db, res.weaknesses || []);
-        mergeStructures(db, res.structures || []);
-        if (res.senses) mergeSenses(db, res.senses);
         saveDB(db);
       }
       setSaved(s => !s);
@@ -356,7 +338,6 @@ export default function WritingPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {history.map(entry => (
               <div key={entry.id}>
-                {/* 헤더 행 */}
                 <div
                   className="px-card"
                   style={{ cursor: 'pointer', padding: '12px 16px' }}
@@ -380,10 +361,8 @@ export default function WritingPage() {
                   </div>
                 </div>
 
-                {/* 확장 패널 */}
                 {expanded === entry.id && (
                   <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderTop: 'none', padding: '16px' }}>
-                    {/* 원문 */}
                     <div style={{ marginBottom: 14 }}>
                       <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginBottom: 8 }}>✦ 원문</div>
                       <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap', padding: '10px 14px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--card-border)', marginBottom: 0 }}>
@@ -391,7 +370,6 @@ export default function WritingPage() {
                       </p>
                     </div>
 
-                    {/* 미분석 글 → 분석 버튼 */}
                     {!entry.analysis && (
                       <div style={{ marginBottom: 14 }}>
                         <button
@@ -408,7 +386,6 @@ export default function WritingPage() {
                       </div>
                     )}
 
-                    {/* 분석 전체 내역 */}
                     {entry.analysis && (
                       <>
                         <div className="px-divider" />
