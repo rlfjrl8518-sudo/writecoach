@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import {
   loadDB, saveDB, saveDBLocal, loadSettings,
   type ExpressionLabEntry, type ExpressionAnalysis, type DictResult,
@@ -251,6 +252,29 @@ export default function ExpressionsPage() {
       <p className="serif-font" style={{ fontSize: 13, color: 'var(--dim-star)', marginBottom: 20, lineHeight: 1.8 }}>
         글이 막힐 때, 표현하고 싶은 느낌이나 상황을 적으면 어울리는 표현을 AI가 추천해줘요.
       </p>
+
+      {/* 서브 탭 */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        <Link href="/writing" style={{ textDecoration: 'none' }}>
+          <button style={{
+            padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+            border: '1.5px solid var(--card-border)', background: 'transparent', color: 'var(--dim-star)',
+            fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
+          }}>✏ 글쓰기</button>
+        </Link>
+        <Link href="/rewrite" style={{ textDecoration: 'none' }}>
+          <button style={{
+            padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+            border: '1.5px solid var(--card-border)', background: 'transparent', color: 'var(--dim-star)',
+            fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
+          }}>↔ 다시쓰기</button>
+        </Link>
+        <button style={{
+          padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+          border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff',
+          fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
+        }}>辭 표현사전</button>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }} className="grid-2">
 

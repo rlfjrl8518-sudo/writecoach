@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   loadDB, saveDB, saveDBLocal, loadSettings, mergeExpressions, mergeWeaknesses,
   type WritingAnalysis, type WriteType, type WritingEntry,
@@ -258,6 +259,29 @@ export default function WritingPage() {
   return (
     <div>
       <div className="px-sec-title" style={{ marginBottom: 18 }}>✏ 글쓰기 연습</div>
+
+      {/* 서브 탭 */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        <button style={{
+          padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+          border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff',
+          fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
+        }}>✏ 글쓰기</button>
+        <Link href="/rewrite" style={{ textDecoration: 'none' }}>
+          <button style={{
+            padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+            border: '1.5px solid var(--card-border)', background: 'transparent', color: 'var(--dim-star)',
+            fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
+          }}>↔ 다시쓰기</button>
+        </Link>
+        <Link href="/expressions" style={{ textDecoration: 'none' }}>
+          <button style={{
+            padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+            border: '1.5px solid var(--card-border)', background: 'transparent', color: 'var(--dim-star)',
+            fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
+          }}>辭 표현사전</button>
+        </Link>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }} className="grid-2">
 

@@ -7,8 +7,8 @@ import type { SyncStatus } from '@/components/CloudSync';
 
 const TABS = [
   { href: '/',         icon: '⌂',  label: '홈',    matches: ['/'] },
-  { href: '/writing',  icon: '✏',  label: '글쓰기', matches: ['/writing', '/rewrite'] },
-  { href: '/sentence', icon: '文',  label: '수집',   matches: ['/sentence', '/copy', '/expressions'] },
+  { href: '/writing',  icon: '✏',  label: '글쓰기', matches: ['/writing', '/rewrite', '/expressions'] },
+  { href: '/sentence', icon: '文',  label: '수집',   matches: ['/sentence', '/copy'] },
   { href: '/training', icon: '◎',  label: '훈련',   matches: ['/training'] },
   { href: '/settings', icon: '⚙',  label: '설정',   matches: ['/settings'] },
 ];

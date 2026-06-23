@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { loadDB, saveDB, loadSettings, type AuthorStyle, type RewriteLevels } from '@/lib/db';
 import { rewriteText, generateVariations, transformAuthorStyle } from '@/lib/openai';
 
@@ -114,6 +115,29 @@ export default function RewritePage() {
       <p className="serif-font" style={{ fontSize: 13, color: 'var(--dim-star)', marginBottom: 20, lineHeight: 1.8 }}>
         같은 내용을 5가지 레벨로, 10가지 버전으로, 또는 특정 작가 스타일로 변환해요.
       </p>
+
+      {/* 서브 탭 */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        <Link href="/writing" style={{ textDecoration: 'none' }}>
+          <button style={{
+            padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+            border: '1.5px solid var(--card-border)', background: 'transparent', color: 'var(--dim-star)',
+            fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
+          }}>✏ 글쓰기</button>
+        </Link>
+        <button style={{
+          padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+          border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff',
+          fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
+        }}>↔ 다시쓰기</button>
+        <Link href="/expressions" style={{ textDecoration: 'none' }}>
+          <button style={{
+            padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
+            border: '1.5px solid var(--card-border)', background: 'transparent', color: 'var(--dim-star)',
+            fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
+          }}>辭 표현사전</button>
+        </Link>
+      </div>
 
       {/* 원문 입력 */}
       <div className="px-card" style={{ marginBottom: 18 }}>

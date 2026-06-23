@@ -495,14 +495,6 @@ function SentencePageInner() {
           color: activeTab === 'image' ? '#fff' : 'var(--dim-star)',
           fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
         }}>📷 이미지</button>
-        <Link href="/expressions" style={{ textDecoration: 'none' }}>
-          <button style={{
-            padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
-            border: '1.5px solid var(--card-border)',
-            background: 'transparent', color: 'var(--dim-star)',
-            fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
-          }}>辭 표현사전</button>
-        </Link>
       </div>
 
       {activeTab === 'text' && (<div>
