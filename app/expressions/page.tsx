@@ -108,7 +108,7 @@ function AnalysisView({ a, dict }: { a: ExpressionAnalysis; dict?: DictResult })
   );
 }
 
-interface RankedSuggestion extends ExpressionSuggestion { inDict: boolean; preview?: string }
+interface RankedSuggestion extends ExpressionSuggestion { inDict: boolean; preview?: string; isQuery?: boolean }
 
 export default function ExpressionsPage() {
   const [query, setQuery] = useState('');
@@ -173,11 +173,17 @@ export default function ExpressionsPage() {
       const wordOnly = /단어/.test(q);
       const list = await suggestExpressions(loadSettings(), q);
       const candidates = wordOnly ? list.filter(it => !it.text.includes(' ')) : list;
-      const checked: RankedSuggestion[] = await Promise.all(candidates.map(async it => {
+      // 입력한 단어 자체도 검색 결과에 포함시킨다 (지금까진 비슷한/대체 표현만 나왔음)
+      const isSingleWord = !q.includes(' ');
+      const withQuery: (ExpressionSuggestion & { isQuery?: boolean })[] =
+        isSingleWord && !candidates.some(c => c.text === q)
+          ? [{ text: q, reason: '', isQuery: true }, ...candidates]
+          : candidates;
+      const checked: RankedSuggestion[] = await Promise.all(withQuery.map(async it => {
         const dict = await peekDict(it.text);
         return { ...it, inDict: !!dict, preview: dict?.meaning };
       }));
-      setSuggestions([...checked.filter(c => c.inDict), ...checked.filter(c => !c.inDict)]);
+      setSuggestions([...checked.filter(c => c.isQuery), ...checked.filter(c => !c.isQuery && c.inDict), ...checked.filter(c => !c.isQuery && !c.inDict)]);
     } catch (e: unknown) {
       setErr('추천 오류: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setSuggestLoading(false); }
@@ -301,7 +307,7 @@ export default function ExpressionsPage() {
           {suggestions && suggestions.length > 0 && (
             <div style={{ marginTop: 20 }}>
               <div className="px-divider-dim" />
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 12, letterSpacing: '-0.01em' }}>추천 표현 — 골라서 자세히 보기</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 12, letterSpacing: '-0.01em' }}>검색 결과 — 골라서 자세히 보기</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {suggestions.map(sug => (
                   <button
@@ -310,13 +316,18 @@ export default function ExpressionsPage() {
                     disabled={detailLoading}
                     style={{
                       textAlign: 'left', cursor: 'pointer', padding: '10px 12px', borderRadius: 8,
-                      border: `1.5px solid ${searchedText === sug.text ? 'var(--accent)' : 'var(--card-border)'}`,
+                      border: `1.5px solid ${searchedText === sug.text ? 'var(--accent)' : sug.isQuery ? 'var(--moon)' : 'var(--card-border)'}`,
                       background: searchedText === sug.text ? 'var(--accent-dim)' : 'var(--bg-subtle)',
                       fontFamily: 'Pretendard, sans-serif',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{sug.text}</span>
+                      {sug.isQuery && (
+                        <span className="px-badge" style={{ background: 'var(--moon-dim)', color: 'var(--moon)', fontSize: 10 }}>
+                          검색어
+                        </span>
+                      )}
                       <span className="px-badge" style={sug.inDict ? { background: 'var(--good-dim)', color: 'var(--good)', fontSize: 10 } : { background: 'var(--bg-input)', color: 'var(--dim-star)', fontSize: 10 }}>
                         {sug.inDict ? '사전' : 'AI'}
                       </span>
