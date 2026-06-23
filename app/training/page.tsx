@@ -152,6 +152,8 @@ function DataSnapshot({ db }: { db: DB }) {
     (w.analysis!.weaknesses || []).forEach(s => { const k = s.trim().toLowerCase().replace(/\s+/g, ' '); liveWeak[k] = (liveWeak[k] || 0) + 1; });
   });
   const weakTop3 = Object.entries(liveWeak).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
+  const weakSynthTitles = (db.weaknessSynthesis || []).map(w => w.title);
+  const weakDisplay = weakSynthTitles.length ? weakSynthTitles.join(', ') : (weakTop3.length ? weakTop3.join(', ') : '없음');
 
   // 문장 역할 상위 2개
   const roleTop2 = Object.entries(db.sentenceRoles || {}).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k]) => k);
@@ -164,7 +166,7 @@ function DataSnapshot({ db }: { db: DB }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
         {[
           { label: '평균 점수',    value: avgScore ? `${avgScore}점` : '—',                               color: avgScore && avgScore >= 70 ? 'var(--good)' : 'var(--moon)', border: 'var(--accent)' },
-          { label: '주요 약점',    value: weakTop3.length ? weakTop3.join(', ') : '없음',                 color: 'var(--bad)',       border: 'var(--bad)' },
+          { label: '주요 약점',    value: weakDisplay,                                                    color: 'var(--bad)',       border: 'var(--bad)' },
           { label: '주로 쓰는 역할', value: roleTop2.length ? roleTop2.join(', ') : '없음',              color: 'var(--good)',      border: 'var(--good)' },
           { label: '주로 쓰는 표현', value: exprTop2.length ? exprTop2.join(', ') : '없음',              color: 'var(--accent)',    border: 'var(--accent)' },
         ].map(({ label, value, color, border }) => (

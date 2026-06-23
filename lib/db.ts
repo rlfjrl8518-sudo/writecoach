@@ -48,6 +48,8 @@ export interface WritingAnalysis {
   senses?: SenseCount;
 }
 
+export interface WeaknessSynthesis { title: string; explanation: string; suggestion: string; }
+
 export interface WritingEntry {
   id: number;
   date: string;
@@ -206,6 +208,8 @@ export interface DB {
   sentenceExpressionTypes: Record<string, number>; // v4 새 필드
   images: ImageEntry[];
   expressionEntries: ExpressionLabEntry[];
+  weaknessSynthesis: WeaknessSynthesis[];
+  weaknessSynthesisAt: string;
   _deletedIds: number[];
   // legacy — 데이터 호환용, 더 이상 신규 기록 안 함
   structures: Record<string, number>;
@@ -222,6 +226,7 @@ const EMPTY: DB = {
   sentenceTypes: {}, sentenceRoles: {}, sentenceExpressionTypes: {},
   images: [],
   expressionEntries: [],
+  weaknessSynthesis: [], weaknessSynthesisAt: '',
   _deletedIds: [],
   structures: {}, senses: {}, sentenceStructures: {}, sentenceCopyStructures: {},
 };

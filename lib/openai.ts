@@ -1,7 +1,7 @@
 import { jsonrepair } from 'jsonrepair';
 import type {
   WritingAnalysis, SentenceAnalysis, CopyAnalysis,
-  Settings, DB, Mission, MissionEvaluation, SentenceExamples,
+  Settings, DB, Mission, MissionEvaluation, SentenceExamples, WeaknessSynthesis,
   DictResult, ExpressionAnalysis, ExpressionCategory, ExpressionSense, ExpressionLevel, ExpressionUseContext,
 } from './db';
 
@@ -677,8 +677,6 @@ ${JSON.stringify(payload, null, 2)}
 }
 
 /* ── 약점 종합 진단 ── */
-export interface WeaknessSynthesis { title: string; explanation: string; suggestion: string; }
-
 const WEAKNESS_SYNTH_SYS = `너는 글쓰기 코치다. 사용자의 여러 글에서 반복적으로 지적된 약점 피드백과 그 빈도가 주어진다.
 이 목록을 그대로 나열하지 말고, 같은 근본 원인을 가리키는 항목들을 묶어서 사용자가 실제로 가진 핵심 약점 2~3가지로 종합 진단하라.
 

@@ -1,11 +1,11 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import {
-  loadDB, loadSettings, getLast30DaysScores, getTopEntries,
+  loadDB, saveDB, loadSettings, getLast30DaysScores, getTopEntries,
   getTotalChars, getAvgScore, getMonthlyWritingStats,
-  type DB,
+  type DB, type WeaknessSynthesis,
 } from '@/lib/db';
-import { generateMonthlyReport, synthesizeWeaknesses, type WeaknessSynthesis } from '@/lib/openai';
+import { generateMonthlyReport, synthesizeWeaknesses } from '@/lib/openai';
 import dynamic from 'next/dynamic';
 
 const ScoreChart        = dynamic(() => import('@/components/ReportCharts').then(m => ({ default: m.ScoreChart })),        { ssr: false });
@@ -132,7 +132,6 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(false);
   const [month, setMonth]     = useState(() => new Date().toISOString().slice(0, 7));
   const [err, setErr]         = useState('');
-  const [weakSynth, setWeakSynth]     = useState<WeaknessSynthesis[] | null>(null);
   const [weakLoading, setWeakLoading] = useState(false);
   const [weakErr, setWeakErr]         = useState('');
 
@@ -244,6 +243,7 @@ export default function ReportPage() {
   const weakTop  = getTopEntries(liveWeaknesses, 5).map(([k, v]) => ({ name: k, count: v }));
   const exprTop  = Object.entries(liveExpressions).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => ({ name: k, count: v }));
   const noData   = db.writings.length === 0;
+  const weakSynth: WeaknessSynthesis[] | null = db.weaknessSynthesis?.length ? db.weaknessSynthesis : null;
 
   async function handleSynthesizeWeaknesses() {
     const s = loadSettings();
@@ -253,7 +253,11 @@ export default function ReportPage() {
     try {
       const items = getTopEntries(liveWeaknesses, 15).map(([text, count]) => ({ text, count }));
       const res = await synthesizeWeaknesses(s, items);
-      setWeakSynth(res);
+      const fresh = loadDB();
+      fresh.weaknessSynthesis = res;
+      fresh.weaknessSynthesisAt = new Date().toISOString();
+      saveDB(fresh);
+      setDb(fresh);
     } catch (e: unknown) {
       setWeakErr('오류: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setWeakLoading(false); }

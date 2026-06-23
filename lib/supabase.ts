@@ -154,6 +154,9 @@ export function mergeDBs(local: DB, remote: DB): DB {
     sentenceExpressionTypes:  mergeRec(local.sentenceExpressionTypes ?? {}, remote.sentenceExpressionTypes ?? {}),
     images:                   mergeArr(local.images ?? [], remote.images ?? []),
     expressionEntries:        mergeArr(local.expressionEntries ?? [], remote.expressionEntries ?? []),
+    ...((local.weaknessSynthesisAt ?? '') > (remote.weaknessSynthesisAt ?? '')
+      ? { weaknessSynthesis: local.weaknessSynthesis ?? [], weaknessSynthesisAt: local.weaknessSynthesisAt ?? '' }
+      : { weaknessSynthesis: remote.weaknessSynthesis ?? [], weaknessSynthesisAt: remote.weaknessSynthesisAt ?? '' }),
     _deletedIds:              Array.from(deletedIds),
   };
 }
