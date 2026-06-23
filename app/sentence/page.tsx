@@ -252,31 +252,6 @@ function AnalysisView({
         </div>
       )}
 
-      {/* 4. 개선 포인트 */}
-      {a.sentenceImprovement && (
-        <div style={{ marginBottom: 14 }}>
-          <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--moon)', marginBottom: 7 }}>✦ 개선 포인트</div>
-          <div style={{
-            fontSize: 13, color: 'var(--text)', lineHeight: 1.9,
-            padding: '10px 14px', background: 'var(--moon-dim)',
-            borderLeft: '3px solid var(--moon)', borderRadius: '0 6px 6px 0',
-            fontFamily: 'Pretendard, sans-serif', marginBottom: 6,
-          }}>
-            {a.sentenceImprovement}
-          </div>
-          {a.improvedExample && (
-            <div style={{
-              fontSize: 13, color: 'var(--moon)', lineHeight: 1.9,
-              padding: '10px 14px', background: 'var(--bg-subtle)',
-              borderLeft: '3px solid var(--moon)', borderRadius: '0 6px 6px 0',
-              fontFamily: 'Pretendard, sans-serif', fontWeight: 500,
-            }}>
-              → {a.improvedExample}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* 핵심 표현 */}
       {(a.keyExpressions || []).length > 0 && (
         <Section title="✦ 핵심 표현" color="var(--good)">
@@ -613,7 +588,7 @@ function SentencePageInner() {
             <div className="px-empty">
               <div className="px-empty-icon">文</div>
               <p className="px-empty-text">문장을 입력하고<br />AI 분석 버튼을 눌러주세요</p>
-              <p className="px-empty-sub" style={{ marginTop: 6 }}>역할 · 표현 분석 · 강점 · 개선 포인트</p>
+              <p className="px-empty-sub" style={{ marginTop: 6 }}>역할 · 표현 분석 · 강점</p>
             </div>
           )}
           {analysisOpen && result && (
