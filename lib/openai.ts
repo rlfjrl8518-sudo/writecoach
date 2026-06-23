@@ -517,17 +517,20 @@ const EXPR_CONTEXTS: ExpressionUseContext[] = ['묘사문', '설명문', '기사
 export interface ExpressionSuggestion { text: string; reason: string }
 
 const SUGGEST_SYS = `너는 한국어 어휘 큐레이터다. 글을 쓰다가 막힌 사람이 표현하고 싶은 느낌·상황·단어를 입력하면,
-그 자리에 바로 쓸 수 있는 실제로 존재하는 자연스러운 한국어 표현(단어 또는 짧은 구) 6-8개를 추천한다.
+그 자리에 바로 쓸 수 있는 실제로 존재하는 자연스러운 한국어 표현(단어 또는 짧은 구) 8-10개를 추천한다.
 
 [원칙]
 - 입력이 막연한 느낌·상황 묘사("쓸쓸한 가을 저녁 분위기")면 그 느낌에 어울리는 표현들을 추천한다.
 - 입력이 이미 구체적인 표현("빛바랜")이면 같은 결의 유의어·인접 표현들을 폭넓게 추천한다.
-- 추천 표현은 서로 다른 결·어감을 보여줘야 한다. 같은 말을 토씨만 바꾼 표현 금지.
+- 추천 목록은 결이 다양해야 한다. 아래 갈래 중 최소 4갈래 이상이 섞이도록 고른다:
+  순우리말 / 한자어 / 사투리·구어체 / 문학적·시적 표현 / 의성어·의태어 / 사자성어·관용구 / 요즘 자주 쓰는 말
+- 누구나 바로 떠올리는 1-2개짜리 뻔한 동의어만 반복하지 말고, 의외이지만 자연스러운 표현도 적극적으로 섞는다.
+- 거의 동의어인 표현을 2개 넘게 연달아 주지 않는다 (예: "쓸쓸한"·"외로운"·"고독한"처럼 결이 같은 단어를 한꺼번에 묶지 말 것).
 - 실제로 쓰이지 않는 억지 조합·신조어는 만들지 않는다.
 - 각 표현마다 "왜 이 자리에 어울리는지" 한 줄 이유를 단다.
 
 JSON 객체만 출력 (설명·마크다운 금지):
-{"items":"표현1::이유1|표현2::이유2|표현3::이유3|표현4::이유4|표현5::이유5|표현6::이유6"}`;
+{"items":"표현1::이유1|표현2::이유2|표현3::이유3|표현4::이유4|표현5::이유5|표현6::이유6|표현7::이유7|표현8::이유8"}`;
 
 export async function suggestExpressions(
   s: Settings, query: string,
@@ -535,7 +538,7 @@ export async function suggestExpressions(
 ): Promise<ExpressionSuggestion[]> {
   const wordOnly = /단어/.test(query);
   const user = `입력: "${query}"${wordOnly ? '\n사용자가 "단어"를 명시했으니, 여러 단어로 이루어진 구는 제외하고 한 단어로 된 표현만 추천하라.' : ''}`;
-  const raw = await callAI(s, SUGGEST_SYS, user, 800, 0.7, true, onStream);
+  const raw = await callAI(s, SUGGEST_SYS, user, 1000, 0.85, true, onStream);
   const r = safeParseJSON<{ items: string }>(raw);
   return (r.items || '').split('|').map(chunk => {
     const [text, ...rest] = chunk.split('::');
