@@ -1,9 +1,9 @@
 'use client';
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
-  loadDB, saveDB, saveDBLocal, loadSettings,
+  loadDB, saveDB, saveDBLocal, loadSettings, groupByMonth,
   mergeSentenceType, mergeSentenceExpressions,
   mergeSentenceRole, mergeSentenceExpressionType,
   type SentenceEntry, type SentenceAnalysis, type SentenceExamples, type SentenceType, type ImageEntry,
@@ -300,6 +300,7 @@ function SentencePageInner() {
   const [editSource,  setEditSource]  = useState('');
   const [editUrl,     setEditUrl]     = useState('');
   const [editMemo,    setEditMemo]    = useState('');
+  const [openMonths,  setOpenMonths]  = useState<Set<string>>(new Set());
 
   const searchParams = useSearchParams();
   const [activeTab,   setActiveTab]   = useState<'text' | 'image'>(() =>
@@ -317,6 +318,20 @@ function SentencePageInner() {
     setHistory([...db.sentences].reverse());
     setImgHistory([...(db.images ?? [])].reverse());
   }, [saved]);
+
+  const monthGroups = useMemo(() => groupByMonth(history, e => e.createdAt), [history]);
+
+  useEffect(() => {
+    if (monthGroups.length > 0) setOpenMonths(prev => prev.size === 0 ? new Set([monthGroups[0].key]) : prev);
+  }, [monthGroups.length > 0]);
+
+  function toggleMonth(key: string) {
+    setOpenMonths(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
 
   async function handleAnalyze() {
     const s = loadSettings();
@@ -599,8 +614,27 @@ function SentencePageInner() {
       {history.length > 0 && (
         <div style={{ marginTop: 24 }}>
           <div className="px-sec-title" style={{ marginBottom: 14 }}>文 수집 문장 ({history.length}개)</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {history.map(entry => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {monthGroups.map(group => {
+              const isOpen = openMonths.has(group.key);
+              return (
+                <div key={group.key}>
+                  <button
+                    onClick={() => toggleMonth(group.key)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                      background: 'var(--bg-subtle)', border: '1px solid var(--card-border)',
+                      borderRadius: 10, padding: '10px 14px', cursor: 'pointer',
+                      marginBottom: isOpen ? 8 : 0, fontFamily: 'Pretendard, sans-serif',
+                    }}
+                  >
+                    <span className="pixel-font" style={{ fontSize: 9, color: 'var(--card-border)' }}>{isOpen ? '▾' : '▸'}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>📁 {group.label}</span>
+                    <span style={{ fontSize: 12, color: 'var(--dim-star)', marginLeft: 'auto' }}>{group.items.length}개</span>
+                  </button>
+                  {isOpen && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {group.items.map(entry => {
               const role = entry.analysis?.sentenceRole;
               const roleColor = ROLE_COLOR[role || ''] || 'var(--accent)';
               return (
@@ -691,6 +725,11 @@ function SentencePageInner() {
                           )}
                         </>
                       )}
+                    </div>
+                  )}
+                </div>
+              );
+                      })}
                     </div>
                   )}
                 </div>

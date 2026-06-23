@@ -316,6 +316,21 @@ export function getAvgScore(db: DB): number | null {
   return Math.round(a.reduce((s, w) => s + w.analysis!.score, 0) / a.length);
 }
 
+export interface MonthGroup<T> { key: string; label: string; items: T[]; }
+export function groupByMonth<T>(items: T[], getDate: (item: T) => string): MonthGroup<T>[] {
+  const map = new Map<string, T[]>();
+  items.forEach(item => {
+    const d = new Date(getDate(item));
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(item);
+  });
+  return Array.from(map.entries()).map(([key, groupItems]) => {
+    const [y, m] = key.split('-');
+    return { key, label: `${y}년 ${Number(m)}월`, items: groupItems };
+  });
+}
+
 /* Settings */
 const SETTINGS_KEY = 'wc_settings';
 export interface Settings {
