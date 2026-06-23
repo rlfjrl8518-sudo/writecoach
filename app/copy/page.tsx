@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { loadDB, saveDB, saveDBLocal, loadSettings, mergeCopyType, groupByMonth, type CopyEntry, type CopyAnalysis } from '@/lib/db';
 import { pushData } from '@/lib/supabase';
 import { analyzeCopy } from '@/lib/openai';
@@ -117,7 +118,8 @@ function AnalysisView({ a }: { a: CopyAnalysis }) {
   );
 }
 
-export default function CopyPage() {
+function CopyPageInner() {
+  const searchParams = useSearchParams();
   const [copy,      setCopy]      = useState('');
   const [brand,     setBrand]     = useState('');
   const [source,    setSource]    = useState('');
@@ -140,7 +142,7 @@ export default function CopyPage() {
 
   useEffect(() => {
     const db = loadDB();
-    setHistory([...db.copies].reverse());
+    setHistory([...db.copies].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   }, [saved]);
 
   const monthGroups = useMemo(() => groupByMonth(history, e => e.createdAt), [history]);
@@ -156,6 +158,21 @@ export default function CopyPage() {
       return next;
     });
   }
+
+  const focusHandled = useRef(false);
+  useEffect(() => {
+    if (focusHandled.current || history.length === 0) return;
+    const focusId = Number(searchParams.get('focus'));
+    const entry = focusId ? history.find(e => e.id === focusId) : undefined;
+    if (!entry) return;
+    focusHandled.current = true;
+    setExpanded(focusId);
+    const month = groupByMonth([entry], e => e.createdAt)[0]?.key;
+    if (month) setOpenMonths(prev => new Set(prev).add(month));
+    requestAnimationFrame(() => {
+      document.getElementById(`entry-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [history, searchParams]);
 
   async function handleAnalyze() {
     const s = loadSettings();
@@ -362,7 +379,7 @@ export default function CopyPage() {
                   {isOpen && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {group.items.map(entry => (
-              <div key={entry.id}>
+              <div key={entry.id} id={`entry-${entry.id}`}>
                 <div
                   className="px-card"
                   style={{ cursor: 'pointer', padding: '12px 16px' }}
@@ -456,5 +473,13 @@ export default function CopyPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CopyPage() {
+  return (
+    <Suspense>
+      <CopyPageInner />
+    </Suspense>
   );
 }

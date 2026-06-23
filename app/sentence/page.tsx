@@ -315,8 +315,8 @@ function SentencePageInner() {
 
   useEffect(() => {
     const db = loadDB();
-    setHistory([...db.sentences].reverse());
-    setImgHistory([...(db.images ?? [])].reverse());
+    setHistory([...db.sentences].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    setImgHistory([...(db.images ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   }, [saved]);
 
   const monthGroups = useMemo(() => groupByMonth(history, e => e.createdAt), [history]);
@@ -332,6 +332,22 @@ function SentencePageInner() {
       return next;
     });
   }
+
+  const focusHandled = useRef(false);
+  useEffect(() => {
+    if (focusHandled.current || history.length === 0) return;
+    const focusId = Number(searchParams.get('focus'));
+    const entry = focusId ? history.find(e => e.id === focusId) : undefined;
+    if (!entry) return;
+    focusHandled.current = true;
+    setActiveTab('text');
+    setExpanded(focusId);
+    const month = groupByMonth([entry], e => e.createdAt)[0]?.key;
+    if (month) setOpenMonths(prev => new Set(prev).add(month));
+    requestAnimationFrame(() => {
+      document.getElementById(`entry-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [history, searchParams]);
 
   async function handleAnalyze() {
     const s = loadSettings();
@@ -638,7 +654,7 @@ function SentencePageInner() {
               const role = entry.analysis?.sentenceRole;
               const roleColor = ROLE_COLOR[role || ''] || 'var(--accent)';
               return (
-                <div key={entry.id}>
+                <div key={entry.id} id={`entry-${entry.id}`}>
                   <div
                     className="px-card"
                     style={{ cursor: 'pointer', padding: '12px 16px' }}

@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
   loadDB, saveDB, saveDBLocal, loadSettings, mergeExpressions, mergeWeaknesses, groupByMonth,
   type WritingAnalysis, type WriteType, type WritingEntry,
@@ -168,7 +169,8 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
   );
 }
 
-export default function WritingPage() {
+function WritingPageInner() {
+  const searchParams = useSearchParams();
   const today = new Date().toISOString().split('T')[0];
   const [date,   setDate]   = useState(today);
   const [type,   setType]   = useState<WriteType>('에세이');
@@ -187,7 +189,7 @@ export default function WritingPage() {
 
   useEffect(() => {
     const db = loadDB();
-    setHistory([...db.writings].reverse());
+    setHistory([...db.writings].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)));
   }, [saved]);
 
   const monthGroups = useMemo(() => groupByMonth(history, e => e.date), [history]);
@@ -203,6 +205,21 @@ export default function WritingPage() {
       return next;
     });
   }
+
+  const focusHandled = useRef(false);
+  useEffect(() => {
+    if (focusHandled.current || history.length === 0) return;
+    const focusId = Number(searchParams.get('focus'));
+    const entry = focusId ? history.find(e => e.id === focusId) : undefined;
+    if (!entry) return;
+    focusHandled.current = true;
+    setExpanded(focusId);
+    const month = groupByMonth([entry], e => e.date)[0]?.key;
+    if (month) setOpenMonths(prev => new Set(prev).add(month));
+    requestAnimationFrame(() => {
+      document.getElementById(`entry-${focusId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [history, searchParams]);
 
   const dispatchScore = useCallback((score: number) => {
     window.dispatchEvent(new CustomEvent('score-updated', { detail: { score } }));
@@ -388,7 +405,7 @@ export default function WritingPage() {
                   {isOpen && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {group.items.map(entry => (
-              <div key={entry.id}>
+              <div key={entry.id} id={`entry-${entry.id}`}>
                 <div
                   className="px-card"
                   style={{ cursor: 'pointer', padding: '12px 16px' }}
@@ -463,5 +480,13 @@ export default function WritingPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function WritingPage() {
+  return (
+    <Suspense>
+      <WritingPageInner />
+    </Suspense>
   );
 }
