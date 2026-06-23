@@ -1,6 +1,6 @@
 import { jsonrepair } from 'jsonrepair';
 import type {
-  WritingAnalysis, SentenceAnalysis, CopyAnalysis, RewriteLevels,
+  WritingAnalysis, SentenceAnalysis, CopyAnalysis,
   Settings, DB, Mission, MissionEvaluation, SentenceExamples,
   DictResult, ExpressionAnalysis, ExpressionCategory, ExpressionSense, ExpressionLevel, ExpressionUseContext,
 } from './db';
@@ -456,39 +456,6 @@ export async function analyzeCopy(
 {"copyType":"브랜딩형","mainTarget":"이 카피가 향하는 주요 타겟","persuasionPoints":["자극하는 욕구/심리 1","욕구/심리 2"],"coreMessage":"이 카피가 전달하는 핵심 메시지 한 문장","expressionFeatures":["대조","숫자"],"analysisSummary":"2-3문장 객관적 분석 요약"}`;
   const raw = await callAI(s, COPY_SYS, user, 1200, 0.3, true);
   return safeParseJSON<CopyAnalysis>(raw);
-}
-
-const REWRITE_SYS = `너는 글쓰기 트레이너다. 아래 JSON 스키마를 그대로 지켜서 응답하라.
-Level1: 문법/자연스러움 수정 (원문 스타일 최대한 유지)
-Level2: 표현력 강화 (더 생생하고 구체적으로)
-Level3: 작가 수준 (문학적 감수성, 리듬감, 여운)
-Level4: 광고 카피 스타일 (임팩트, 짧고 강하게, 핵심만)
-Level5: 기사 리드 스타일 (육하원칙, 객관적, 핵심 먼저)`;
-
-export async function rewriteText(
-  s: Settings, text: string,
-  onStream?: (chunk: string) => void,
-): Promise<RewriteLevels> {
-  const user = `원문:\n${text}\n\n응답 형식(JSON 객체만, 설명 없이):\n{"level1":"","level2":"","level3":"","level4":"","level5":""}`;
-  const raw = await callAI(s, REWRITE_SYS, user, 2800, 0.5, true, onStream);
-  return safeParseJSON<RewriteLevels>(raw);
-}
-
-export async function generateVariations(
-  s: Settings, text: string,
-  onStream?: (chunk: string) => void,
-): Promise<string[]> {
-  const sys = '같은 의미를 가진 문장을 10가지 다른 표현으로 작성하라. JSON 배열만 반환. 설명 없이.';
-  const user = `원문:\n${text}\n\n응답 형식(JSON 배열만, 설명 없이):\n["버전1","버전2","버전3","버전4","버전5","버전6","버전7","버전8","버전9","버전10"]`;
-  const raw = await callAI(s, sys, user, 2000, 0.8, true, onStream);
-  return safeParseJSON<string[]>(raw);
-}
-
-export async function transformAuthorStyle(
-  s: Settings, text: string, author: string,
-): Promise<string> {
-  const sys = `너는 ${author}의 문체를 완벽하게 구현하는 작가다. 주어진 내용을 ${author}의 고유한 문체로 변환한다. 변환된 텍스트만 출력하라. 마크다운, 설명, 코드블록 금지.`;
-  return callAI(s, sys, `원문:\n${text}`, 1000, 0.7, false);
 }
 
 export async function generateMissions(

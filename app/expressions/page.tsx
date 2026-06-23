@@ -268,13 +268,6 @@ export default function ExpressionsPage() {
             fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
           }}>✏ 글쓰기</button>
         </Link>
-        <Link href="/rewrite" style={{ textDecoration: 'none' }}>
-          <button style={{
-            padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
-            border: '1.5px solid var(--card-border)', background: 'transparent', color: 'var(--dim-star)',
-            fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
-          }}>↔ 다시쓰기</button>
-        </Link>
         <button style={{
           padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
           border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff',

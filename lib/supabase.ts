@@ -141,7 +141,6 @@ export function mergeDBs(local: DB, remote: DB): DB {
     writings:              mergeArr(local.writings, remote.writings),
     sentences:             mergeArr(local.sentences, remote.sentences),
     copies:                mergeArr(local.copies, remote.copies),
-    rewrites:              mergeArr(local.rewrites, remote.rewrites),
     missions:              mergeArr(local.missions, remote.missions),
     expressions:           mergeExprRec(local.expressions, remote.expressions),
     weaknesses:            mergeRec(local.weaknesses, remote.weaknesses),

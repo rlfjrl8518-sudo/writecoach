@@ -1,6 +1,5 @@
 export type WriteType = '묘사문' | '설명문' | '감상문' | '의견문' | '기사 리드' | '카피라이팅' | '에세이' | '스토리텔링';
 export type CopyType = '브랜딩형' | '혜택 전달형' | '문제 제기형' | '위험 환기형' | '감성 공감형' | '행동 유도형' | '신뢰 확보형' | '정보 전달형' | '혼합형';
-export type AuthorStyle = '윤동주' | '김훈' | '무라카미 하루키' | '헤밍웨이';
 
 /* ── 문장 수집 전용 타입 ── */
 export type SentenceType = '기사 리드' | '칼럼' | '에세이' | '소설' | 'SNS 게시글' | '기타';
@@ -126,19 +125,6 @@ export interface CopyEntry {
   createdAt: string;
 }
 
-/* ── Rewrite ── */
-export interface RewriteLevels {
-  level1: string; level2: string; level3: string; level4: string; level5: string;
-}
-export interface RewriteEntry {
-  id: number;
-  original: string;
-  levels: RewriteLevels;
-  variations?: string[];
-  authorStyles?: Partial<Record<AuthorStyle, string>>;
-  createdAt: string;
-}
-
 /* ── Mission ── */
 export interface MissionEvaluation {
   score: number;
@@ -211,7 +197,6 @@ export interface DB {
   writings: WritingEntry[];
   sentences: SentenceEntry[];
   copies: CopyEntry[];
-  rewrites: RewriteEntry[];
   expressions: Record<string, ExpressionRecord>;
   weaknesses: Record<string, number>;
   copyTypes: Record<string, number>;
@@ -231,7 +216,7 @@ export interface DB {
 
 const DB_KEY = 'wc_v2_data';
 const EMPTY: DB = {
-  writings: [], sentences: [], copies: [], rewrites: [],
+  writings: [], sentences: [], copies: [],
   expressions: {}, weaknesses: {}, copyTypes: {},
   missions: [],
   sentenceTypes: {}, sentenceRoles: {}, sentenceExpressionTypes: {},
