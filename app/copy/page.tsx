@@ -62,31 +62,31 @@ function AnalysisView({ a }: { a: CopyAnalysis }) {
           <span className="px-badge px-badge-moon" style={{ fontSize: 13, padding: '4px 14px' }}>{a.copyType}</span>
         </CopySection>
         {a.mainTarget && (
-          <CopySection label="✦ 주요 타겟" color="var(--accent)">
+          <CopySection label="✦ 주요 타겟">
             <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7, padding: '8px 12px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--accent)' }}>
               {a.mainTarget}
             </div>
           </CopySection>
         )}
         {a.persuasionPoints && a.persuasionPoints.length > 0 && (
-          <CopySection label="✦ 설득 포인트" color="var(--bad)">
+          <CopySection label="✦ 설득 포인트">
             {a.persuasionPoints.map(p => <span key={p} className="px-tag-expr">{p}</span>)}
           </CopySection>
         )}
         {a.coreMessage && (
-          <CopySection label="✦ 핵심 메시지" color="var(--moon)">
-            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.8, padding: '10px 14px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--moon)', fontWeight: 500 }}>
+          <CopySection label="✦ 핵심 메시지">
+            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.8, padding: '10px 14px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--accent)', fontWeight: 500 }}>
               {a.coreMessage}
             </div>
           </CopySection>
         )}
         {a.expressionFeatures && a.expressionFeatures.length > 0 && (
-          <CopySection label="✦ 표현 특징" color="var(--good)">
+          <CopySection label="✦ 표현 특징">
             {a.expressionFeatures.map(f => <span key={f} className="px-tag-expr">{f}</span>)}
           </CopySection>
         )}
         {a.analysisSummary && (
-          <CopySection label="✦ 분석 요약" color="var(--dim-star)">
+          <CopySection label="✦ 분석 요약">
             <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.8 }}>{a.analysisSummary}</div>
           </CopySection>
         )}
@@ -107,7 +107,7 @@ function AnalysisView({ a }: { a: CopyAnalysis }) {
         </CopySection>
       )}
       {a.targetAudience && (
-        <CopySection label="✦ 주요 타겟" color="var(--accent)">
+        <CopySection label="✦ 주요 타겟">
           <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7, padding: '8px 12px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--accent)' }}>
             {a.targetAudience}
           </div>
@@ -334,77 +334,81 @@ export default function CopyPage() {
                   style={{ cursor: 'pointer', padding: '12px 16px' }}
                   onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
                 >
-                  {editingId === entry.id ? (
-                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                        <div>
-                          <label className="px-label">브랜드</label>
-                          <input className="px-input" value={editBrand} onChange={e => setEditBrand(e.target.value)} placeholder="브랜드명" />
-                        </div>
-                        <div>
-                          <label className="px-label">경로</label>
-                          <input className="px-input" value={editSource} onChange={e => setEditSource(e.target.value)} placeholder="TV·SNS·유튜브 등" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="px-label">참고 URL</label>
-                        <input className="px-input" value={editUrl} onChange={e => setEditUrl(e.target.value)} placeholder="https://..." />
-                      </div>
-                      <div>
-                        <label className="px-label">나의 메모</label>
-                        <textarea className="px-textarea" rows={3} placeholder="인사이트, 느낌, 활용 아이디어..." value={editMemo} onChange={e => setEditMemo(e.target.value)} style={{ minHeight: 72 }} />
-                      </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="px-btn px-btn-accent" style={{ fontSize: 11, padding: '5px 14px' }} onClick={e => handleEditSave(entry.id, e)}>저장</button>
-                        <button className="px-btn-ghost" style={{ fontSize: 11, padding: '5px 14px' }} onClick={handleEditCancel}>취소</button>
-                      </div>
-                    </div>
-                  ) : (
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                        {entry.createdAt && (
-                          <span style={{ fontSize: 10, color: 'var(--dim-star)', background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderRadius: 4, padding: '2px 7px' }}>
-                            {new Date(entry.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
-                        {entry.brand && <span className="px-badge px-badge-type" style={{ fontSize: 12, padding: '3px 10px' }}>{entry.brand}</span>}
-                        {entry.analysis && (
-                          <span className="px-badge px-badge-moon" style={{ fontSize: 12, padding: '3px 10px' }}>
-                            {entry.analysis.copyType || entry.analysis.type}
-                          </span>
-                        )}
-                      </div>
-                      <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, margin: 0 }}>
-                        {entry.copy.length > 80 ? entry.copy.slice(0, 80) + '…' : entry.copy}
-                      </p>
-                      {entry.source && <span style={{ fontSize: 10, color: 'var(--dim-star)', marginTop: 4, display: 'block' }}>— {entry.source}</span>}
-                      {entry.sourceUrl && <RefLink url={entry.sourceUrl} />}
-                      {entry.memo && (
-                        <div style={{ marginTop: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
-                          <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 700, display: 'block', marginBottom: 3, letterSpacing: '0.02em' }}>MY NOTE</span>
-                          {entry.memo}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-                      <button onClick={e => handleEditStart(entry, e)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 12, opacity: 0.6 }}>✎</button>
-                      <button onClick={e => { e.stopPropagation(); handleDelete(entry.id); }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bad)', fontSize: 12, opacity: 0.6 }}>✕</button>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    {entry.createdAt && (
+                      <span className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)' }}>
+                        {new Date(entry.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
+                    {entry.brand && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{entry.brand}</span>}
+                    <span className="pixel-font" style={{ marginLeft: 'auto', fontSize: 6.5, color: 'var(--card-border)' }}>
+                      {expanded === entry.id ? '▲' : '▼'}
+                    </span>
                   </div>
-                  )}
+                  <p style={{
+                    fontSize: 13, color: 'var(--text)', lineHeight: 1.6, margin: 0,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {entry.copy}
+                  </p>
                 </div>
                 {expanded === entry.id && (
                   <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderTop: 'none', padding: '14px 16px' }}>
-                    <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap', marginBottom: 6 }}>
-                      {entry.copy}
-                    </p>
-                    {entry.source && <span style={{ fontSize: 10, color: 'var(--dim-star)', display: 'block', marginBottom: 3 }}>— {entry.source}</span>}
-                    {entry.sourceUrl && <RefLink url={entry.sourceUrl} />}
-                    {(entry.source || entry.sourceUrl) && entry.analysis && <div style={{ height: 10 }} />}
-                    {entry.analysis && <AnalysisView a={entry.analysis} />}
+                    {editingId === entry.id ? (
+                      <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                          <div>
+                            <label className="px-label">브랜드</label>
+                            <input className="px-input" value={editBrand} onChange={e => setEditBrand(e.target.value)} placeholder="브랜드명" />
+                          </div>
+                          <div>
+                            <label className="px-label">경로</label>
+                            <input className="px-input" value={editSource} onChange={e => setEditSource(e.target.value)} placeholder="TV·SNS·유튜브 등" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="px-label">참고 URL</label>
+                          <input className="px-input" value={editUrl} onChange={e => setEditUrl(e.target.value)} placeholder="https://..." />
+                        </div>
+                        <div>
+                          <label className="px-label">나의 메모</label>
+                          <textarea className="px-textarea" rows={3} placeholder="인사이트, 느낌, 활용 아이디어..." value={editMemo} onChange={e => setEditMemo(e.target.value)} style={{ minHeight: 72 }} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="px-btn px-btn-accent" style={{ fontSize: 11, padding: '5px 14px' }} onClick={e => handleEditSave(entry.id, e)}>저장</button>
+                          <button className="px-btn-ghost" style={{ fontSize: 11, padding: '5px 14px' }} onClick={handleEditCancel}>취소</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                          {entry.analysis ? (
+                            <span className="px-badge px-badge-moon" style={{ fontSize: 12, padding: '3px 10px' }}>
+                              {entry.analysis.copyType || entry.analysis.type}
+                            </span>
+                          ) : <span />}
+                          <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
+                            <button onClick={e => handleEditStart(entry, e)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 12, opacity: 0.7 }}>✎ 수정</button>
+                            <button onClick={e => { e.stopPropagation(); handleDelete(entry.id); }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bad)', fontSize: 12, opacity: 0.7 }}>✕ 삭제</button>
+                          </div>
+                        </div>
+                        <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap', marginBottom: 6 }}>
+                          {entry.copy}
+                        </p>
+                        {entry.source && <span style={{ fontSize: 10, color: 'var(--dim-star)', display: 'block', marginBottom: 3 }}>— {entry.source}</span>}
+                        {entry.sourceUrl && <RefLink url={entry.sourceUrl} />}
+                        {entry.memo && (
+                          <div style={{ marginTop: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
+                            <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 700, display: 'block', marginBottom: 3, letterSpacing: '0.02em' }}>MY NOTE</span>
+                            {entry.memo}
+                          </div>
+                        )}
+                        {entry.analysis && <div style={{ height: 10 }} />}
+                        {entry.analysis && <AnalysisView a={entry.analysis} />}
+                      </>
+                    )}
                   </div>
                 )}
               </div>

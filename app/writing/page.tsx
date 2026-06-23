@@ -360,26 +360,33 @@ export default function WritingPage() {
                   style={{ cursor: 'pointer', padding: '12px 16px' }}
                   onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <span className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)' }}>{entry.date}</span>
-                    <span className="px-badge px-badge-type" style={{ fontSize: 12 }}>{entry.type}</span>
-                    {entry.analysis
-                      ? <span className="px-badge px-badge-accent" style={{ fontSize: 12 }}>{entry.analysis.score}점</span>
-                      : <span className="px-badge px-badge-pending" style={{ fontSize: 12 }}>미분석</span>
-                    }
-                    <span style={{ fontSize: 12, color: 'var(--text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {entry.topic || entry.text.slice(0, 40)}
-                    </span>
-                    <span className="pixel-font" style={{ fontSize: 6.5, color: 'var(--card-border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)' }}>{entry.date}</span>
+                    <span className="pixel-font" style={{ marginLeft: 'auto', fontSize: 6.5, color: 'var(--card-border)' }}>
                       {expanded === entry.id ? '▲' : '▼'}
                     </span>
-                    <button onClick={e => { e.stopPropagation(); handleDelete(entry.id); }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bad)', fontSize: 12, opacity: 0.6 }}>✕</button>
                   </div>
+                  <p style={{
+                    fontSize: 13, color: 'var(--text)', lineHeight: 1.6, margin: 0,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {entry.topic || entry.text.slice(0, 40)}
+                  </p>
                 </div>
 
                 {expanded === entry.id && (
                   <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderTop: 'none', padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span className="px-badge px-badge-type" style={{ fontSize: 12 }}>{entry.type}</span>
+                        {entry.analysis
+                          ? <span className="px-badge px-badge-accent" style={{ fontSize: 12 }}>{entry.analysis.score}점</span>
+                          : <span className="px-badge px-badge-pending" style={{ fontSize: 12 }}>미분석</span>
+                        }
+                      </div>
+                      <button onClick={e => { e.stopPropagation(); handleDelete(entry.id); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bad)', fontSize: 12, opacity: 0.7 }}>✕ 삭제</button>
+                    </div>
                     <div style={{ marginBottom: 14 }}>
                       <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginBottom: 8 }}>✦ 원문</div>
                       <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap', padding: '10px 14px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--card-border)', marginBottom: 0 }}>

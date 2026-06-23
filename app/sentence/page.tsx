@@ -607,80 +607,90 @@ function SentencePageInner() {
                 <div key={entry.id}>
                   <div
                     className="px-card"
-                    style={{ cursor: editingId === entry.id ? 'default' : 'pointer', padding: '12px 16px' }}
-                    onClick={() => editingId !== entry.id && setExpanded(expanded === entry.id ? null : entry.id)}
+                    style={{ cursor: 'pointer', padding: '12px 16px' }}
+                    onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
                   >
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8, alignItems: 'center' }}>
-                          {entry.createdAt && (
-                            <span style={{ fontSize: 10, color: 'var(--dim-star)', background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderRadius: 4, padding: '2px 7px' }}>
-                              {new Date(entry.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                            </span>
-                          )}
-                          {entry.type && (
-                            <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 6, background: 'var(--bg-input)', border: '1px solid var(--card-border)', color: 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif', fontWeight: 500 }}>{entry.type}</span>
-                          )}
-                          {role && (
-                            <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: `${roleColor}14`, border: `1px solid ${roleColor}44`, color: roleColor, fontFamily: 'Pretendard, sans-serif', fontWeight: 600 }}>
-                              {role}
-                            </span>
-                          )}
-                          {!role && entry.analysis?.sentenceKind && (
-                            <span className="px-badge px-badge-accent" style={{ fontSize: 12, padding: '3px 10px' }}>{entry.analysis.sentenceKind}</span>
-                          )}
-                        </div>
-                        <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, margin: 0, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' } as React.CSSProperties}>
-                          {entry.sentence}
-                        </p>
-                        {editingId === entry.id ? (
-                          <div style={{ marginTop: 10 }} onClick={e => e.stopPropagation()}>
-                            <input className="px-input" placeholder="출처 (책 이름, 작가 등)" value={editSource} onChange={e => setEditSource(e.target.value)} style={{ marginBottom: 6 }} />
-                            <input className="px-input" placeholder="참고 (https://...)" value={editUrl} onChange={e => setEditUrl(e.target.value)} style={{ marginBottom: 6 }} />
-                            <textarea className="px-textarea" rows={3} placeholder="나의 인사이트, 느낌, 메모..." value={editMemo} onChange={e => setEditMemo(e.target.value)} style={{ marginBottom: 8, minHeight: 72 }} />
-                            <div style={{ display: 'flex', gap: 6 }}>
-                              <button className="px-btn px-btn-accent" style={{ fontSize: 11, padding: '5px 14px' }} onClick={e => handleEditSave(entry.id, e)}>저장</button>
-                              <button className="px-btn-ghost" style={{ fontSize: 11, padding: '5px 14px' }} onClick={handleEditCancel}>취소</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            {entry.source && <span style={{ fontSize: 10, color: 'var(--dim-star)', marginTop: 4, display: 'block' }}>— {entry.source}</span>}
-                            {entry.sourceUrl && <RefLink url={entry.sourceUrl} />}
-                            {entry.memo && (
-                              <div style={{ marginTop: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
-                                <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 700, display: 'block', marginBottom: 3, letterSpacing: '0.02em' }}>MY NOTE</span>
-                                {entry.memo}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-                        <button onClick={e => handleEditStart(entry, e)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 11, opacity: 0.7, lineHeight: 1 }}>✎</button>
-                        <button onClick={e => { e.stopPropagation(); handleDelete(entry.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bad)', fontSize: 12, opacity: 0.6, lineHeight: 1 }}>✕</button>
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      {entry.createdAt && (
+                        <span className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)' }}>
+                          {new Date(entry.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                      {entry.source && <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{entry.source}</span>}
+                      <span className="pixel-font" style={{ marginLeft: 'auto', fontSize: 6.5, color: 'var(--card-border)' }}>
+                        {expanded === entry.id ? '▲' : '▼'}
+                      </span>
                     </div>
+                    <p style={{
+                      fontSize: 13, color: 'var(--text)', lineHeight: 1.6, margin: 0,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {entry.sentence}
+                    </p>
                   </div>
-                  {expanded === entry.id && entry.analysis && (
+                  {expanded === entry.id && (
                     <div style={{
                       background: 'var(--bg-subtle)', border: '1px solid var(--card-border)',
                       borderTop: 'none', padding: '14px 16px',
                     }}>
-                      <p style={{
-                        fontSize: 13, color: 'var(--text)', lineHeight: 1.9,
-                        whiteSpace: 'pre-wrap', marginBottom: 6,
-                        borderLeft: '2px solid var(--dim-star)', paddingLeft: 12,
-                      }}>{entry.sentence}</p>
-                      {entry.source && <span style={{ fontSize: 10, color: 'var(--dim-star)', marginBottom: 4, display: 'block' }}>— {entry.source}</span>}
-                      {entry.sourceUrl && <RefLink url={entry.sourceUrl} style={{ marginBottom: 12 }} />}
-                      <AnalysisView
-                        a={entry.analysis}
-                        entry={history.find(h => h.id === entry.id)}
-                        onGenerateExamples={() => handleGenerateExamples(entry.id)}
-                        generatingExamples={genEx}
-                        exStreamLen={exStreamLen}
-                      />
+                      {editingId === entry.id ? (
+                        <div onClick={e => e.stopPropagation()}>
+                          <input className="px-input" placeholder="출처 (책 이름, 작가 등)" value={editSource} onChange={e => setEditSource(e.target.value)} style={{ marginBottom: 6 }} />
+                          <input className="px-input" placeholder="참고 (https://...)" value={editUrl} onChange={e => setEditUrl(e.target.value)} style={{ marginBottom: 6 }} />
+                          <textarea className="px-textarea" rows={3} placeholder="나의 인사이트, 느낌, 메모..." value={editMemo} onChange={e => setEditMemo(e.target.value)} style={{ marginBottom: 8, minHeight: 72 }} />
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button className="px-btn px-btn-accent" style={{ fontSize: 11, padding: '5px 14px' }} onClick={e => handleEditSave(entry.id, e)}>저장</button>
+                            <button className="px-btn-ghost" style={{ fontSize: 11, padding: '5px 14px' }} onClick={handleEditCancel}>취소</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center' }}>
+                              {entry.type && (
+                                <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 6, background: 'var(--bg-input)', border: '1px solid var(--card-border)', color: 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif', fontWeight: 500 }}>{entry.type}</span>
+                              )}
+                              {role && (
+                                <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: `${roleColor}14`, border: `1px solid ${roleColor}44`, color: roleColor, fontFamily: 'Pretendard, sans-serif', fontWeight: 600 }}>
+                                  {role}
+                                </span>
+                              )}
+                              {!role && entry.analysis?.sentenceKind && (
+                                <span className="px-badge px-badge-accent" style={{ fontSize: 12, padding: '3px 10px' }}>{entry.analysis.sentenceKind}</span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', gap: 12, flexShrink: 0 }}>
+                              <button onClick={e => handleEditStart(entry, e)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 12, opacity: 0.7 }}>✎ 수정</button>
+                              <button onClick={e => { e.stopPropagation(); handleDelete(entry.id); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bad)', fontSize: 12, opacity: 0.7 }}>✕ 삭제</button>
+                            </div>
+                          </div>
+                          <p style={{
+                            fontSize: 13, color: 'var(--text)', lineHeight: 1.9,
+                            whiteSpace: 'pre-wrap', marginBottom: 6,
+                            borderLeft: '2px solid var(--dim-star)', paddingLeft: 12,
+                          }}>{entry.sentence}</p>
+                          {entry.source && <span style={{ fontSize: 10, color: 'var(--dim-star)', marginBottom: 4, display: 'block' }}>— {entry.source}</span>}
+                          {entry.sourceUrl && <RefLink url={entry.sourceUrl} style={{ marginBottom: 6 }} />}
+                          {entry.memo && (
+                            <div style={{ marginTop: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
+                              <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 700, display: 'block', marginBottom: 3, letterSpacing: '0.02em' }}>MY NOTE</span>
+                              {entry.memo}
+                            </div>
+                          )}
+                          {entry.analysis && (
+                            <>
+                              <div style={{ height: 10 }} />
+                              <AnalysisView
+                                a={entry.analysis}
+                                entry={history.find(h => h.id === entry.id)}
+                                onGenerateExamples={() => handleGenerateExamples(entry.id)}
+                                generatingExamples={genEx}
+                                exStreamLen={exStreamLen}
+                              />
+                            </>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
