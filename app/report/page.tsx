@@ -5,7 +5,7 @@ import {
   getTotalChars, getAvgScore, getMonthlyWritingStats,
   type DB,
 } from '@/lib/db';
-import { generateMonthlyReport } from '@/lib/openai';
+import { generateMonthlyReport, synthesizeWeaknesses, type WeaknessSynthesis } from '@/lib/openai';
 import dynamic from 'next/dynamic';
 
 const ScoreChart        = dynamic(() => import('@/components/ReportCharts').then(m => ({ default: m.ScoreChart })),        { ssr: false });
@@ -132,6 +132,9 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(false);
   const [month, setMonth]     = useState(() => new Date().toISOString().slice(0, 7));
   const [err, setErr]         = useState('');
+  const [weakSynth, setWeakSynth]     = useState<WeaknessSynthesis[] | null>(null);
+  const [weakLoading, setWeakLoading] = useState(false);
+  const [weakErr, setWeakErr]         = useState('');
 
   useEffect(() => { setDb(loadDB()); }, []);
 
@@ -242,6 +245,20 @@ export default function ReportPage() {
   const exprTop  = Object.entries(liveExpressions).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => ({ name: k, count: v }));
   const noData   = db.writings.length === 0;
 
+  async function handleSynthesizeWeaknesses() {
+    const s = loadSettings();
+    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
+    if (!hasKey) { setWeakErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    setWeakLoading(true); setWeakErr('');
+    try {
+      const items = getTopEntries(liveWeaknesses, 15).map(([text, count]) => ({ text, count }));
+      const res = await synthesizeWeaknesses(s, items);
+      setWeakSynth(res);
+    } catch (e: unknown) {
+      setWeakErr('오류: ' + (e instanceof Error ? e.message : String(e)));
+    } finally { setWeakLoading(false); }
+  }
+
   return (
     <div style={{ maxWidth: 720, margin: '0 auto' }}>
       <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.03em', marginBottom: 28 }}>
@@ -284,16 +301,45 @@ export default function ReportPage() {
             </div>
           )}
 
-          {/* ── 4. 약점 & 표현 ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }} className="grid-2">
-            <div className="px-card">
-              <SectionHeader title="주요 약점" sub="반복적으로 지적된 항목" />
-              <BarList items={weakTop} color="var(--bad)" />
-            </div>
-            <div className="px-card">
-              <SectionHeader title="누적 표현" sub="자주 수집한 표현" />
-              <BarList items={exprTop} color="var(--accent)" />
-            </div>
+          {/* ── 4. 약점 종합 진단 ── */}
+          <div className="px-card" style={{ marginBottom: 20 }}>
+            <SectionHeader title="주요 약점" sub="AI가 반복된 피드백을 종합한 핵심 진단" />
+            {weakTop.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--dim-star)' }}>아직 데이터가 없어요</p>
+            ) : weakSynth ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {weakSynth.map((w, i) => (
+                  <div key={i} style={{
+                    padding: '12px 14px', background: 'var(--bad-dim)',
+                    borderLeft: '3px solid var(--bad-border)', borderRadius: '0 8px 8px 0',
+                  }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--bad)', marginBottom: 6 }}>{i + 1}. {w.title}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.8, marginBottom: 7 }}>{w.explanation}</div>
+                    <div style={{ fontSize: 12, color: 'var(--accent)', lineHeight: 1.7, fontWeight: 500 }}>→ {w.suggestion}</div>
+                  </div>
+                ))}
+                <button className="px-btn-ghost-sm" onClick={handleSynthesizeWeaknesses} disabled={weakLoading} style={{ alignSelf: 'flex-start' }}>
+                  {weakLoading ? '★ 다시 진단 중...' : '↻ 다시 진단받기'}
+                </button>
+              </div>
+            ) : (
+              <div>
+                <button className="px-btn px-btn-accent" onClick={handleSynthesizeWeaknesses} disabled={weakLoading}>
+                  {weakLoading ? '★ 진단 중...' : '✦ AI로 약점 진단받기'}
+                </button>
+                {weakErr && (
+                  <div style={{ marginTop: 10, fontSize: 11, color: 'var(--bad)', padding: '8px 12px', borderLeft: '2px solid var(--bad-border)', background: 'var(--bad-dim)' }}>
+                    {weakErr}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── 4-1. 누적 표현 ── */}
+          <div className="px-card" style={{ marginBottom: 20 }}>
+            <SectionHeader title="누적 표현" sub="자주 수집한 표현" />
+            <BarList items={exprTop} color="var(--accent)" />
           </div>
 
           {/* ── 5. 문장 역할 분포 ── */}
