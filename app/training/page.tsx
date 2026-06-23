@@ -153,7 +153,7 @@ function DataSnapshot({ db }: { db: DB }) {
   });
   const weakTop3 = Object.entries(liveWeak).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
   const weakSynthTitles = (db.weaknessSynthesis || []).map(w => w.title);
-  const weakDisplay = weakSynthTitles.length ? weakSynthTitles.join(', ') : (weakTop3.length ? weakTop3.join(', ') : '없음');
+  const weakDisplay = weakSynthTitles.length ? weakSynthTitles.join('\n') : (weakTop3.length ? weakTop3.join('\n') : '없음');
 
   // 문장 역할 상위 2개
   const roleTop2 = Object.entries(db.sentenceRoles || {}).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k]) => k);
@@ -172,7 +172,7 @@ function DataSnapshot({ db }: { db: DB }) {
         ].map(({ label, value, color, border }) => (
           <div key={label} style={{ padding: '12px 14px', background: 'var(--bg-subtle)', borderLeft: `3px solid ${border}`, borderRadius: '0 8px 8px 0' }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 6 }}>{label}</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color, letterSpacing: '-0.01em' }}>{value}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color, letterSpacing: '-0.01em', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{value}</div>
           </div>
         ))}
       </div>
