@@ -6,7 +6,7 @@ import {
   loadDB, saveDB, saveDBLocal, loadSettings, mergeExpressions, mergeWeaknesses, groupByMonth,
   type WritingAnalysis, type WriteType, type WritingEntry,
 } from '@/lib/db';
-import { analyzeWriting, evaluateAppeal, type AppealResult } from '@/lib/openai';
+import { analyzeWriting, evaluateAppeal, proofreadWriting, type AppealResult, type ProofreadResult } from '@/lib/openai';
 import { pushData } from '@/lib/supabase';
 
 const TYPES: WriteType[] = ['묘사문', '설명문', '감상문', '의견문', '기사 리드', '카피라이팅', '에세이', '스토리텔링'];
@@ -124,6 +124,66 @@ function AppealResultView({ appeal, originalScore, onReset }: { appeal: AppealRe
       </div>
 
       <button className="px-btn-ghost" style={{ fontSize: 11 }} onClick={onReset}>↩ 다시 이의 제기</button>
+    </div>
+  );
+}
+
+function ProofreadPanel({
+  result, loading, streamLen, tab, onTabChange, originalText, onClose,
+}: {
+  result: ProofreadResult | null;
+  loading: boolean;
+  streamLen: number;
+  tab: 'original' | 'corrected';
+  onTabChange: (t: 'original' | 'corrected') => void;
+  originalText: string;
+  onClose: () => void;
+}) {
+  if (loading) return <StarLoader streamLen={streamLen} />;
+  if (!result) return null;
+  return (
+    <div className="animate-fade-in">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['original', 'corrected'] as const).map(t => (
+            <button key={t} onClick={() => onTabChange(t)} style={{
+              padding: '5px 14px', fontSize: 12, fontWeight: tab === t ? 700 : 400,
+              border: `1.5px solid ${tab === t ? 'var(--accent)' : 'var(--card-border)'}`,
+              background: tab === t ? 'var(--accent)' : 'transparent',
+              color: tab === t ? '#fff' : 'var(--dim-star)',
+              borderRadius: 8, cursor: 'pointer', fontFamily: 'Pretendard, sans-serif',
+            }}>
+              {t === 'original' ? '원문' : '첨삭본'}
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 11 }}>✕ 닫기</button>
+      </div>
+      <p style={{
+        fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap',
+        padding: '12px 14px', marginBottom: 14,
+        background: tab === 'corrected' ? 'var(--accent-dim)' : 'var(--bg-subtle)',
+        borderLeft: `3px solid ${tab === 'corrected' ? 'var(--accent)' : 'var(--card-border)'}`,
+        borderRadius: '0 6px 6px 0',
+      }}>
+        {tab === 'original' ? originalText : result.corrected}
+      </p>
+      {result.changes.length > 0 && (
+        <div>
+          <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--moon)', marginBottom: 8 }}>✦ 수정 포인트</div>
+          {result.changes.map((c, i) => (
+            <div key={i} style={{
+              marginBottom: 8, padding: '10px 14px',
+              background: 'var(--moon-dim)', borderLeft: '3px solid var(--moon)',
+              borderRadius: '0 6px 6px 0',
+            }}>
+              <span className="px-badge px-badge-moon" style={{ fontSize: 10, padding: '2px 8px', marginBottom: 6, display: 'inline-block' }}>{c.reason}</span>
+              <div style={{ fontSize: 12, color: 'var(--dim-star)', textDecoration: 'line-through', lineHeight: 1.7, marginBottom: 4 }}>{c.original}</div>
+              <div style={{ fontSize: 13, color: 'var(--moon)', fontWeight: 500, lineHeight: 1.8 }}>→ {c.revised}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -257,6 +317,14 @@ function WritingPageInner() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
+  const [analyzedText,  setAnalyzedText]  = useState('');
+  const [analyzedType,  setAnalyzedType]  = useState<WriteType>('에세이');
+  const [analyzedTopic, setAnalyzedTopic] = useState('');
+  const [proofreadResult,    setProofreadResult]    = useState<ProofreadResult | null>(null);
+  const [proofreadLoading,   setProofreadLoading]   = useState(false);
+  const [proofreadStreamLen, setProofreadStreamLen] = useState(0);
+  const [proofreadTab,       setProofreadTab]       = useState<'original' | 'corrected'>('corrected');
+  const [proofreadForKey,    setProofreadForKey]    = useState<string | null>(null);
 
   useEffect(() => {
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ date, type, topic, text })); } catch {}
@@ -318,6 +386,8 @@ function WritingPageInner() {
       mergeExpressions(db, res.expressions || []);
       mergeWeaknesses(db, res.weaknesses || []);
       saveDB(db);
+      setAnalyzedText(text); setAnalyzedType(type); setAnalyzedTopic(topic);
+      setProofreadResult(null); setProofreadForKey(null);
       setText(''); setTopic('');
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
       const earned = Math.round(res.score / 2);
@@ -378,6 +448,25 @@ function WritingPageInner() {
     } catch (e: unknown) {
       setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setAnalyzingId(null); }
+  }
+
+  async function handleProofread(
+    targetText: string, targetType: WriteType, targetTopic: string,
+    analysis: WritingAnalysis, key: string,
+  ) {
+    const s = loadSettings();
+    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
+    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    setProofreadLoading(true); setProofreadResult(null); setProofreadStreamLen(0);
+    setProofreadForKey(key); setProofreadTab('corrected');
+    try {
+      const res = await proofreadWriting(s, targetType, targetTopic, targetText, analysis,
+        (chunk) => setProofreadStreamLen(l => l + chunk.length));
+      setProofreadResult(res);
+    } catch (e: unknown) {
+      setErr('첨삭 오류: ' + (e instanceof Error ? e.message : String(e)));
+      setProofreadForKey(null);
+    } finally { setProofreadLoading(false); }
   }
 
   async function handleDelete(id: number) {
@@ -540,6 +629,33 @@ function WritingPageInner() {
               )}
             </div>
           )}
+
+          {/* 첨삭 */}
+          {result && !loading && (
+            <div style={{ marginTop: 14, borderTop: '1px solid var(--card-border)', paddingTop: 14 }}>
+              <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10 }}>✦ 첨삭</div>
+              {proofreadForKey !== 'current' ? (
+                <button
+                  className="px-btn-ghost"
+                  style={{ fontSize: 12 }}
+                  disabled={proofreadLoading}
+                  onClick={() => handleProofread(analyzedText, analyzedType, analyzedTopic, result, 'current')}
+                >
+                  ✎ 첨삭 받기
+                </button>
+              ) : (
+                <ProofreadPanel
+                  result={proofreadResult}
+                  loading={proofreadLoading}
+                  streamLen={proofreadStreamLen}
+                  tab={proofreadTab}
+                  onTabChange={setProofreadTab}
+                  originalText={analyzedText}
+                  onClose={() => { setProofreadResult(null); setProofreadForKey(null); }}
+                />
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -628,6 +744,34 @@ function WritingPageInner() {
                       <>
                         <div className="px-divider" />
                         <AnalysisDetail a={entry.analysis} compact={false} />
+                        <div style={{ marginTop: 14, borderTop: '1px solid var(--card-border)', paddingTop: 14 }}>
+                          <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10 }}>✦ 첨삭</div>
+                          {proofreadForKey !== String(entry.id) ? (
+                            <button
+                              className="px-btn-ghost"
+                              style={{ fontSize: 12 }}
+                              disabled={proofreadLoading}
+                              onClick={e => {
+                                e.stopPropagation();
+                                handleProofread(entry.text, entry.type as WriteType, entry.topic ?? '', entry.analysis!, String(entry.id));
+                              }}
+                            >
+                              ✎ 첨삭 받기
+                            </button>
+                          ) : (
+                            <div onClick={e => e.stopPropagation()}>
+                              <ProofreadPanel
+                                result={proofreadResult}
+                                loading={proofreadLoading}
+                                streamLen={proofreadStreamLen}
+                                tab={proofreadTab}
+                                onTabChange={setProofreadTab}
+                                originalText={entry.text}
+                                onClose={() => { setProofreadResult(null); setProofreadForKey(null); }}
+                              />
+                            </div>
+                          )}
+                        </div>
                       </>
                     )}
                   </div>

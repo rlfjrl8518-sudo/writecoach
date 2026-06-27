@@ -817,3 +817,38 @@ export async function synthesizeStrengths(
   const r = safeParseJSON<{ strengths: StrengthSynthesis[] }>(raw);
   return r.strengths || [];
 }
+
+/* ── 글쓰기 첨삭 ── */
+export interface ProofreadResult {
+  corrected: string;
+  changes: { original: string; revised: string; reason: string }[];
+}
+
+const PROOFREAD_SYS = `너는 전문 글쓰기 첨삭가다. 글쓴이의 목소리와 개성을 최대한 살리면서 분석에서 지적된 약점 중심으로 최소한만 수정한다.
+원문을 통째로 새로 쓰지 말고, 실제로 바꿔야 하는 부분만 손댄다. 맞춤법·비문·클리셰·추상어 등 명백한 문제 우선.
+JSON 형식으로만 응답하라. 설명·마크다운 금지.`;
+
+export async function proofreadWriting(
+  s: Settings,
+  type: string,
+  topic: string,
+  text: string,
+  analysis: WritingAnalysis,
+  onStream?: (chunk: string) => void,
+): Promise<ProofreadResult> {
+  const weaknesses = (analysis.weaknesses || []).slice(0, 5).join(', ');
+  const suggestions = (analysis.improvement_suggestions || []).slice(0, 3).join(' / ');
+  const user = `유형: ${type || '미지정'}
+주제: ${topic || '미지정'}
+원문:
+${text}
+
+지적된 약점: ${weaknesses || '없음'}
+개선 제안: ${suggestions || '없음'}
+
+아래 JSON 형식 그대로 출력하라:
+{"corrected":"첨삭된 전문","changes":[{"original":"원문 구절","revised":"수정된 구절","reason":"이유 태그"}]}
+changes는 3-5개. reason은 10자 이내 짧은 태그 (예: "클리셰 제거", "감각어 전환", "논리 보강", "비문 수정", "추상어 대체")`;
+  const raw = await callAI(s, PROOFREAD_SYS, user, 3000, 0.4, true, onStream);
+  return safeParseJSON<ProofreadResult>(raw);
+}
