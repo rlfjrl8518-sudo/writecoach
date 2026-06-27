@@ -437,6 +437,12 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in { animation: fade-in 0.3s ease forwards; }
+@keyframes fadeInUp {
+  0%   { opacity: 0; transform: translateY(8px); }
+  40%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; }
+}
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
@@ -605,6 +611,8 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
     font-weight: 600;
   }
 
+  .nav-gamification { padding: 0 10px; }
+
   .nav-sidebar-footer {
     display: flex;
     align-items: center;
@@ -639,6 +647,7 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
     gap: 4px;
   }
 
+  .nav-gamification  { display: none; }
   .nav-sidebar-footer { display: none; }
 
   .nav-tabs {

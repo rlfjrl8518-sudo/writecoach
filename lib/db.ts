@@ -336,6 +336,72 @@ export function groupByMonth<T>(items: T[], getDate: (item: T) => string): Month
   });
 }
 
+/* ── Gamification ── */
+export interface WriterRank {
+  label: string; minXP: number; nextXP: number | null; color: string;
+}
+export const WRITER_RANKS: WriterRank[] = [
+  { label: '견습 글꾼', minXP: 0,    nextXP: 100,  color: 'var(--dim-star)' },
+  { label: '글꾼',      minXP: 100,  nextXP: 300,  color: 'var(--accent)'   },
+  { label: '문장가',    minXP: 300,  nextXP: 700,  color: 'var(--moon)'     },
+  { label: '이야기꾼',  minXP: 700,  nextXP: 1500, color: 'var(--good)'     },
+  { label: '작가',      minXP: 1500, nextXP: 3000, color: '#E07B7B'         },
+  { label: '대가',      minXP: 3000, nextXP: null, color: 'var(--accent)'   },
+];
+
+export function computeXP(db: DB): number {
+  let xp = 0;
+  db.writings.forEach(w => { xp += w.analysis ? Math.round(w.analysis.score / 2) : 10; });
+  db.sentences.forEach(s => { xp += s.analysis ? 15 : 5; });
+  db.copies.forEach(c => { xp += c.analysis ? 15 : 5; });
+  xp += (db.expressionEntries ?? []).length * 5;
+  xp += db.missions.filter(m => m.completed).length * 20;
+  return xp;
+}
+
+export function getWriterRank(xp: number): WriterRank & { progress: number } {
+  const rank = [...WRITER_RANKS].reverse().find(r => xp >= r.minXP) ?? WRITER_RANKS[0];
+  const progress = rank.nextXP
+    ? Math.min(100, Math.round(((xp - rank.minXP) / (rank.nextXP - rank.minXP)) * 100))
+    : 100;
+  return { ...rank, progress };
+}
+
+export function computeStreak(writings: WritingEntry[]): number {
+  if (!writings.length) return 0;
+  const unique = Array.from(new Set(writings.map(w => w.date.slice(0, 10)))).sort().reverse();
+  let streak = 0;
+  for (let i = 0; i < unique.length; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    if (unique[i] === d.toISOString().slice(0, 10)) streak++;
+    else break;
+  }
+  return streak;
+}
+
+export function computeDailyChars(writings: WritingEntry[]): number {
+  const today = new Date().toISOString().slice(0, 10);
+  return writings
+    .filter(w => w.date === today || w.createdAt?.slice(0, 10) === today)
+    .reduce((sum, w) => sum + w.text.length, 0);
+}
+
+const GAMIFICATION_KEY = 'wc_gamification';
+export interface GamificationStore { dailyGoal: number; }
+const GAMIFICATION_DEFAULTS: GamificationStore = { dailyGoal: 300 };
+
+export function loadGamification(): GamificationStore {
+  if (typeof window === 'undefined') return { ...GAMIFICATION_DEFAULTS };
+  try {
+    const s = JSON.parse(localStorage.getItem(GAMIFICATION_KEY) || 'null');
+    return { ...GAMIFICATION_DEFAULTS, ...s };
+  } catch { return { ...GAMIFICATION_DEFAULTS }; }
+}
+export function saveGamification(g: GamificationStore) {
+  localStorage.setItem(GAMIFICATION_KEY, JSON.stringify(g));
+}
+
 /* Settings */
 const SETTINGS_KEY = 'wc_settings';
 export interface Settings {

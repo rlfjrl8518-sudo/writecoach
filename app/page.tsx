@@ -1,20 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { loadDB, type DB, type WritingEntry } from '@/lib/db';
-
-function getStreak(writings: WritingEntry[]): number {
-  if (!writings.length) return 0;
-  const unique = Array.from(new Set(writings.map(w => w.date.slice(0, 10)))).sort().reverse();
-  let streak = 0;
-  for (let i = 0; i < unique.length; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    if (unique[i] === d.toISOString().slice(0, 10)) streak++;
-    else break;
-  }
-  return streak;
-}
+import {
+  loadDB, type DB,
+  computeXP, computeStreak, computeDailyChars, getWriterRank,
+  loadGamification,
+} from '@/lib/db';
 
 function getHeroContent(streak: number, totalWritings: number) {
   if (streak >= 30) return {
@@ -76,7 +67,13 @@ export default function HomePage() {
 
   if (!db) return null;
 
-  const streak = getStreak(db.writings);
+  const streak = computeStreak(db.writings);
+  const xp = computeXP(db);
+  const rank = getWriterRank(xp);
+  const dailyChars = computeDailyChars(db.writings);
+  const dailyGoal = loadGamification().dailyGoal;
+  const dailyPct = Math.min(100, Math.round((dailyChars / dailyGoal) * 100));
+  const dailyDone = dailyChars >= dailyGoal;
   const { badge, title, sub } = getHeroContent(streak, db.writings.length);
   const pendingMissions = db.missions.filter(m => !m.completed).length;
   const exprCount = Object.keys(db.expressions).length;
@@ -106,23 +103,52 @@ export default function HomePage() {
         <Link href="/writing" className="btn-cta">글쓰기 시작</Link>
       </div>
 
+      {/* ── 일일 목표 ── */}
+      <div className="px-card" style={{ marginBottom: 16, padding: '14px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>{dailyDone ? '✅' : '🎯'}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', fontFamily: 'Pretendard, sans-serif' }}>
+              {dailyDone ? '오늘 목표 달성!' : '오늘의 목표'}
+            </span>
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 700, color: dailyDone ? 'var(--good)' : 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif' }}>
+            {dailyChars.toLocaleString()} / {dailyGoal.toLocaleString()}자
+          </span>
+        </div>
+        <div style={{ height: 8, background: 'var(--bg-input)', borderRadius: 99, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', borderRadius: 99,
+            background: dailyDone ? 'var(--good)' : 'var(--accent)',
+            width: `${dailyPct}%`,
+            transition: 'width 0.5s ease',
+          }} />
+        </div>
+        {!dailyDone && (
+          <div style={{ fontSize: 11, color: 'var(--dim-star)', marginTop: 6, fontFamily: 'Pretendard, sans-serif' }}>
+            {(dailyGoal - dailyChars).toLocaleString()}자 더 쓰면 달성이에요
+          </div>
+        )}
+      </div>
+
       {/* ── Quick Stats ── */}
       <div className="px-card" style={{ display: 'flex', padding: 0, overflow: 'hidden', marginBottom: 20 }}>
         {[
           { label: '작성 글', value: db.writings.length, unit: '편' },
-          { label: '수집 문장', value: db.sentences.length, unit: '개' },
-          { label: '누적 표현', value: exprCount, unit: '개' },
+          { label: '누적 XP', value: xp, unit: 'XP', color: rank.color },
+          { label: rank.label, value: rank.nextXP ? `${rank.progress}%` : 'MAX', unit: '', color: rank.color },
         ].map((s, i) => (
           <div key={i} style={{
             flex: 1, textAlign: 'center', padding: '18px 8px',
             borderRight: i < 2 ? '1px solid var(--card-border)' : 'none',
           }}>
             <div style={{
-              fontSize: 22, fontWeight: 700, color: 'var(--text)',
+              fontSize: 22, fontWeight: 700,
+              color: (s as { color?: string }).color || 'var(--text)',
               letterSpacing: '-0.02em', lineHeight: 1,
             }}>
               {s.value}
-              <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 2 }}>{s.unit}</span>
+              {s.unit && <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 2 }}>{s.unit}</span>}
             </div>
             <div style={{ fontSize: 12, color: 'var(--dim-star)', marginTop: 5 }}>{s.label}</div>
           </div>

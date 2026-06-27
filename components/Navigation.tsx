@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { loadDB, computeXP, computeStreak, getWriterRank } from '@/lib/db';
 import type { SyncStatus } from '@/components/CloudSync';
 
 const TABS = [
@@ -125,6 +126,71 @@ function CoachChatButton() {
   );
 }
 
+function GamificationBar() {
+  const [mounted, setMounted] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const [xp, setXp] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+    function refresh() {
+      const db = loadDB();
+      setStreak(computeStreak(db.writings));
+      setXp(computeXP(db));
+    }
+    refresh();
+    window.addEventListener('db-saved', refresh);
+    return () => window.removeEventListener('db-saved', refresh);
+  }, []);
+
+  if (!mounted) return null;
+
+  const rank = getWriterRank(xp);
+
+  return (
+    <div style={{
+      margin: '12px 0 4px',
+      padding: '10px 14px',
+      background: 'var(--bg-subtle)',
+      border: '1px solid var(--card-border)',
+      borderRadius: 12,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+    }}>
+      {/* 스트릭 + 등급 */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ fontSize: 15 }}>{streak > 0 ? '🔥' : '💤'}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: streak > 0 ? '#F0A500' : 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif' }}>
+            {streak > 0 ? `${streak}일 연속` : '오늘 첫 글을'}
+          </span>
+        </div>
+        <span style={{ fontSize: 12, fontWeight: 600, color: rank.color, fontFamily: 'Pretendard, sans-serif' }}>
+          {rank.label}
+        </span>
+      </div>
+      {/* XP 진행 바 */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span className="pixel-font" style={{ fontSize: 6, color: 'var(--dim-star)' }}>XP</span>
+          <span className="pixel-font" style={{ fontSize: 6, color: 'var(--dim-star)' }}>
+            {xp}{rank.nextXP ? ` / ${rank.nextXP}` : ' MAX'}
+          </span>
+        </div>
+        <div style={{ height: 5, background: 'var(--bg-input)', borderRadius: 99, overflow: 'hidden' }}>
+          <div style={{
+            height: '100%', borderRadius: 99,
+            background: rank.color,
+            width: `${rank.progress}%`,
+            transition: 'width 0.4s ease',
+          }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Navigation() {
   const path = usePathname();
 
@@ -142,6 +208,11 @@ export default function Navigation() {
           <CoachChatButton />
           <ThemeToggle />
         </div>
+      </div>
+
+      {/* 스트릭 / XP 바 (사이드바 전용) */}
+      <div className="nav-gamification">
+        <GamificationBar />
       </div>
 
       {/* 탭 (데스크톱: 세로 사이드바 / 모바일: 하단 고정) */}

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { loadSettings, saveSettings, loadDB, saveDB, saveDBLocal } from '@/lib/db';
+import { loadSettings, saveSettings, loadDB, saveDB, saveDBLocal, loadGamification, saveGamification } from '@/lib/db';
 import {
   isSupabaseConfigured, getCurrentUser, signOut,
   onAuthChange, pushData, pullData, mergeDBs, pushSettings,
@@ -28,6 +28,7 @@ export default function SettingsPage() {
   const [geminiModel,   setGeminiModel]   = useState('gemini-2.0-flash');
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [saved,         setSaved]         = useState(false);
+  const [dailyGoal,     setDailyGoal]     = useState(300);
   const importRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -43,6 +44,7 @@ export default function SettingsPage() {
     setModel(s.model || 'gpt-4o-mini');
     setGeminiApiKey(s.geminiApiKey || '');
     setGeminiModel(s.geminiModel || 'gemini-2.0-flash');
+    setDailyGoal(loadGamification().dailyGoal);
 
     if (isSupabaseConfigured) {
       getCurrentUser().then(u => setUserEmail(u?.email ?? null));
@@ -53,6 +55,7 @@ export default function SettingsPage() {
   function handleSave() {
     const s = { provider, apiKey: apiKey.trim(), model, geminiApiKey: geminiApiKey.trim(), geminiModel };
     saveSettings(s);
+    saveGamification({ dailyGoal: Math.max(50, Math.min(5000, dailyGoal)) });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
     if (userEmail) pushSettings(s).catch(() => {});
@@ -245,6 +248,32 @@ export default function SettingsPage() {
                 <option value="gemini-1.5-pro">gemini-1.5-pro — 구형 고성능</option>
               </select>
             )}
+          </div>
+        </Section>
+
+        <div className="px-divider" />
+
+        {/* 글쓰기 목표 */}
+        <Section title="글쓰기 목표">
+          <label className="px-label">일일 목표 글자 수</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {[100, 200, 300, 500, 1000].map(v => (
+              <button
+                key={v}
+                onClick={() => setDailyGoal(v)}
+                style={{
+                  padding: '6px 14px', fontSize: 13, cursor: 'pointer',
+                  fontFamily: 'Pretendard, sans-serif', fontWeight: 600,
+                  borderRadius: 8, border: `1.5px solid ${dailyGoal === v ? 'var(--accent)' : 'var(--card-border)'}`,
+                  background: dailyGoal === v ? 'var(--accent)' : 'transparent',
+                  color: dailyGoal === v ? '#fff' : 'var(--dim-star)',
+                  transition: 'all 0.12s',
+                }}
+              >{v}자</button>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--dim-star)', marginTop: 8, fontFamily: 'Pretendard, sans-serif' }}>
+            매일 이 글자 수를 채우면 홈 화면에서 달성 표시가 됩니다.
           </div>
         </Section>
 
