@@ -122,7 +122,6 @@ function CopyPageInner() {
   const searchParams = useSearchParams();
   const [copy,      setCopy]      = useState('');
   const [brand,     setBrand]     = useState('');
-  const [source,    setSource]    = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [streamLen, setStreamLen] = useState(0);
@@ -135,7 +134,6 @@ function CopyPageInner() {
   const [memo,        setMemo]        = useState('');
   const [editingId,   setEditingId]   = useState<number | null>(null);
   const [editBrand,   setEditBrand]   = useState('');
-  const [editSource,  setEditSource]  = useState('');
   const [editUrl,     setEditUrl]     = useState('');
   const [editMemo,    setEditMemo]    = useState('');
   const [openMonths,  setOpenMonths]  = useState<Set<string>>(new Set());
@@ -181,15 +179,15 @@ function CopyPageInner() {
     if (!copy.trim()) { setErr('카피를 입력해주세요.'); return; }
     setLoading(true); setErr(''); setResult(null); setStreamLen(0);
     try {
-      const res = await analyzeCopy(s, copy, brand, source,
+      const res = await analyzeCopy(s, copy, brand, '',
         (chunk) => setStreamLen(l => l + chunk.length));
       setResult(res);
       setAnalysisOpen(true);
       const db = loadDB();
-      db.copies.push({ id: Date.now(), copy, brand, source, sourceUrl: sourceUrl || undefined, memo: memo || undefined, analysis: res, createdAt: new Date().toISOString() });
+      db.copies.push({ id: Date.now(), copy, brand, source: '', sourceUrl: sourceUrl || undefined, memo: memo || undefined, analysis: res, createdAt: new Date().toISOString() });
       mergeCopyType(db, res.copyType ?? res.type ?? '');
       saveDB(db);
-      setCopy(''); setBrand(''); setSource(''); setSourceUrl(''); setMemo('');
+      setCopy(''); setBrand(''); setSourceUrl(''); setMemo('');
       setSaved(v => !v);
     } catch (e: unknown) {
       setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));
@@ -199,9 +197,9 @@ function CopyPageInner() {
   function handleSaveOnly() {
     if (!copy.trim()) { setErr('카피를 입력해주세요.'); return; }
     const db = loadDB();
-    db.copies.push({ id: Date.now(), copy, brand, source, sourceUrl: sourceUrl || undefined, memo: memo || undefined, createdAt: new Date().toISOString() });
+    db.copies.push({ id: Date.now(), copy, brand, source: '', sourceUrl: sourceUrl || undefined, memo: memo || undefined, createdAt: new Date().toISOString() });
     saveDB(db);
-    setCopy(''); setBrand(''); setSource(''); setSourceUrl(''); setMemo(''); setSaved(v => !v);
+    setCopy(''); setBrand(''); setSourceUrl(''); setMemo(''); setSaved(v => !v);
   }
 
   async function handleDelete(id: number) {
@@ -218,7 +216,6 @@ function CopyPageInner() {
     e.stopPropagation();
     setEditingId(entry.id);
     setEditBrand(entry.brand || '');
-    setEditSource(entry.source || '');
     setEditUrl(entry.sourceUrl || '');
     setEditMemo(entry.memo || '');
   }
@@ -227,7 +224,7 @@ function CopyPageInner() {
     e.stopPropagation();
     const db = loadDB();
     const found = db.copies.find(c => c.id === id);
-    if (found) { found.brand = editBrand; found.source = editSource; found.sourceUrl = editUrl || undefined; found.memo = editMemo || undefined; saveDB(db); }
+    if (found) { found.brand = editBrand; found.sourceUrl = editUrl || undefined; found.memo = editMemo || undefined; saveDB(db); }
     setEditingId(null); setSaved(v => !v);
   }
 
@@ -279,15 +276,9 @@ function CopyPageInner() {
               style={{ minHeight: 100 }}
             />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-            <div>
-              <label className="px-label">브랜드</label>
-              <input className="px-input" placeholder="브랜드명" value={brand} onChange={e => setBrand(e.target.value)} />
-            </div>
-            <div>
-              <label className="px-label">경로</label>
-              <input className="px-input" placeholder="TV·SNS·유튜브 등" value={source} onChange={e => setSource(e.target.value)} />
-            </div>
+          <div style={{ marginBottom: 10 }}>
+            <label className="px-label">브랜드</label>
+            <input className="px-input" placeholder="브랜드명" value={brand} onChange={e => setBrand(e.target.value)} />
           </div>
           <div style={{ marginBottom: 10 }}>
             <label className="px-label">참고</label>
@@ -407,15 +398,9 @@ function CopyPageInner() {
                   <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderTop: 'none', padding: '14px 16px' }}>
                     {editingId === entry.id ? (
                       <div onClick={e => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                          <div>
-                            <label className="px-label">브랜드</label>
-                            <input className="px-input" value={editBrand} onChange={e => setEditBrand(e.target.value)} placeholder="브랜드명" />
-                          </div>
-                          <div>
-                            <label className="px-label">경로</label>
-                            <input className="px-input" value={editSource} onChange={e => setEditSource(e.target.value)} placeholder="TV·SNS·유튜브 등" />
-                          </div>
+                        <div>
+                          <label className="px-label">브랜드</label>
+                          <input className="px-input" value={editBrand} onChange={e => setEditBrand(e.target.value)} placeholder="브랜드명" />
                         </div>
                         <div>
                           <label className="px-label">참고 URL</label>
@@ -448,7 +433,6 @@ function CopyPageInner() {
                         <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap', marginBottom: 6 }}>
                           {entry.copy}
                         </p>
-                        {entry.source && <span style={{ fontSize: 10, color: 'var(--dim-star)', display: 'block', marginBottom: 3 }}>— {entry.source}</span>}
                         {entry.sourceUrl && <RefLink url={entry.sourceUrl} />}
                         {entry.memo && (
                           <div style={{ marginTop: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
