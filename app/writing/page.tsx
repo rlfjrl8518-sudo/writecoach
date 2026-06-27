@@ -169,13 +169,23 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
   );
 }
 
+const DRAFT_KEY = 'writing_draft';
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 function WritingPageInner() {
   const searchParams = useSearchParams();
   const today = new Date().toISOString().split('T')[0];
-  const [date,   setDate]   = useState(today);
-  const [type,   setType]   = useState<WriteType>('에세이');
-  const [topic,  setTopic]  = useState('');
-  const [text,   setText]   = useState('');
+
+  const [date,   setDate]   = useState(() => loadDraft()?.date ?? today);
+  const [type,   setType]   = useState<WriteType>(() => loadDraft()?.type ?? '에세이');
+  const [topic,  setTopic]  = useState(() => loadDraft()?.topic ?? '');
+  const [text,   setText]   = useState(() => loadDraft()?.text ?? '');
   const [loading, setLoading] = useState(false);
   const [streamLen, setStreamLen] = useState(0);
   const [result,  setResult]  = useState<WritingAnalysis | null>(null);
@@ -186,6 +196,10 @@ function WritingPageInner() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ date, type, topic, text })); } catch {}
+  }, [date, type, topic, text]);
 
   useEffect(() => {
     const db = loadDB();
@@ -242,6 +256,8 @@ function WritingPageInner() {
       mergeExpressions(db, res.expressions || []);
       mergeWeaknesses(db, res.weaknesses || []);
       saveDB(db);
+      setText(''); setTopic('');
+      try { localStorage.removeItem(DRAFT_KEY); } catch {}
       setSaved(s => !s);
     } catch (e: unknown) {
       setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));
@@ -253,7 +269,9 @@ function WritingPageInner() {
     const db = loadDB();
     db.writings.push({ id: Date.now(), date, type, topic, text, status: '미분석', createdAt: new Date().toISOString() });
     saveDB(db);
-    setText(''); setTopic(''); setSaved(s => !s);
+    setText(''); setTopic('');
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
+    setSaved(s => !s);
   }
 
   async function handleAnalyzeEntry(entry: WritingEntry) {
