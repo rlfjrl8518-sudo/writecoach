@@ -54,37 +54,22 @@ function BarList({ items, color }: { items: { name: string; count: number }[]; c
   );
 }
 
-/* ── 역할 분포 (도넛형 바) ── */
-const ROLE_COLORS: Record<string, string> = {
-  '장면 묘사':  'var(--good)',
-  '대상 설명':  'var(--accent)',
-  '행동 전개':  'var(--moon)',
-  '감정 표현':  '#E07B7B',
-  '분위기 형성': '#9B7BE0',
-  '생각 전달':  'var(--dim-star)',
-  '정보 전달':  'var(--card-border)',
-};
-
-function RoleDistribution({ items }: { items: { name: string; count: number }[] }) {
+/* ── 강점 태그 리스트 ── */
+function StrengthTags({ items }: { items: { name: string; count: number }[] }) {
   if (!items.length) return <p style={{ fontSize: 13, color: 'var(--dim-star)' }}>아직 데이터가 없어요</p>;
-  const total = items.reduce((s, i) => s + i.count, 0);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {items.map(item => {
-        const pct = Math.round((item.count / total) * 100);
-        const color = ROLE_COLORS[item.name] || 'var(--accent)';
-        return (
-          <div key={item.name}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 13, color: 'var(--text)', fontFamily: 'Pretendard, sans-serif' }}>{item.name}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color }}>{pct}% ({item.count}회)</span>
-            </div>
-            <div style={{ height: 5, background: 'var(--bg-input)', borderRadius: 100, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 100, transition: 'width 0.7s ease' }} />
-            </div>
-          </div>
-        );
-      })}
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {items.map(item => (
+        <span key={item.name} style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          padding: '6px 12px', borderRadius: 20,
+          background: 'var(--good-dim)', border: '1px solid var(--good-border)',
+          fontSize: 13, color: 'var(--good)', fontFamily: 'Pretendard, sans-serif', fontWeight: 500,
+        }}>
+          {item.name}
+          <span style={{ fontSize: 11, opacity: 0.7 }}>{item.count}회</span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -216,33 +201,28 @@ export default function ReportPage() {
     });
   });
 
-  // 표현 집계
-  const liveExpressions: Record<string, number> = {};
+  // 강점 집계
+  const liveStrengths: Record<string, number> = {};
   analyzed.forEach(w => {
-    (w.analysis!.expressions || []).forEach(e => {
-      if (e.text) { const k = e.text.trim().toLowerCase().replace(/\s+/g, ' '); liveExpressions[k] = (liveExpressions[k] || 0) + 1; }
+    (w.analysis!.strengths || []).forEach(s => {
+      const k = s.trim().toLowerCase().replace(/\s+/g, ' ');
+      liveStrengths[k] = (liveStrengths[k] || 0) + 1;
     });
   });
 
-  // 문장 역할 분포 (전체 누적)
-  const liveRoles = Object.entries(db.sentenceRoles || {})
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 7)
-    .map(([k, v]) => ({ name: k, count: v }));
-
-  // 이번 달 문장 역할도 실시간 계산
-  const sentencesWithRole = db.sentences.filter(s => s.analysis?.sentenceRole);
-  if (sentencesWithRole.length > 0 && liveRoles.length === 0) {
-    sentencesWithRole.forEach(s => {
-      const r = s.analysis!.sentenceRole!;
-      if (!db.sentenceRoles) db.sentenceRoles = {};
-      db.sentenceRoles[r] = (db.sentenceRoles[r] || 0) + 1;
+  // 학습 제안 (최근 분석글에서 중복 제거)
+  const suggestionSet = new Set<string>();
+  const liveSuggestions: string[] = [];
+  [...analyzed].reverse().forEach(w => {
+    (w.analysis!.improvement_suggestions || []).forEach(sg => {
+      const k = sg.trim();
+      if (k && !suggestionSet.has(k)) { suggestionSet.add(k); liveSuggestions.push(k); }
     });
-  }
+  });
 
-  const weakTop  = getTopEntries(liveWeaknesses, 5).map(([k, v]) => ({ name: k, count: v }));
-  const exprTop  = Object.entries(liveExpressions).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => ({ name: k, count: v }));
-  const noData   = db.writings.length === 0;
+  const weakTop     = getTopEntries(liveWeaknesses, 5).map(([k, v]) => ({ name: k, count: v }));
+  const strengthTop = getTopEntries(liveStrengths, 8).map(([k, v]) => ({ name: k, count: v }));
+  const noData      = db.writings.length === 0;
   const weakSynth: WeaknessSynthesis[] | null = db.weaknessSynthesis?.length ? db.weaknessSynthesis : null;
 
   async function handleSynthesizeWeaknesses() {
@@ -340,17 +320,34 @@ export default function ReportPage() {
             )}
           </div>
 
-          {/* ── 4-1. 누적 표현 ── */}
+          {/* ── 5. 강점 ── */}
           <div className="px-card" style={{ marginBottom: 20 }}>
-            <SectionHeader title="누적 표현" sub="자주 수집한 표현" />
-            <BarList items={exprTop} color="var(--accent)" />
+            <SectionHeader title="강점" sub="AI가 반복적으로 칭찬한 요소" />
+            {strengthTop.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--dim-star)' }}>아직 데이터가 없어요</p>
+            ) : (
+              <StrengthTags items={strengthTop} />
+            )}
           </div>
 
-          {/* ── 5. 문장 역할 분포 ── */}
-          {liveRoles.length > 0 && (
+          {/* ── 6. 학습 제안 ── */}
+          {liveSuggestions.length > 0 && (
             <div className="px-card" style={{ marginBottom: 20 }}>
-              <SectionHeader title="문장 역할 분포" sub="수집한 문장들의 역할 분석 누적 현황" />
-              <RoleDistribution items={liveRoles} />
+              <SectionHeader title="학습 제안" sub="최근 분석에서 나온 개선 방향" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {liveSuggestions.slice(0, 6).map((sg, i) => (
+                  <div key={i} style={{
+                    display: 'flex', gap: 10, alignItems: 'flex-start',
+                    padding: '10px 14px',
+                    background: 'var(--accent-dim)',
+                    borderLeft: '3px solid var(--accent)',
+                    borderRadius: '0 8px 8px 0',
+                  }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', minWidth: 18, marginTop: 1 }}>{i + 1}</span>
+                    <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif' }}>{sg}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </>
