@@ -1,6 +1,120 @@
 'use client';
 import { useState } from 'react';
 
+/* ── 유형별 비중 표시 ── */
+const WEIGHT_LABELS = ['표현력', '전달력', '구체성', '논리성', '가독성'] as const;
+const WEIGHT_COLORS = ['#3182F6', '#3182F6', '#3182F6', '#22B85A', '#22B85A'];
+
+const TYPE_DATA: {
+  badge: string;
+  weights: [number, number, number, number, number];
+  focus: string;
+  note?: string;
+}[] = [
+  {
+    badge: '묘사문',
+    weights: [2.5, 1.0, 2.0, 0.5, 1.0],
+    focus: '오감 활용 여부, 장면의 입체감, 추상어 남용 여부를 집중 평가해요.',
+    note: '논리성은 묘사문 본질과 무관해 점수 비중이 가장 낮아요.',
+  },
+  {
+    badge: '설명문',
+    weights: [0.5, 2.0, 2.0, 1.5, 1.5],
+    focus: '정보의 명확성, 독자 수준 고려, 일반→구체 흐름이 핵심이에요.',
+    note: '표현력보다 전달력·구체성이 점수를 주도해요.',
+  },
+  {
+    badge: '감상문',
+    weights: [1.5, 1.5, 1.5, 0.5, 1.0],
+    focus: '감상의 진정성, 경험-감상 연결, 감정 서술의 구체성을 평가해요.',
+    note: '논리성보다 감정을 구체적으로 드러냈는지가 중요해요.',
+  },
+  {
+    badge: '의견문',
+    weights: [0.5, 1.5, 1.5, 2.5, 1.0],
+    focus: '주장-근거 구조, 근거의 설득력, 반론 인식 여부를 집중 평가해요.',
+    note: '논리성이 최우선이에요. 표현이 화려해도 논리가 없으면 낮은 점수가 나와요.',
+  },
+  {
+    badge: '기사 리드',
+    weights: [0.5, 2.0, 2.0, 1.0, 2.0],
+    focus: '5W1H 완성도, 첫 문장 후킹력, 정보 밀도(군더더기 없음)를 봐요.',
+    note: '전달력·구체성·가독성 세 항목이 균등하게 점수를 주도해요.',
+  },
+  {
+    badge: '카피라이팅',
+    weights: [2.5, 2.0, 1.0, 0.5, 1.0],
+    focus: '첫 줄 후킹력, 심리 자극, 행동 유도를 집중 평가해요.',
+    note: '논리성은 광고 카피 본질과 무관해 거의 반영되지 않아요.',
+  },
+  {
+    badge: '에세이',
+    weights: [2.0, 1.5, 1.0, 1.0, 1.5],
+    focus: '관점의 독창성, 경험-통찰 연결, 문체의 일관성을 평가해요.',
+  },
+  {
+    badge: '스토리텔링',
+    weights: [2.0, 2.0, 1.0, 0.5, 1.5],
+    focus: '장면 전환의 자연스러움, 긴장감·흡입력, 인물·감정의 생동감이 핵심이에요.',
+    note: '논리성은 플롯 일관성 정도만 보며 비중이 매우 낮아요.',
+  },
+];
+
+function TypeWeightCard({ data }: { data: typeof TYPE_DATA[0] }) {
+  const [open, setOpen] = useState(false);
+  const totalW = data.weights.reduce((a, b) => a + b, 0);
+  const pcts = data.weights.map(w => Math.round((w / totalW) * 100));
+  const maxW = Math.max(...data.weights);
+
+  return (
+    <div style={{ borderBottom: '1px solid var(--card-border)', cursor: 'pointer' }} onClick={() => setOpen(v => !v)}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: 'var(--accent)',
+            background: 'var(--accent-dim)', padding: '3px 10px', borderRadius: 100, flexShrink: 0,
+          }}>{data.badge}</span>
+          {!open && (
+            <span style={{ fontSize: 13, color: 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif' }}>
+              {WEIGHT_LABELS[pcts.indexOf(Math.max(...pcts))]} 중심
+            </span>
+          )}
+        </div>
+        <span style={{ flexShrink: 0, fontSize: 12, color: 'var(--dim-star)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
+      </div>
+      {open && (
+        <div style={{ paddingBottom: 16 }}>
+          {/* 비중 바 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 14 }}>
+            {WEIGHT_LABELS.map((label, i) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12, color: WEIGHT_COLORS[i], fontWeight: 600, minWidth: 44, fontFamily: 'Pretendard, sans-serif' }}>{label}</span>
+                <div style={{ flex: 1, height: 6, background: 'var(--bg-input)', borderRadius: 99, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 99,
+                    background: data.weights[i] === maxW ? WEIGHT_COLORS[i] : `${WEIGHT_COLORS[i]}55`,
+                    width: `${(data.weights[i] / maxW) * 100}%`,
+                    transition: 'width 0.5s ease',
+                  }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: data.weights[i] === maxW ? WEIGHT_COLORS[i] : 'var(--dim-star)', minWidth: 30, textAlign: 'right', fontFamily: 'Pretendard, sans-serif' }}>
+                  {pcts[i]}%
+                </span>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--dim-star)', lineHeight: 1.8, margin: '0 0 8px', fontFamily: 'Pretendard, sans-serif' }}>{data.focus}</p>
+          {data.note && (
+            <div style={{ fontSize: 12, color: 'var(--moon)', background: 'var(--bg-subtle)', padding: '8px 12px', borderRadius: 8, borderLeft: '2px solid var(--moon)', lineHeight: 1.7 }}>
+              ※ {data.note}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AccordionItem({
   label, badge, badgeColor, desc, example,
 }: {
@@ -94,6 +208,14 @@ export default function GuidePage() {
           </div>
         </div>
 
+        {/* 유형별 가중치 안내 */}
+        <div style={{ marginBottom: 14, padding: '12px 14px', background: 'var(--bg-subtle)', borderRadius: 8, borderLeft: '3px solid var(--moon)' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--moon)', marginBottom: 6 }}>유형별 항목 비중</div>
+          <div style={{ fontSize: 13, color: 'var(--dim-star)', lineHeight: 1.8, fontFamily: 'Pretendard, sans-serif' }}>
+            총점은 5개 항목을 <strong style={{ color: 'var(--text)' }}>유형에 맞는 비중으로 가중 합산</strong>해요. 예를 들어 묘사문은 표현력·구체성이 점수의 60%를 차지하고, 의견문은 논리성이 36%를 차지해요. 유형별 정확한 비중은 아래 <strong style={{ color: 'var(--text)' }}>'글쓰기 유형별 채점 비중'</strong> 섹션에서 확인할 수 있어요.
+          </div>
+        </div>
+
         {/* 감점 기준 */}
         <div style={{ marginBottom: 14, padding: '12px 14px', background: 'var(--bg-subtle)', borderRadius: 8, borderLeft: '3px solid var(--bad-border)' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--bad)', marginBottom: 6 }}>자동 감점 기준</div>
@@ -125,7 +247,7 @@ export default function GuidePage() {
         <AccordionItem
           badge="논리성" badgeColor="#22B85A"
           label="주장과 근거가 자연스럽게 연결되나"
-          desc="주장만 있고 근거가 없거나, 근거가 있어도 주장과 연결이 어색하면 낮은 점수를 받아요. 묘사문·감상문보다 의견문·설명문에서 특히 중요하게 평가돼요."
+          desc="주장만 있고 근거가 없거나, 근거가 있어도 주장과 연결이 어색하면 낮은 점수를 받아요. 의견문(36%)·설명문(20%)에서 가장 높은 비중을 차지해요. 반면 묘사문·카피라이팅·스토리텔링(모두 7%)에서는 점수에 거의 영향을 주지 않아요."
           example="낮은 예: 이 방법이 좋다. 많은 사람이 쓴다. → 높은 예: 이 방법은 효과적이다. 3주 만에 30% 향상된 실험 결과가 있기 때문이다."
         />
         <AccordionItem
@@ -263,19 +385,10 @@ export default function GuidePage() {
         />
       </Section>
 
-      {/* ── 5. 글쓰기 유형별 목표 ── */}
-      <Section title="글쓰기 유형별 목표" sub="유형마다 AI가 중점적으로 평가하는 기준이 달라요">
-        {[
-          { badge: '묘사문',      desc: '장면·인물·사물을 감각적으로 그려요. 표현력과 구체성이 핵심 평가 기준이에요.' },
-          { badge: '설명문',      desc: '개념이나 현상을 명확하게 전달해요. 전달력·논리성·구체성이 중요해요.' },
-          { badge: '감상문',      desc: '경험이나 작품에 대한 느낌을 정리해요. 솔직하고 깊이 있는 감상이 높은 점수를 받아요.' },
-          { badge: '의견문',      desc: '주장과 근거를 갖춰 설득해요. 논리성과 근거의 구체성이 핵심이에요.' },
-          { badge: '기사 리드',   desc: '핵심 정보를 5W1H로 첫 단락에 압축해요. 전달력과 가독성이 평가 기준이에요.' },
-          { badge: '카피라이팅', desc: '관심을 끌고 행동을 유도하는 짧은 글이에요. 표현력·전달력·가독성이 중점 평가 항목이에요.' },
-          { badge: '에세이',      desc: '경험과 생각을 자유롭게 깊이 있게 서술해요. 표현력과 논리적 흐름이 중요해요.' },
-          { badge: '스토리텔링', desc: '사건·인물·감정이 있는 이야기를 구성해요. 장면 묘사력과 구성의 흐름이 핵심이에요.' },
-        ].map(item => (
-          <AccordionItem key={item.badge} badge={item.badge} label="" desc={item.desc} />
+      {/* ── 5. 글쓰기 유형별 채점 비중 ── */}
+      <Section title="글쓰기 유형별 채점 비중" sub="유형마다 5개 항목의 비중이 달라요. 눌러서 확인하세요">
+        {TYPE_DATA.map(data => (
+          <TypeWeightCard key={data.badge} data={data} />
         ))}
       </Section>
 
