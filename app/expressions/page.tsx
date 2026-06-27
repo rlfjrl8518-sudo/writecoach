@@ -52,9 +52,19 @@ function ExprSection({ label, color, children }: { label: string; color?: string
   );
 }
 
-function AnalysisView({ a, dict }: { a: ExpressionAnalysis; dict?: DictResult }) {
+function AnalysisView({ a, dict, dictSearched }: { a: ExpressionAnalysis; dict?: DictResult; dictSearched?: boolean }) {
   return (
     <div className="animate-fade-in">
+      {dictSearched && !dict && (
+        <div style={{
+          marginBottom: 14, padding: '10px 14px',
+          background: 'var(--bad-dim)', border: '1px solid var(--bad-border)',
+          borderRadius: 8, fontSize: 12, color: 'var(--bad)', lineHeight: 1.7,
+          fontFamily: 'Pretendard, sans-serif',
+        }}>
+          ⚠ 표준 국어 사전에 등재되지 않은 표현입니다. 아래 내용은 AI가 추론한 것으로 실제 용법과 다를 수 있어요.
+        </div>
+      )}
       <ExprSection label="✦ 쉬운 의미">
         <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.8, padding: '10px 14px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--moon)', fontWeight: 500 }}>
           {a.easyMeaning}
@@ -321,8 +331,10 @@ export default function ExpressionsPage() {
                           검색어
                         </span>
                       )}
-                      <span className="px-badge" style={sug.inDict ? { background: 'var(--good-dim)', color: 'var(--good)', fontSize: 10 } : { background: 'var(--bg-input)', color: 'var(--dim-star)', fontSize: 10 }}>
-                        {sug.inDict ? '사전' : 'AI'}
+                      <span className="px-badge" style={sug.inDict
+                        ? { background: 'var(--good-dim)', color: 'var(--good)', fontSize: 10 }
+                        : { background: 'var(--bad-dim)', color: 'var(--bad)', fontSize: 10, border: '1px solid var(--bad-border)' }}>
+                        {sug.inDict ? '사전 확인' : '미확인'}
                       </span>
                     </div>
                     {sug.preview && <div style={{ fontSize: 11.5, color: 'var(--dim-star)', marginTop: 3, lineHeight: 1.5 }}>{sug.preview}</div>}
@@ -356,7 +368,7 @@ export default function ExpressionsPage() {
           )}
           {analysisOpen && result && (
             <>
-              <AnalysisView a={result} dict={resultDict} />
+              <AnalysisView a={result} dict={resultDict} dictSearched={true} />
               <button
                 className={savedNow ? 'px-btn-ghost' : 'px-btn px-btn-accent'}
                 style={{ marginTop: 4 }}
@@ -416,7 +428,7 @@ export default function ExpressionsPage() {
                   </div>
                   {expanded === entry.id && (
                     <div style={{ background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', borderTop: 'none', padding: '14px 16px' }}>
-                      {a && <AnalysisView a={a} dict={entry.dict} />}
+                      {a && <AnalysisView a={a} dict={entry.dict} dictSearched={!!entry.analysis} />}
                       <button className="px-btn-ghost" style={{ fontSize: 11, padding: '5px 14px', marginTop: 4 }} onClick={e => handleMarkUsed(entry.id, e)}>
                         ✓ 이 표현 사용했어요
                       </button>

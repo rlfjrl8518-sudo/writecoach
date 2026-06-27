@@ -547,7 +547,8 @@ export async function suggestExpressions(
 }
 
 const EXPRESSION_SYS = `너는 한국어 표현(어휘·구) 학습 콘텐츠를 만드는 전문가다. JSON 객체만 출력하라. 설명·마크다운 금지.
-사전 정보가 주어지면 그 의미·품사·예문을 우선 참고하고, 없으면 표현 자체의 형태와 맥락으로 직접 추론하라.
+사전 정보가 주어지면 그 의미·품사·예문을 우선 참고하라.
+사전 정보가 없으면 표현이 실제로 존재하지 않거나 잘못된 형태일 수 있으므로, 확인되지 않은 내용을 사실인 것처럼 서술하지 않는다. similar와 opposite에는 반드시 실제로 쓰이는 표현만 포함하고 불확실하면 빈 문자열로 남긴다.
 
 [category] 아래 9개 중 하나만:
 ${EXPR_CATEGORIES.join(' / ')}
@@ -579,7 +580,7 @@ export async function analyzeExpression(
 ): Promise<ExpressionAnalysis> {
   const dictInfo = dict
     ? `뜻: ${dict.meaning || '없음'}\n품사: ${dict.pos || '없음'}\n예문: ${dict.examples.join(' / ') || '없음'}\n유의어: ${dict.synonyms.join(', ') || '없음'}`
-    : '사전 검색 결과 없음 — 표현 자체로 직접 추론할 것';
+    : '사전 검색 결과 없음 — 이 표현은 표준 사전에 없거나 실제로 쓰이지 않는 표현일 수 있음. meaning 필드에는 실제 용법이 불확실하다는 사실을 반드시 포함해 서술하라. 없는 표현을 실제 쓰이는 것처럼 설명하지 말 것.';
   const user = `표현: "${text}"\n[사전 정보]\n${dictInfo}\n\n아래 JSON 형식 그대로 출력 (값만 교체, 모든 값은 큰따옴표 문자열):\n{"meaning":"쉬운 재해석 문장","category":"묘사 표현","sense":"시각","level":"중급","contexts":"묘사문|에세이","similar":"표현1|표현2|표현3","opposite":"표현1|표현2","descEx":"묘사문 예문","explEx":"설명문 예문","copyEx":"광고 카피 예문","mission":"미션 지시문"}`;
 
   const raw = await callAI(s, EXPRESSION_SYS, user, 1500, 0.4, true, onStream);
