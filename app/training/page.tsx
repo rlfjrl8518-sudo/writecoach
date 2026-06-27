@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { loadDB, saveDB, loadSettings, type Mission, type MissionEvaluation, type DB } from '@/lib/db';
+import { loadDB, saveDB, loadSettings, computeXP, computeStreak, getWriterRank, type Mission, type MissionEvaluation, type DB } from '@/lib/db';
 import { generateMissions, evaluateMission, evaluateDrill, type DrillEvaluation } from '@/lib/openai';
 
 /* ── 공통 로더 ── */
@@ -145,36 +145,96 @@ function MissionCard({ m, onToggle, onDelete, onEvaluate }: {
 }
 
 function DataSnapshot({ db }: { db: DB }) {
-  const analyzed = db.writings.filter(w => w.analysis);
-  const avgScore = analyzed.length ? Math.round(analyzed.reduce((s, w) => s + w.analysis!.score, 0) / analyzed.length) : null;
+  const analyzed  = db.writings.filter(w => w.analysis);
+  const avgScore  = analyzed.length
+    ? Math.round(analyzed.reduce((s, w) => s + w.analysis!.score, 0) / analyzed.length)
+    : null;
+  const xp     = computeXP(db);
+  const rank   = getWriterRank(xp);
+  const streak = computeStreak(db.writings);
+
+  const weakSynth   = db.weaknessSynthesis?.length   ? db.weaknessSynthesis   : null;
+  const strSynth    = db.strengthSynthesis?.length   ? db.strengthSynthesis   : null;
+
+  // 미합성 상태일 때 원본 상위 표시용
   const liveWeak: Record<string, number> = {};
   analyzed.forEach(w => {
-    (w.analysis!.weaknesses || []).forEach(s => { const k = s.trim().toLowerCase().replace(/\s+/g, ' '); liveWeak[k] = (liveWeak[k] || 0) + 1; });
+    (w.analysis!.weaknesses || []).forEach(s => {
+      const k = s.trim().toLowerCase().replace(/\s+/g, ' ');
+      liveWeak[k] = (liveWeak[k] || 0) + 1;
+    });
   });
-  const weakTop3 = Object.entries(liveWeak).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
-  const weakSynthTitles = (db.weaknessSynthesis || []).map(w => w.title);
-  const weakDisplay = weakSynthTitles.length ? weakSynthTitles.join('\n') : (weakTop3.length ? weakTop3.join('\n') : '없음');
+  const weakRaw = Object.entries(liveWeak).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
 
-  // 문장 역할 상위 2개
-  const roleTop2 = Object.entries(db.sentenceRoles || {}).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k]) => k);
-  // 표현 유형 상위 2개
-  const exprTop2 = Object.entries(db.sentenceExpressionTypes || {}).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k]) => k);
+  const scoreColor = avgScore == null ? 'var(--dim-star)'
+    : avgScore >= 70 ? 'var(--good)'
+    : avgScore >= 55 ? 'var(--accent)'
+    : 'var(--moon)';
 
   return (
     <div className="px-card" style={{ marginBottom: 18 }}>
-      <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 12 }}>✦ 현재 데이터 요약</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+      <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 14 }}>✦ 현재 데이터 요약</div>
+
+      {/* 현황 칩 행 */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
         {[
-          { label: '평균 점수',    value: avgScore ? `${avgScore}점` : '—',                               color: avgScore && avgScore >= 70 ? 'var(--good)' : 'var(--moon)', border: 'var(--accent)' },
-          { label: '주요 약점',    value: weakDisplay,                                                    color: 'var(--bad)',       border: 'var(--bad)' },
-          { label: '주로 쓰는 역할', value: roleTop2.length ? roleTop2.join(', ') : '없음',              color: 'var(--good)',      border: 'var(--good)' },
-          { label: '주로 쓰는 표현', value: exprTop2.length ? exprTop2.join(', ') : '없음',              color: 'var(--accent)',    border: 'var(--accent)' },
-        ].map(({ label, value, color, border }) => (
-          <div key={label} style={{ padding: '12px 14px', background: 'var(--bg-subtle)', borderLeft: `3px solid ${border}`, borderRadius: '0 8px 8px 0' }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--dim-star)', marginBottom: 6 }}>{label}</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color, letterSpacing: '-0.01em', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{value}</div>
+          { label: '작성 글',   value: `${db.writings.length}편`,              color: 'var(--text)' },
+          { label: '평균 점수', value: avgScore != null ? `${avgScore}점` : '—', color: scoreColor },
+          { label: '스트릭',   value: streak > 0 ? `🔥 ${streak}일 연속` : '오늘 미작성', color: streak > 0 ? '#F0A500' : 'var(--dim-star)' },
+          { label: '등급',     value: rank.label,                               color: rank.color },
+        ].map(({ label, value, color }) => (
+          <div key={label} style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            padding: '8px 14px', background: 'var(--bg-subtle)',
+            border: '1px solid var(--card-border)', borderRadius: 10,
+            minWidth: 70,
+          }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color, letterSpacing: '-0.01em', fontFamily: 'Pretendard, sans-serif' }}>{value}</span>
+            <span style={{ fontSize: 11, color: 'var(--dim-star)', marginTop: 3 }}>{label}</span>
           </div>
         ))}
+      </div>
+
+      {/* 약점 / 강점 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {/* 약점 */}
+        <div style={{ padding: '12px 14px', background: 'var(--bad-dim)', borderLeft: '3px solid var(--bad-border)', borderRadius: '0 8px 8px 0' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--bad)', marginBottom: 8 }}>주요 약점</div>
+          {weakSynth ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {weakSynth.map((w, i) => (
+                <div key={i} style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6, fontFamily: 'Pretendard, sans-serif' }}>
+                  · {w.title}
+                </div>
+              ))}
+            </div>
+          ) : weakRaw.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {weakRaw.map((w, i) => (
+                <div key={i} style={{ fontSize: 12, color: 'var(--dim-star)', lineHeight: 1.6, fontFamily: 'Pretendard, sans-serif' }}>· {w}</div>
+              ))}
+              <div style={{ fontSize: 11, color: 'var(--bad)', marginTop: 4, opacity: 0.7 }}>성장 리포트에서 AI 진단을 받으면 더 정확해요</div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--dim-star)' }}>글쓰기 분석 후 표시돼요</div>
+          )}
+        </div>
+
+        {/* 강점 */}
+        <div style={{ padding: '12px 14px', background: 'var(--good-dim)', borderLeft: '3px solid var(--good-border)', borderRadius: '0 8px 8px 0' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--good)', marginBottom: 8 }}>주요 강점</div>
+          {strSynth ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {strSynth.map((s, i) => (
+                <div key={i} style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6, fontFamily: 'Pretendard, sans-serif' }}>
+                  · {s.title}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--dim-star)' }}>성장 리포트에서 AI 강점 진단을 받으면 표시돼요</div>
+          )}
+        </div>
       </div>
     </div>
   );
