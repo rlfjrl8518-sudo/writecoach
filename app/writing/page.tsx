@@ -6,7 +6,7 @@ import {
   loadDB, saveDB, saveDBLocal, loadSettings, mergeExpressions, mergeWeaknesses, groupByMonth,
   type WritingAnalysis, type WriteType, type WritingEntry,
 } from '@/lib/db';
-import { analyzeWriting } from '@/lib/openai';
+import { analyzeWriting, evaluateAppeal, type AppealResult } from '@/lib/openai';
 import { pushData } from '@/lib/supabase';
 
 const TYPES: WriteType[] = ['묘사문', '설명문', '감상문', '의견문', '기사 리드', '카피라이팅', '에세이', '스토리텔링'];
@@ -72,6 +72,60 @@ function StarRating({ score }: { score: number }) {
 
 function scoreColor(s: number) {
   return s >= 80 ? 'var(--good)' : s >= 60 ? 'var(--moon)' : 'var(--bad)';
+}
+
+const VERDICT_STYLE = {
+  '인용':     { bg: 'var(--good-dim)',   border: 'var(--good-border)',   color: 'var(--good)',   label: '✦ 인용 — 이의 수용' },
+  '일부 인용': { bg: 'var(--moon-dim)',   border: 'var(--moon)',          color: 'var(--moon)',   label: '◈ 일부 인용' },
+  '기각':     { bg: 'var(--bad-dim)',    border: 'var(--bad-border)',    color: 'var(--bad)',    label: '✕ 기각 — 원판정 유지' },
+};
+
+function AppealResultView({ appeal, originalScore, onReset }: { appeal: AppealResult; originalScore: number; onReset: () => void }) {
+  const vs = VERDICT_STYLE[appeal.verdict];
+  const scoreChanged = appeal.revisedScore !== originalScore;
+  return (
+    <div className="animate-fade-in">
+      <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginBottom: 10 }}>✦ 재심 판정</div>
+
+      {/* 판정 배너 */}
+      <div style={{ padding: '12px 16px', background: vs.bg, border: `1.5px solid ${vs.border}`, borderRadius: 10, marginBottom: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: vs.color, fontFamily: 'Pretendard, sans-serif', marginBottom: scoreChanged ? 8 : 0 }}>
+          {vs.label}
+        </div>
+        {scoreChanged && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+            <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif', textDecoration: 'line-through', opacity: 0.5 }}>{originalScore}</span>
+            <span style={{ fontSize: 16, color: vs.color }}>→</span>
+            <span style={{ fontSize: 28, fontWeight: 800, color: vs.color, fontFamily: 'Pretendard, sans-serif' }}>{appeal.revisedScore}</span>
+            <span style={{ fontSize: 12, color: vs.color, fontFamily: 'Pretendard, sans-serif' }}>점</span>
+          </div>
+        )}
+      </div>
+
+      {/* 판정 이유 */}
+      <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.9, padding: '10px 14px', background: 'var(--bg-subtle)', borderLeft: '3px solid var(--card-border)', borderRadius: '0 6px 6px 0', marginBottom: 14, fontFamily: 'Pretendard, sans-serif' }}>
+        {appeal.reasoning}
+      </div>
+
+      {/* 수용 / 기각 포인트 */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+        {appeal.acceptedPoints.length > 0 && (
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="pixel-font" style={{ fontSize: 6, color: 'var(--good-border)', marginBottom: 6 }}>✦ 수용한 주장</div>
+            {appeal.acceptedPoints.map(p => <span key={p} className="px-tag-good" style={{ display: 'block', marginBottom: 4 }}>{p}</span>)}
+          </div>
+        )}
+        {appeal.rejectedPoints.length > 0 && (
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="pixel-font" style={{ fontSize: 6, color: 'var(--bad-border)', marginBottom: 6 }}>✦ 기각한 주장</div>
+            {appeal.rejectedPoints.map(p => <span key={p} className="px-tag-weak" style={{ display: 'block', marginBottom: 4 }}>{p}</span>)}
+          </div>
+        )}
+      </div>
+
+      <button className="px-btn-ghost" style={{ fontSize: 11 }} onClick={onReset}>↩ 다시 이의 제기</button>
+    </div>
+  );
 }
 
 function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: boolean }) {
@@ -190,6 +244,12 @@ function WritingPageInner() {
   const [streamLen, setStreamLen] = useState(0);
   const [result,  setResult]  = useState<WritingAnalysis | null>(null);
   const [analysisOpen, setAnalysisOpen] = useState(true);
+  const [appealOpen,   setAppealOpen]   = useState(false);
+  const [appealText,   setAppealText]   = useState('');
+  const [appealLoading, setAppealLoading] = useState(false);
+  const [appealStreamLen, setAppealStreamLen] = useState(0);
+  const [appealResult, setAppealResult] = useState<AppealResult | null>(null);
+  const [appealedFor,  setAppealedFor]  = useState<number | null>(null);
   const [err,    setErr]    = useState('');
   const [saved,  setSaved]  = useState(false);
   const [history, setHistory] = useState<WritingEntry[]>([]);
@@ -250,6 +310,7 @@ function WritingPageInner() {
         (chunk) => setStreamLen(l => l + chunk.length));
       setResult(res);
       setAnalysisOpen(true);
+      setAppealOpen(false); setAppealText(''); setAppealResult(null); setAppealedFor(null);
       dispatchScore(res.score);
       const db = loadDB();
       db.writings.push({ id: Date.now(), date, type, topic, text, status: '분석완료', analysis: res, createdAt: new Date().toISOString() });
@@ -262,6 +323,23 @@ function WritingPageInner() {
     } catch (e: unknown) {
       setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setLoading(false); }
+  }
+
+  async function handleAppeal(resultToAppeal: WritingAnalysis, entryId?: number) {
+    const s = loadSettings();
+    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
+    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!appealText.trim()) { setErr('이의 신청 내용을 입력해주세요.'); return; }
+    setAppealLoading(true); setErr(''); setAppealResult(null); setAppealStreamLen(0);
+    try {
+      const res = await evaluateAppeal(s, type, topic, text || '', resultToAppeal, appealText,
+        (chunk) => setAppealStreamLen(l => l + chunk.length));
+      setAppealResult(res);
+      setAppealedFor(entryId ?? null);
+      if (res.verdict !== '기각') dispatchScore(res.revisedScore);
+    } catch (e: unknown) {
+      setErr('재심 오류: ' + (e instanceof Error ? e.message : String(e)));
+    } finally { setAppealLoading(false); }
   }
 
   function handleSaveOnly() {
@@ -395,6 +473,58 @@ function WritingPageInner() {
           )}
 
           {analysisOpen && result && <AnalysisDetail a={result} />}
+
+          {/* 이의 제기 */}
+          {result && !loading && (
+            <div style={{ marginTop: 16, borderTop: '1px solid var(--card-border)', paddingTop: 14 }}>
+              {!appealOpen && !appealResult && (
+                <button
+                  className="px-btn-ghost"
+                  style={{ fontSize: 12 }}
+                  onClick={() => { setAppealOpen(true); setAppealResult(null); }}
+                >
+                  ✉ 이의 제기하기
+                </button>
+              )}
+
+              {appealOpen && !appealResult && (
+                <div>
+                  <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--moon)', marginBottom: 8 }}>✦ 이의 신청서</div>
+                  <div style={{ fontSize: 12, color: 'var(--dim-star)', marginBottom: 8, lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif' }}>
+                    글의 배경·의도·장르 특성 등 평가에 반영되지 않았다고 생각하는 근거를 구체적으로 설명해주세요. 감정적 호소나 근거 없는 요청은 기각됩니다.
+                  </div>
+                  <textarea
+                    className="px-textarea" rows={5}
+                    placeholder="예) 이 글은 일부러 단문 위주로 구성해 긴장감을 표현했습니다. 구체성 항목에서 감점된 부분은 의도적 여백이었고..."
+                    value={appealText}
+                    onChange={e => setAppealText(e.target.value)}
+                    style={{ minHeight: 100, marginBottom: 10 }}
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      className="px-btn px-btn-accent"
+                      onClick={() => handleAppeal(result)}
+                      disabled={appealLoading}
+                      style={{ fontSize: 13 }}
+                    >
+                      {appealLoading
+                        ? (appealStreamLen > 0 ? `★ ${appealStreamLen}자 수신 중...` : '★ 심사 중...')
+                        : '✦ 이의 제기 제출'}
+                    </button>
+                    <button className="px-btn-ghost" style={{ fontSize: 13 }} onClick={() => { setAppealOpen(false); setAppealText(''); }}>취소</button>
+                  </div>
+                </div>
+              )}
+
+              {appealResult && (
+                <AppealResultView
+                  appeal={appealResult}
+                  originalScore={result.score}
+                  onReset={() => { setAppealResult(null); setAppealOpen(false); setAppealText(''); }}
+                />
+              )}
+            </div>
+          )}
         </div>
       </div>
 

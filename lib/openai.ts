@@ -3,6 +3,7 @@ import type {
   WritingAnalysis, SentenceAnalysis, CopyAnalysis,
   Settings, DB, Mission, MissionEvaluation, SentenceExamples, WeaknessSynthesis,
   DictResult, ExpressionAnalysis, ExpressionCategory, ExpressionSense, ExpressionLevel, ExpressionUseContext,
+  WriteType, ScoreBreakdown,
 } from './db';
 
 /* ── OpenAI 호출 (스트리밍 지원) ── */
@@ -599,6 +600,84 @@ export async function analyzeExpression(
     opposite: sp(r.opposite),
     sampleSentences: { descriptive: r.descEx || '', explanatory: r.explEx || '', copy: r.copyEx || '' },
     mission: r.mission || '',
+  };
+}
+
+/* ── 이의 제기 재심 ── */
+export interface AppealResult {
+  verdict: '인용' | '일부 인용' | '기각';
+  revisedScore: number;
+  revisedBreakdown: ScoreBreakdown;
+  reasoning: string;
+  acceptedPoints: string[];
+  rejectedPoints: string[];
+}
+
+const APPEAL_SYS = `너는 글쓰기 심사 위원회의 수석 심사위원이다. 필자가 AI 평가에 이의를 제기했다. 원문과 이의 신청서를 다시 검토하고 최종 판정을 내려라.
+
+[판정 원칙]
+- 필자의 주장이 원문에서 실제로 확인 가능할 때만 수용한다.
+- 글의 배경·의도·장르 특성에 대한 합리적 근거는 진지하게 검토한다.
+- "열심히 썼다", "다시 봐달라" 등 감정적 호소나 근거 없는 주장은 즉시 기각한다.
+- 점수 조정은 보수적으로: 상향 최대 +15점, 하향도 가능하다.
+- 기각 시에도 주장을 성실히 검토했음을 구체적 논거로 보여준다.
+- 필자에게 무조건 유리하게 판정하지 않는다. 공정하되 엄격하다.
+
+JSON 객체만 출력하라. 설명·마크다운 금지.`;
+
+export async function evaluateAppeal(
+  s: Settings,
+  type: WriteType,
+  topic: string,
+  text: string,
+  original: WritingAnalysis,
+  appealText: string,
+  onStream?: (chunk: string) => void,
+): Promise<AppealResult> {
+  const bd = original.score_breakdown ?? {};
+  const user = `[원문 정보]
+유형: ${type} / 주제: ${topic || '없음'}
+
+[원문]
+${text}
+
+[최초 AI 평가]
+총점: ${original.score}/100
+세부: 표현력 ${bd.표현력 ?? '?'} / 전달력 ${bd.전달력 ?? '?'} / 구체성 ${bd.구체성 ?? '?'} / 논리성 ${bd.논리성 ?? '?'} / 가독성 ${bd.가독성 ?? '?'}
+강점: ${(original.strengths || []).join(', ') || '없음'}
+약점: ${(original.weaknesses || []).join(', ') || '없음'}
+
+[필자의 이의 신청]
+${appealText}
+
+아래 JSON 형식 그대로 출력 (값만 교체):
+{"verdict":"기각","revisedScore":${original.score},"breakdown":"표현력:${bd.표현력 ?? 5}|전달력:${bd.전달력 ?? 5}|구체성:${bd.구체성 ?? 5}|논리성:${bd.논리성 ?? 5}|가독성:${bd.가독성 ?? 5}","reasoning":"재심 판정 이유 3-5문장. 엄격하되 논거 있게.","accepted":"수용한 주장1|수용한 주장2","rejected":"기각한 주장1|기각한 주장2"}`;
+
+  const raw = await callAI(s, APPEAL_SYS, user, 1400, 0.3, true, onStream);
+  const r = safeParseJSON<{ verdict: string; revisedScore: string | number; breakdown: string; reasoning: string; accepted: string; rejected: string }>(raw);
+
+  const sp = (v: string) => (v || '').split('|').map(x => x.trim()).filter(Boolean);
+  const verdict = (['인용', '일부 인용', '기각'] as const).includes(r.verdict as AppealResult['verdict'])
+    ? r.verdict as AppealResult['verdict'] : '기각';
+
+  const revised: ScoreBreakdown = { 표현력: bd.표현력 ?? 5, 전달력: bd.전달력 ?? 5, 구체성: bd.구체성 ?? 5, 논리성: bd.논리성 ?? 5, 가독성: bd.가독성 ?? 5 };
+  sp(r.breakdown).forEach(item => {
+    const col = item.indexOf(':');
+    if (col !== -1) {
+      const k = item.slice(0, col).trim() as keyof ScoreBreakdown;
+      if (k in revised) revised[k] = Math.min(10, Math.max(0, parseInt(item.slice(col + 1).trim(), 10) || revised[k]));
+    }
+  });
+
+  const revisedScore = Math.min(100, Math.max(0, Number(r.revisedScore) || original.score));
+
+  return {
+    verdict,
+    revisedScore,
+    revisedBreakdown: revised,
+    reasoning: r.reasoning || '',
+    acceptedPoints: sp(r.accepted),
+    rejectedPoints: sp(r.rejected),
   };
 }
 
