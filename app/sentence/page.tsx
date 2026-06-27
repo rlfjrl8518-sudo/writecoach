@@ -374,7 +374,7 @@ function SentencePageInner() {
       }
       saveDB(db);
       setResultEntry(entry);
-      setMemo('');
+      setSentence(''); setSource(''); setSourceUrl(''); setMemo('');
       setSaved(v => !v);
     } catch (e: unknown) {
       setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));

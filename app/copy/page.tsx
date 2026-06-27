@@ -189,7 +189,7 @@ function CopyPageInner() {
       db.copies.push({ id: Date.now(), copy, brand, source, sourceUrl: sourceUrl || undefined, memo: memo || undefined, analysis: res, createdAt: new Date().toISOString() });
       mergeCopyType(db, res.copyType ?? res.type ?? '');
       saveDB(db);
-      setMemo('');
+      setCopy(''); setBrand(''); setSource(''); setSourceUrl(''); setMemo('');
       setSaved(v => !v);
     } catch (e: unknown) {
       setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));
