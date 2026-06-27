@@ -157,6 +157,9 @@ export function mergeDBs(local: DB, remote: DB): DB {
     ...((local.weaknessSynthesisAt ?? '') > (remote.weaknessSynthesisAt ?? '')
       ? { weaknessSynthesis: local.weaknessSynthesis ?? [], weaknessSynthesisAt: local.weaknessSynthesisAt ?? '' }
       : { weaknessSynthesis: remote.weaknessSynthesis ?? [], weaknessSynthesisAt: remote.weaknessSynthesisAt ?? '' }),
+    ...((local.strengthSynthesisAt ?? '') > (remote.strengthSynthesisAt ?? '')
+      ? { strengthSynthesis: local.strengthSynthesis ?? [], strengthSynthesisAt: local.strengthSynthesisAt ?? '' }
+      : { strengthSynthesis: remote.strengthSynthesis ?? [], strengthSynthesisAt: remote.strengthSynthesisAt ?? '' }),
     _deletedIds:              Array.from(deletedIds),
   };
 }

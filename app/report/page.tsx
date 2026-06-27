@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import {
   loadDB, saveDB, loadSettings, getLast30DaysScores, getTopEntries,
   getTotalChars, getAvgScore, getMonthlyWritingStats,
-  type DB, type WeaknessSynthesis,
+  type DB, type WeaknessSynthesis, type StrengthSynthesis,
 } from '@/lib/db';
-import { generateMonthlyReport, synthesizeWeaknesses } from '@/lib/openai';
+import { generateMonthlyReport, synthesizeWeaknesses, synthesizeStrengths } from '@/lib/openai';
 import dynamic from 'next/dynamic';
 
 const ScoreChart        = dynamic(() => import('@/components/ReportCharts').then(m => ({ default: m.ScoreChart })),        { ssr: false });
@@ -54,25 +54,6 @@ function BarList({ items, color }: { items: { name: string; count: number }[]; c
   );
 }
 
-/* ── 강점 태그 리스트 ── */
-function StrengthTags({ items }: { items: { name: string; count: number }[] }) {
-  if (!items.length) return <p style={{ fontSize: 13, color: 'var(--dim-star)' }}>아직 데이터가 없어요</p>;
-  return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-      {items.map(item => (
-        <span key={item.name} style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          padding: '6px 12px', borderRadius: 20,
-          background: 'var(--good-dim)', border: '1px solid var(--good-border)',
-          fontSize: 13, color: 'var(--good)', fontFamily: 'Pretendard, sans-serif', fontWeight: 500,
-        }}>
-          {item.name}
-          <span style={{ fontSize: 11, opacity: 0.7 }}>{item.count}회</span>
-        </span>
-      ))}
-    </div>
-  );
-}
 
 /* ── 월간 리포트 콘텐츠 ── */
 function ReportContent({ text }: { text: string }) {
@@ -119,6 +100,8 @@ export default function ReportPage() {
   const [err, setErr]         = useState('');
   const [weakLoading, setWeakLoading] = useState(false);
   const [weakErr, setWeakErr]         = useState('');
+  const [strLoading, setStrLoading]   = useState(false);
+  const [strErr, setStrErr]           = useState('');
 
   useEffect(() => { setDb(loadDB()); }, []);
 
@@ -221,9 +204,10 @@ export default function ReportPage() {
   });
 
   const weakTop     = getTopEntries(liveWeaknesses, 5).map(([k, v]) => ({ name: k, count: v }));
-  const strengthTop = getTopEntries(liveStrengths, 8).map(([k, v]) => ({ name: k, count: v }));
   const noData      = db.writings.length === 0;
   const weakSynth: WeaknessSynthesis[] | null = db.weaknessSynthesis?.length ? db.weaknessSynthesis : null;
+  const strSynth: StrengthSynthesis[] | null  = db.strengthSynthesis?.length  ? db.strengthSynthesis  : null;
+  const hasStrengthData = Object.keys(liveStrengths).length > 0;
 
   async function handleSynthesizeWeaknesses() {
     const s = loadSettings();
@@ -241,6 +225,24 @@ export default function ReportPage() {
     } catch (e: unknown) {
       setWeakErr('오류: ' + (e instanceof Error ? e.message : String(e)));
     } finally { setWeakLoading(false); }
+  }
+
+  async function handleSynthesizeStrengths() {
+    const s = loadSettings();
+    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
+    if (!hasKey) { setStrErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    setStrLoading(true); setStrErr('');
+    try {
+      const items = getTopEntries(liveStrengths, 15).map(([text, count]) => ({ text, count }));
+      const res = await synthesizeStrengths(s, items);
+      const fresh = loadDB();
+      fresh.strengthSynthesis = res;
+      fresh.strengthSynthesisAt = new Date().toISOString();
+      saveDB(fresh);
+      setDb(fresh);
+    } catch (e: unknown) {
+      setStrErr('오류: ' + (e instanceof Error ? e.message : String(e)));
+    } finally { setStrLoading(false); }
   }
 
   return (
@@ -322,11 +324,35 @@ export default function ReportPage() {
 
           {/* ── 5. 강점 ── */}
           <div className="px-card" style={{ marginBottom: 20 }}>
-            <SectionHeader title="강점" sub="AI가 반복적으로 칭찬한 요소" />
-            {strengthTop.length === 0 ? (
+            <SectionHeader title="강점" sub="AI가 반복된 피드백을 종합한 핵심 진단" />
+            {!hasStrengthData ? (
               <p style={{ fontSize: 13, color: 'var(--dim-star)' }}>아직 데이터가 없어요</p>
+            ) : strSynth ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {strSynth.map((st, i) => (
+                  <div key={i} style={{
+                    padding: '12px 14px', background: 'var(--good-dim)',
+                    borderLeft: '3px solid var(--good-border)', borderRadius: '0 8px 8px 0',
+                  }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--good)', marginBottom: 6 }}>{i + 1}. {st.title}</div>
+                    <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.8 }}>{st.explanation}</div>
+                  </div>
+                ))}
+                <button className="px-btn-ghost-sm" onClick={handleSynthesizeStrengths} disabled={strLoading} style={{ alignSelf: 'flex-start' }}>
+                  {strLoading ? '★ 다시 진단 중...' : '↻ 다시 진단받기'}
+                </button>
+              </div>
             ) : (
-              <StrengthTags items={strengthTop} />
+              <div>
+                <button className="px-btn px-btn-accent" onClick={handleSynthesizeStrengths} disabled={strLoading}>
+                  {strLoading ? '★ 진단 중...' : '✦ AI로 강점 진단받기'}
+                </button>
+                {strErr && (
+                  <div style={{ marginTop: 10, fontSize: 11, color: 'var(--bad)', padding: '8px 12px', borderLeft: '2px solid var(--bad-border)', background: 'var(--bad-dim)' }}>
+                    {strErr}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

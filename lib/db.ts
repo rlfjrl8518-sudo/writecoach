@@ -49,6 +49,7 @@ export interface WritingAnalysis {
 }
 
 export interface WeaknessSynthesis { title: string; explanation: string; suggestion: string; }
+export interface StrengthSynthesis { title: string; explanation: string; }
 
 export interface WritingEntry {
   id: number;
@@ -210,6 +211,8 @@ export interface DB {
   expressionEntries: ExpressionLabEntry[];
   weaknessSynthesis: WeaknessSynthesis[];
   weaknessSynthesisAt: string;
+  strengthSynthesis: StrengthSynthesis[];
+  strengthSynthesisAt: string;
   _deletedIds: number[];
   // legacy — 데이터 호환용, 더 이상 신규 기록 안 함
   structures: Record<string, number>;
@@ -227,6 +230,7 @@ const EMPTY: DB = {
   images: [],
   expressionEntries: [],
   weaknessSynthesis: [], weaknessSynthesisAt: '',
+  strengthSynthesis: [], strengthSynthesisAt: '',
   _deletedIds: [],
   structures: {}, senses: {}, sentenceStructures: {}, sentenceCopyStructures: {},
 };

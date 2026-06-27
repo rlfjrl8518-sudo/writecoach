@@ -1,7 +1,7 @@
 import { jsonrepair } from 'jsonrepair';
 import type {
   WritingAnalysis, SentenceAnalysis, CopyAnalysis,
-  Settings, DB, Mission, MissionEvaluation, SentenceExamples, WeaknessSynthesis,
+  Settings, DB, Mission, MissionEvaluation, SentenceExamples, WeaknessSynthesis, StrengthSynthesis,
   DictResult, ExpressionAnalysis, ExpressionCategory, ExpressionSense, ExpressionLevel, ExpressionUseContext,
   WriteType, ScoreBreakdown,
 } from './db';
@@ -777,4 +777,26 @@ export async function synthesizeWeaknesses(
   const raw = await callAI(s, WEAKNESS_SYNTH_SYS, user, 1200, 0.4, true);
   const r = safeParseJSON<{ weaknesses: WeaknessSynthesis[] }>(raw);
   return r.weaknesses || [];
+}
+
+/* ── 강점 종합 진단 ── */
+const STRENGTH_SYNTH_SYS = `너는 글쓰기 코치다. 사용자의 여러 글에서 반복적으로 칭찬된 강점 피드백과 그 빈도가 주어진다.
+이 목록을 그대로 나열하지 말고, 같은 역량을 가리키는 항목들을 묶어서 사용자가 실제로 가진 핵심 강점 2~3가지로 종합 진단하라.
+
+[원칙]
+- 표현은 다르지만 같은 역량을 가리키는 피드백은 하나로 합쳐라.
+- "잘한다"는 나열이 아니라, 어떤 글쓰기 상황에서 이 강점이 어떻게 발휘되는지 구체적으로 설명하라.
+- 가장 빈도 높고 뚜렷한 것부터 순서대로 제시한다.
+- 최대 3개까지만 제시한다.
+
+JSON 객체만 출력 (설명·마크다운 금지):
+{"strengths":[{"title":"핵심 강점 (8단어 이내)","explanation":"이 강점이 글에서 어떻게 드러나는지 구체적 설명 2문장"}]}`;
+
+export async function synthesizeStrengths(
+  s: Settings, items: { text: string; count: number }[],
+): Promise<StrengthSynthesis[]> {
+  const user = `강점 피드백과 빈도:\n${items.map(i => `- ${i.text} (${i.count}회)`).join('\n')}`;
+  const raw = await callAI(s, STRENGTH_SYNTH_SYS, user, 1000, 0.4, true);
+  const r = safeParseJSON<{ strengths: StrengthSynthesis[] }>(raw);
+  return r.strengths || [];
 }
