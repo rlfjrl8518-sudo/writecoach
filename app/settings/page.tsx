@@ -299,10 +299,10 @@ export default function SettingsPage() {
           ) : userEmail ? (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <span style={{ fontSize: 18, color: '#3182F6' }}>☁</span>
+                <span style={{ fontSize: 18, color: '#7C3B49' }}>☁</span>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{userEmail}</div>
-                  <div style={{ fontSize: 11, color: '#22B85A', marginTop: 2 }}>동기화 활성화됨</div>
+                  <div style={{ fontSize: 11, color: '#4B7A5E', marginTop: 2 }}>동기화 활성화됨</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>

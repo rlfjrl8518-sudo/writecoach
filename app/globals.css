@@ -5,31 +5,31 @@
 ═══════════════════════════════════════════ */
 :root {
   /* Backgrounds */
-  --bg:          #F2F4F6;
-  --bg-card:     #FFFFFF;
-  --bg-subtle:   #F7F9FC;
-  --bg-input:    #F2F4F6;
+  --bg:          #EEF0EA;
+  --bg-card:     #F9F9F5;
+  --bg-subtle:   #F3F4EF;
+  --bg-input:    #EEF0EA;
 
   /* Text */
-  --text:        #191F28;
-  --dim-star:    #4E5968;
-  --card-border: #D1D6DB;
+  --text:        #24251F;
+  --dim-star:    #6E7062;
+  --card-border: #D9DBCE;
 
   /* Brand */
-  --accent:      #3182F6;
-  --accent-dim:  rgba(49,130,246,0.08);
+  --accent:      #7C3B49;
+  --accent-dim:  rgba(124,59,73,0.08);
 
   /* Semantic */
-  --good:        #22B85A;
-  --good-dim:    rgba(34,184,90,0.10);
-  --good-border: #22B85A;
-  --moon:        #FF9F0A;
-  --moon-dim:    rgba(255,159,10,0.10);
-  --bad:         #F03E3E;
-  --bad-dim:     rgba(240,62,62,0.08);
-  --bad-border:  #E03030;
-  --warn-dim:    rgba(255,159,10,0.10);
-  --warn-border: #E08800;
+  --good:        #4B7A5E;
+  --good-dim:    rgba(75,122,94,0.10);
+  --good-border: #4B7A5E;
+  --moon:        #8A7B45;
+  --moon-dim:    rgba(138,123,69,0.10);
+  --bad:         #B14B42;
+  --bad-dim:     rgba(177,75,66,0.08);
+  --bad-border:  #9C3F37;
+  --warn-dim:    rgba(184,134,59,0.10);
+  --warn-border: #96692E;
 
   /* Legacy aliases */
   --bg-deep:  var(--bg);
@@ -42,21 +42,28 @@
    다크 모드 토큰
 ═══════════════════════════════════════════ */
 [data-theme="dark"] {
-  --bg:          #191F28;
-  --bg-card:     #252C3B;
-  --bg-subtle:   #1E2534;
-  --bg-input:    #1A2235;
+  --bg:          #1B1C17;
+  --bg-card:     #232420;
+  --bg-subtle:   #202119;
+  --bg-input:    #1B1C17;
 
-  --text:        #F2F4F6;
-  --dim-star:    #8B95A1;
-  --card-border: #3A4557;
+  --text:        #EDEEE3;
+  --dim-star:    #9B9C8C;
+  --card-border: #3A3B31;
 
-  --accent-dim:  rgba(49,130,246,0.15);
-  --good-dim:    rgba(34,184,90,0.15);
-  --moon-dim:    rgba(255,159,10,0.15);
-  --bad-dim:     rgba(240,62,62,0.13);
-  --bad-border:  #E05050;
-  --warn-dim:    rgba(255,159,10,0.15);
+  --accent-dim:  rgba(226,154,166,0.16);
+  --good-dim:    rgba(127,174,142,0.15);
+  --moon-dim:    rgba(199,183,126,0.15);
+  --bad-dim:     rgba(217,124,114,0.13);
+  --bad-border:  #E0897E;
+  --warn-dim:    rgba(217,168,85,0.15);
+
+  --accent:      #E29AA6;
+  --good:        #7FAE8E;
+  --good-border: #7FAE8E;
+  --moon:        #C7B77E;
+  --bad:         #D97C72;
+  --warn-border: #D9A855;
 }
 
 [data-theme="dark"] .px-card,
@@ -131,21 +138,21 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
   background: var(--bg-card);
   border-radius: 16px;
   border: 1.5px solid var(--accent);
-  box-shadow: 0 2px 16px rgba(49,130,246,0.10);
+  box-shadow: 0 2px 16px rgba(124,59,73,0.10);
   padding: 20px;
 }
 .px-card-moon {
   background: var(--bg-card);
   border-radius: 16px;
-  border: 1.5px solid rgba(255,159,10,0.4);
-  box-shadow: 0 2px 12px rgba(255,159,10,0.06);
+  border: 1.5px solid rgba(138,123,69,0.4);
+  box-shadow: 0 2px 12px rgba(138,123,69,0.06);
   padding: 20px;
 }
 .px-card-good {
   background: var(--bg-card);
   border-radius: 16px;
   border: 1.5px solid var(--good-border);
-  box-shadow: 0 2px 12px rgba(34,184,90,0.08);
+  box-shadow: 0 2px 12px rgba(75,122,94,0.08);
   padding: 20px;
 }
 
@@ -195,7 +202,7 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
 
 .px-btn-ghost-moon {
   background: transparent; color: var(--moon);
-  border: 1px solid rgba(255,159,10,0.35);
+  border: 1px solid rgba(138,123,69,0.35);
   font-family: 'Pretendard Variable', Pretendard, sans-serif;
   font-size: 14px; font-weight: 500; font-style: normal;
   padding: 8px 18px; cursor: pointer; transition: all 0.12s;
@@ -221,7 +228,7 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
 .px-input:focus, .px-textarea:focus, .px-select:focus {
   border-color: var(--accent);
   background: var(--bg-card);
-  box-shadow: 0 0 0 3px rgba(49,130,246,0.10);
+  box-shadow: 0 0 0 3px rgba(124,59,73,0.10);
 }
 .px-input::placeholder, .px-textarea::placeholder {
   color: var(--card-border);
@@ -304,7 +311,7 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
 }
 .px-divider-moon {
   height: 1px;
-  background: rgba(255,159,10,0.25);
+  background: rgba(138,123,69,0.25);
   margin: 16px 0;
 }
 .px-divider-dim {

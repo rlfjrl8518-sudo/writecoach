@@ -4,8 +4,8 @@
   "description": "AI 글쓰기 훈련 플랫폼",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#3182F6",
-  "theme_color": "#3182F6",
+  "background_color": "#7C3B49",
+  "theme_color": "#7C3B49",
   "orientation": "portrait-primary",
   "icons": [
     {

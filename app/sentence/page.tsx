@@ -835,7 +835,7 @@ function SentencePageInner() {
                   {entry.note && <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif' }}>{entry.note}</div>}
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', fontFamily: 'Pretendard, sans-serif' }}>{new Date(entry.createdAt).toLocaleDateString('ko-KR')}</span>
-                    <button onClick={e => { e.stopPropagation(); handleImgDelete(entry.id); setImgExpanded(null); }} style={{ background: 'rgba(240,62,62,0.2)', color: '#ff6b6b', border: '1px solid rgba(240,62,62,0.4)', borderRadius: 8, padding: '6px 16px', cursor: 'pointer', fontSize: 12, fontFamily: 'Pretendard, sans-serif' }}>삭제</button>
+                    <button onClick={e => { e.stopPropagation(); handleImgDelete(entry.id); setImgExpanded(null); }} style={{ background: 'rgba(177,75,66,0.2)', color: '#D97C72', border: '1px solid rgba(177,75,66,0.4)', borderRadius: 8, padding: '6px 16px', cursor: 'pointer', fontSize: 12, fontFamily: 'Pretendard, sans-serif' }}>삭제</button>
                   </div>
                 </div>
               </div>
