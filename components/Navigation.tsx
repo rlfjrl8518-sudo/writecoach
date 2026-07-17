@@ -194,9 +194,29 @@ function GamificationBar() {
 
 export default function Navigation() {
   const path = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setCollapsed(localStorage.getItem('wc_nav_collapsed') === 'true');
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    localStorage.setItem('wc_nav_collapsed', collapsed ? 'true' : 'false');
+    document.documentElement.setAttribute('data-nav-collapsed', collapsed ? 'true' : 'false');
+  }, [collapsed, mounted]);
 
   return (
     <nav className="nav-root">
+      <button
+        className="nav-collapse-btn"
+        onClick={() => setCollapsed(c => !c)}
+        title={collapsed ? '사이드바 펼치기' : '사이드바 접기'}
+      >
+        {collapsed ? '›' : '‹'}
+      </button>
       {/* 로고 영역 */}
       <div className="nav-top">
         <div>

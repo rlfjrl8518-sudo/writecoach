@@ -554,6 +554,47 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
     overflow-y: auto;
     overflow-x: hidden;
     z-index: 100;
+    transition: width 0.18s ease;
+  }
+
+  [data-nav-collapsed="true"] .nav-root { width: 72px; }
+
+  [data-nav-collapsed="true"] .nav-logo-sub,
+  [data-nav-collapsed="true"] .nav-label,
+  [data-nav-collapsed="true"] .nav-gamification {
+    display: none;
+  }
+
+  [data-nav-collapsed="true"] .nav-link {
+    justify-content: center;
+    padding: 10px 0;
+  }
+
+  [data-nav-collapsed="true"] .nav-top {
+    justify-content: center;
+    padding: 24px 8px 18px;
+  }
+
+  .nav-collapse-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 1px solid var(--card-border);
+    background: var(--bg-card);
+    color: var(--dim-star);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    position: absolute;
+    top: 24px;
+    right: -12px;
+    z-index: 2;
+  }
+  .nav-collapse-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   .nav-top {
@@ -656,6 +697,7 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
 
   .nav-gamification  { display: none; }
   .nav-sidebar-footer { display: none; }
+  .nav-collapse-btn { display: none; }
 
   .nav-tabs {
     position: fixed;
@@ -731,6 +773,8 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
     padding: 40px 48px 80px;
     min-height: 100vh;
   }
+
+  [data-nav-collapsed="true"] .main-layout { margin-left: 72px; }
 }
 
 /* ═══════════════════════════════════════════
