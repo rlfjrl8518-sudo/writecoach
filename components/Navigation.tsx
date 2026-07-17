@@ -36,9 +36,9 @@ function SyncBadge() {
   if (!mounted || !isSupabaseConfigured) return null;
 
   const cfg: Record<SyncStatus, { icon: string; color: string; title: string }> = {
-    synced:  { icon: '☁', color: '#3182F6', title: '동기화됨 · 계정 설정'  },
+    synced:  { icon: '☁', color: '#7C3B49', title: '동기화됨 · 계정 설정'  },
     syncing: { icon: '↻', color: '#F0A500', title: '동기화 중...'            },
-    error:   { icon: '☁', color: '#F03E3E', title: '동기화 오류 · 설정 확인' },
+    error:   { icon: '☁', color: '#B14B42', title: '동기화 오류 · 설정 확인' },
     offline: { icon: '☁', color: 'var(--card-border)', title: '로그인하고 동기화하기' },
   };
   const { icon, color, title } = cfg[status];
