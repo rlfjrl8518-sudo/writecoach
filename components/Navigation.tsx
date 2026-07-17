@@ -12,6 +12,7 @@ const TABS = [
   { href: '/sentence', icon: '文',  label: '수집',   matches: ['/sentence', '/copy'] },
   { href: '/calendar', icon: '暦',  label: '달력',   matches: ['/calendar'] },
   { href: '/training', icon: '◎',  label: '훈련',   matches: ['/training'] },
+  { href: '/books',    icon: '册',  label: '책',    matches: ['/books'] },
   { href: '/settings', icon: '⚙',  label: '설정',   matches: ['/settings'] },
 ];
 

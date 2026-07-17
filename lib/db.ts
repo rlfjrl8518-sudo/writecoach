@@ -195,6 +195,29 @@ export interface ImageEntry {
   createdAt: string;
 }
 
+/* ── 책 읽기 기록 ── */
+export type BookStatus = '읽는 중' | '완독' | '중단';
+
+export interface Book {
+  id: number;
+  title: string;
+  author?: string;
+  status: BookStatus;
+  startedAt: string;      // ISO date string, defaults to creation day
+  finishedAt?: string;    // set when status becomes '완독'
+  createdAt: string;
+}
+
+export interface BookNote {
+  id: number;
+  bookId: number;         // references Book.id
+  date: string;           // ISO date string, the day this note was written
+  progress?: string;      // free text, e.g. "120쪽까지" — do not force a numeric page field
+  text: string;
+  quote?: string;         // optional standout passage
+  createdAt: string;
+}
+
 /* ── DB ── */
 export interface DB {
   writings: WritingEntry[];
@@ -209,6 +232,8 @@ export interface DB {
   sentenceExpressionTypes: Record<string, number>; // v4 새 필드
   images: ImageEntry[];
   expressionEntries: ExpressionLabEntry[];
+  books: Book[];
+  bookNotes: BookNote[];
   weaknessSynthesis: WeaknessSynthesis[];
   weaknessSynthesisAt: string;
   strengthSynthesis: StrengthSynthesis[];
@@ -229,6 +254,8 @@ const EMPTY: DB = {
   sentenceTypes: {}, sentenceRoles: {}, sentenceExpressionTypes: {},
   images: [],
   expressionEntries: [],
+  books: [],
+  bookNotes: [],
   weaknessSynthesis: [], weaknessSynthesisAt: '',
   strengthSynthesis: [], strengthSynthesisAt: '',
   _deletedIds: [],
@@ -323,6 +350,13 @@ export function getAvgScore(db: DB): number | null {
   const a = getAnalyzedWritings(db);
   if (!a.length) return null;
   return Math.round(a.reduce((s, w) => s + w.analysis!.score, 0) / a.length);
+}
+
+/* ── 책 읽기 기록 helpers ── */
+export function getBookNotes(notes: BookNote[], bookId: number): BookNote[] {
+  return notes
+    .filter(n => n.bookId === bookId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export interface MonthGroup<T> { key: string; label: string; items: T[]; }
