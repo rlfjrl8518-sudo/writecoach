@@ -65,7 +65,7 @@ function EvalResult({ ev }: { ev: MissionEvaluation }) {
           <span style={{ fontSize: 12, color: 'var(--moon)', fontFamily: 'Pretendard, sans-serif', fontWeight: 600, display: 'block', marginBottom: 6 }}>발전시킬 점</span>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
             {ev.improvements.map((s, i) => (
-              <span key={i} style={{ fontSize: 12, color: 'var(--moon)', padding: '3px 10px', borderRadius: 6, background: 'var(--moon-dim)', border: '1px solid rgba(255,159,10,0.35)', fontFamily: 'Pretendard, sans-serif', fontWeight: 500 }}>{s}</span>
+              <span key={i} style={{ fontSize: 12, color: 'var(--moon)', padding: '3px 10px', borderRadius: 6, background: 'var(--moon-dim)', border: '1px solid rgba(138,123,69,0.35)', fontFamily: 'Pretendard, sans-serif', fontWeight: 500 }}>{s}</span>
             ))}
           </div>
         </div>
@@ -383,7 +383,7 @@ function DrillResult({ result }: { result: DrillEvaluation }) {
           <span key={i} style={{ fontSize: 12, color: 'var(--good)', padding: '4px 10px', borderRadius: 6, background: 'var(--good-dim)', border: '1px solid var(--good-border)' }}>{s}</span>
         ))}
         {result.improvements.map((s, i) => (
-          <span key={i} style={{ fontSize: 12, color: 'var(--moon)', padding: '4px 10px', borderRadius: 6, background: 'var(--moon-dim)', border: '1px solid rgba(255,159,10,0.35)' }}>{s}</span>
+          <span key={i} style={{ fontSize: 12, color: 'var(--moon)', padding: '4px 10px', borderRadius: 6, background: 'var(--moon-dim)', border: '1px solid rgba(138,123,69,0.35)' }}>{s}</span>
         ))}
       </div>
 
