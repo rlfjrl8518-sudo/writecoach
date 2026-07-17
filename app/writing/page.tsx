@@ -337,10 +337,6 @@ function WritingPageInner() {
 
   const monthGroups = useMemo(() => groupByMonth(history, e => e.date), [history]);
 
-  useEffect(() => {
-    if (monthGroups.length > 0) setOpenMonths(prev => prev.size === 0 ? new Set([monthGroups[0].key]) : prev);
-  }, [monthGroups.length > 0]);
-
   function toggleMonth(key: string) {
     setOpenMonths(prev => {
       const next = new Set(prev);

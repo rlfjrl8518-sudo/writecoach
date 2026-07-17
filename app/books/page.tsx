@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   loadDB, saveDB, groupByMonth, getBookNotes,
   type Book, type BookNote, type BookStatus,
@@ -40,22 +40,51 @@ function BookCard({ book, noteCount, onClick }: { book: Book; noteCount: number;
   );
 }
 
-function NoteItem({ note }: { note: BookNote }) {
+function NoteItem({
+  note, dragging, itemRef, onHandlePointerDown, onHandlePointerMove, onHandlePointerUp,
+}: {
+  note: BookNote;
+  dragging?: boolean;
+  itemRef?: (el: HTMLDivElement | null) => void;
+  onHandlePointerDown?: (e: React.PointerEvent<HTMLSpanElement>) => void;
+  onHandlePointerMove?: (e: React.PointerEvent<HTMLSpanElement>) => void;
+  onHandlePointerUp?: (e: React.PointerEvent<HTMLSpanElement>) => void;
+}) {
   return (
-    <div className="px-card" style={{ padding: '12px 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-        <span className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)' }}>{fmtDate(note.date)}</span>
-        {note.progress && <span className="px-tag-expr">{note.progress}</span>}
-      </div>
-      <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.8, whiteSpace: 'pre-wrap', margin: 0 }}>
-        {note.text}
-      </p>
-      {note.quote && (
-        <div style={{ marginTop: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
-          <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 700, display: 'block', marginBottom: 3, letterSpacing: '0.02em' }}>인상 깊은 구절</span>
-          {note.quote}
+    <div
+      ref={itemRef}
+      className="px-card"
+      style={{ padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'flex-start', opacity: dragging ? 0.6 : 1 }}
+    >
+      <span
+        onPointerDown={onHandlePointerDown}
+        onPointerMove={onHandlePointerMove}
+        onPointerUp={onHandlePointerUp}
+        onPointerCancel={onHandlePointerUp}
+        title="드래그로 순서 변경"
+        style={{
+          cursor: dragging ? 'grabbing' : 'grab',
+          color: 'var(--dim-star)', fontSize: 16, lineHeight: 1,
+          paddingTop: 2, touchAction: 'none', userSelect: 'none', flexShrink: 0,
+        }}
+      >
+        ⠿
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <span className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)' }}>{fmtDate(note.date)}</span>
+          {note.progress && <span className="px-tag-expr">{note.progress}</span>}
         </div>
-      )}
+        <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.8, whiteSpace: 'pre-wrap', margin: 0 }}>
+          {note.text}
+        </p>
+        {note.quote && (
+          <div style={{ marginTop: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
+            <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 700, display: 'block', marginBottom: 3, letterSpacing: '0.02em' }}>인상 깊은 구절</span>
+            {note.quote}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -75,6 +104,11 @@ export default function BooksPage() {
 
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
 
+  // ── 기록 타임라인 드래그 앤 드롭 재정렬 상태 ──
+  const [dragNotes, setDragNotes] = useState<BookNote[] | null>(null);
+  const [draggingNoteId, setDraggingNoteId] = useState<number | null>(null);
+  const noteRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
   useEffect(() => {
     const db = loadDB();
     setBooks([...db.books].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
@@ -87,10 +121,6 @@ export default function BooksPage() {
     () => groupByMonth(others, b => b.finishedAt || b.createdAt),
     [others]
   );
-
-  useEffect(() => {
-    if (otherGroups.length > 0) setOpenMonths(prev => prev.size === 0 ? new Set([otherGroups[0].key]) : prev);
-  }, [otherGroups.length > 0]);
 
   function toggleMonth(key: string) {
     setOpenMonths(prev => {
@@ -130,6 +160,7 @@ export default function BooksPage() {
       text: noteText.trim(),
       quote: quote.trim() || undefined,
       createdAt: new Date().toISOString(),
+      order: Date.now(),
     });
     saveDB(db);
     setProgress(''); setNoteText(''); setQuote('');
@@ -147,10 +178,71 @@ export default function BooksPage() {
     }
   }
 
+  // ── 기록 타임라인 드래그 앤 드롭 재정렬 핸들러 ──
+  function handleNotePointerDown(e: React.PointerEvent<HTMLSpanElement>, noteId: number, currentOrder: BookNote[]) {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragNotes(currentOrder);
+    setDraggingNoteId(noteId);
+  }
+
+  function handleNotePointerMove(e: React.PointerEvent<HTMLSpanElement>, noteId: number) {
+    if (draggingNoteId !== noteId) return;
+    const y = e.clientY;
+    setDragNotes(prev => {
+      if (!prev) return prev;
+      const idx = prev.findIndex(n => n.id === noteId);
+      if (idx === -1) return prev;
+      if (idx > 0) {
+        const aboveEl = noteRefs.current.get(prev[idx - 1].id);
+        if (aboveEl) {
+          const rect = aboveEl.getBoundingClientRect();
+          const mid = rect.top + rect.height / 2;
+          if (y < mid) {
+            const next = [...prev];
+            [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+            return next;
+          }
+        }
+      }
+      if (idx < prev.length - 1) {
+        const belowEl = noteRefs.current.get(prev[idx + 1].id);
+        if (belowEl) {
+          const rect = belowEl.getBoundingClientRect();
+          const mid = rect.top + rect.height / 2;
+          if (y > mid) {
+            const next = [...prev];
+            [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]];
+            return next;
+          }
+        }
+      }
+      return prev;
+    });
+  }
+
+  function handleNotePointerUp(e: React.PointerEvent<HTMLSpanElement>, noteId: number) {
+    if (draggingNoteId !== noteId) return;
+    setDraggingNoteId(null);
+    setDragNotes(finalOrder => {
+      if (finalOrder) {
+        const db = loadDB();
+        finalOrder.forEach((n, idx) => {
+          const found = db.bookNotes.find(x => x.id === n.id);
+          if (found) found.order = idx;
+        });
+        saveDB(db);
+        setBookNotes(db.bookNotes);
+      }
+      return null;
+    });
+  }
+
   const selectedBook = books.find(b => b.id === selectedId) || null;
 
   if (selectedBook) {
     const timeline = getBookNotes(bookNotes, selectedBook.id);
+    const displayTimeline = dragNotes ?? timeline;
     return (
       <div>
         <button
@@ -177,17 +269,6 @@ export default function BooksPage() {
               ✦ 완독으로 표시
             </button>
           )}
-        </div>
-
-        <div className="px-sec-title" style={{ marginBottom: 14 }}>✦ 읽은 기록 ({timeline.length}개)</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
-          {timeline.length === 0 && (
-            <div className="px-empty">
-              <div className="px-empty-icon">册</div>
-              <p className="px-empty-text">아직 기록이 없어요<br />아래에서 첫 기록을 남겨보세요</p>
-            </div>
-          )}
-          {timeline.map(note => <NoteItem key={note.id} note={note} />)}
         </div>
 
         <div className="px-card">
@@ -217,6 +298,27 @@ export default function BooksPage() {
             </div>
             <button type="submit" className="px-btn px-btn-accent">✦ 기록 남기기</button>
           </form>
+        </div>
+
+        <div className="px-sec-title" style={{ marginBottom: 14 }}>✦ 읽은 기록 ({timeline.length}개)</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+          {timeline.length === 0 && (
+            <div className="px-empty">
+              <div className="px-empty-icon">册</div>
+              <p className="px-empty-text">아직 기록이 없어요<br />아래에서 첫 기록을 남겨보세요</p>
+            </div>
+          )}
+          {displayTimeline.map(note => (
+            <NoteItem
+              key={note.id}
+              note={note}
+              dragging={draggingNoteId === note.id}
+              itemRef={el => { if (el) noteRefs.current.set(note.id, el); else noteRefs.current.delete(note.id); }}
+              onHandlePointerDown={e => handleNotePointerDown(e, note.id, displayTimeline)}
+              onHandlePointerMove={e => handleNotePointerMove(e, note.id)}
+              onHandlePointerUp={e => handleNotePointerUp(e, note.id)}
+            />
+          ))}
         </div>
       </div>
     );
