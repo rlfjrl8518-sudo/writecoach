@@ -216,6 +216,7 @@ export interface BookNote {
   text: string;
   quote?: string;         // optional standout passage
   createdAt: string;
+  order?: number;         // manual drag-and-drop order override; falls back to createdAt when absent
 }
 
 /* ── DB ── */
@@ -356,7 +357,7 @@ export function getAvgScore(db: DB): number | null {
 export function getBookNotes(notes: BookNote[], bookId: number): BookNote[] {
   return notes
     .filter(n => n.bookId === bookId)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    .sort((a, b) => (a.order ?? Date.parse(a.createdAt)) - (b.order ?? Date.parse(b.createdAt)));
 }
 
 export interface MonthGroup<T> { key: string; label: string; items: T[]; }
