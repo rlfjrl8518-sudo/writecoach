@@ -8,8 +8,8 @@ import {
 } from '@/lib/db';
 import { analyzeWriting, evaluateAppeal, proofreadWriting, type AppealResult, type ProofreadResult } from '@/lib/openai';
 import { pushData } from '@/lib/supabase';
-import { updateJourneyOnWrite, pushPendingCelebration, getEmotion } from '@/lib/journey';
-import TurtleImage from '@/components/TurtleImage';
+import { updateJourneyOnWrite, pushPendingCelebration, getScoreEmotion, getWrittenDays, getLevelInfo, toTurtleLevel } from '@/lib/journey';
+import TurtleSprite, { type TurtleLevel } from '@/components/TurtleSprite';
 
 const TYPES: WriteType[] = ['묘사문', '설명문', '감상문', '의견문', '기사 리드', '카피라이팅', '에세이', '스토리텔링'];
 
@@ -28,7 +28,7 @@ const BREAKDOWN_KEYS: (keyof WritingAnalysis['score_breakdown'])[] = [
   '표현력', '전달력', '구체성', '논리성', '가독성',
 ];
 
-function StarLoader({ streamLen = 0 }: { streamLen?: number }) {
+function StarLoader({ streamLen = 0, level = 1 }: { streamLen?: number; level?: TurtleLevel }) {
   const [f, setF] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setF(n => (n + 1) % 3), 500);
@@ -36,6 +36,7 @@ function StarLoader({ streamLen = 0 }: { streamLen?: number }) {
   }, []);
   return (
     <div className="star-loader">
+      <TurtleSprite level={level} emotion="thinking" size={72} />
       <div className="pixel-font" style={{ fontSize: 16, color: 'var(--moon)', letterSpacing: 8 }}>
         {['★ ☆ ☆', '★ ★ ☆', '★ ★ ★'][f]}
       </div>
@@ -190,7 +191,8 @@ function ProofreadPanel({
   );
 }
 
-function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: boolean }) {
+function AnalysisDetail({ a, compact = false, level = 1 }: { a: WritingAnalysis; compact?: boolean; level?: TurtleLevel }) {
+  const scoreEmotion = getScoreEmotion(a.score);
   return (
     <div className="animate-fade-in">
 
@@ -204,13 +206,8 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
           <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginTop: 6 }}>총점 / 100</div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-          <TurtleImage
-            src={`/turtle/emotion-${getEmotion(a.score).key}.png`}
-            fallback={getEmotion(a.score).emoji}
-            alt={getEmotion(a.score).label}
-            size={44}
-          />
-          <span style={{ fontSize: 11, color: 'var(--dim-star)', fontWeight: 600 }}>{getEmotion(a.score).message}</span>
+          <TurtleSprite level={level} emotion={scoreEmotion.emotion} size={44} />
+          <span style={{ fontSize: 11, color: 'var(--dim-star)', fontWeight: 600 }}>{scoreEmotion.message}</span>
         </div>
       </div>
 
@@ -347,6 +344,7 @@ function WritingPageInner() {
   }, [saved]);
 
   const monthGroups = useMemo(() => groupByMonth(history, e => e.date), [history]);
+  const currentLevel = useMemo(() => toTurtleLevel(getLevelInfo(getWrittenDays(history)).level), [history]);
 
   function toggleMonth(key: string) {
     setOpenMonths(prev => {
@@ -583,7 +581,7 @@ function WritingPageInner() {
             )}
           </div>
 
-          {analysisOpen && loading && <StarLoader streamLen={streamLen} />}
+          {analysisOpen && loading && <StarLoader streamLen={streamLen} level={currentLevel} />}
 
           {analysisOpen && !loading && !result && (
             <div className="px-empty">
@@ -592,7 +590,7 @@ function WritingPageInner() {
             </div>
           )}
 
-          {analysisOpen && result && <AnalysisDetail a={result} />}
+          {analysisOpen && result && <AnalysisDetail a={result} level={currentLevel} />}
 
           {/* 이의 제기 */}
           {result && !loading && (
@@ -759,7 +757,7 @@ function WritingPageInner() {
                     {entry.analysis && (
                       <>
                         <div className="px-divider" />
-                        <AnalysisDetail a={entry.analysis} compact={false} />
+                        <AnalysisDetail a={entry.analysis} compact={false} level={currentLevel} />
                         <div style={{ marginTop: 14, borderTop: '1px solid var(--card-border)', paddingTop: 14 }}>
                           <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10 }}>✦ 첨삭</div>
                           {proofreadForKey !== String(entry.id) ? (

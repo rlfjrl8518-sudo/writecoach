@@ -1,4 +1,5 @@
-import type { DB, WritingEntry } from './db';
+import type { DB, WritingEntry, Journey } from './db';
+import type { TurtleLevel, TurtleEmotion } from '@/components/TurtleSprite';
 
 /* ── 성장 단계 ── */
 export interface LevelDef { level: number; name: string; days: number; quote: string; }
@@ -31,15 +32,24 @@ export const REGIONS: RegionDef[] = [
   { name: '지혜의 도서관', minDays: 500, maxDays: Infinity, desc: '당신의 모든 이야기가 책이 되어 빛나요.' },
 ];
 
-/* ── 감정 거북이 ── */
-export type Emotion = 'happy' | 'proud' | 'thinking' | 'tired' | 'fail';
-export interface EmotionDef { key: Emotion; emoji: string; label: string; message: string; }
-export function getEmotion(score: number): EmotionDef {
-  if (score >= 90) return { key: 'happy',    emoji: '🐢✨', label: '기쁨', message: '정말 멋진 글이에요!' };
-  if (score >= 80) return { key: 'proud',    emoji: '🐢',   label: '뿌듯', message: '뿌듯한 결과예요.' };
-  if (score >= 70) return { key: 'thinking', emoji: '🐢💭', label: '고민', message: '조금만 더 다듬어봐요.' };
-  if (score >= 60) return { key: 'tired',    emoji: '🐢💧', label: '지침', message: '오늘도 애쓰셨어요.' };
-  return { key: 'fail', emoji: '🐢💦', label: '실패', message: '괜찮아요, 다음 글로 더 좋아질 거예요.' };
+/* ── 감정 거북이 (분석 결과 점수 기준) ── */
+export function getScoreEmotion(score: number): { emotion: TurtleEmotion; message: string } {
+  if (score >= 90) return { emotion: 'happy', message: '정말 멋진 글이에요!' };
+  if (score >= 70) return { emotion: 'default', message: '꾸준히 잘 쓰고 있어요.' };
+  if (score >= 60) return { emotion: 'tired', message: '오늘도 애쓰셨어요.' };
+  return { emotion: 'fail', message: '괜찮아요, 다음 글로 더 좋아질 거예요.' };
+}
+
+/** LEVELS의 숫자 레벨을 TurtleSprite가 받는 리터럴 유니언으로 안전 변환 */
+export function toTurtleLevel(level: number): TurtleLevel {
+  const valid: TurtleLevel[] = [1, 10, 20, 35, 50, 70, 100];
+  return valid.includes(level as TurtleLevel) ? (level as TurtleLevel) : 1;
+}
+
+/** 마지막 기록일이 어제/오늘이 아니면(스트릭이 끊겼으면) true */
+export function isStreakBroken(journey: Journey | undefined): boolean {
+  if (!journey?.lastWriteDate) return false;
+  return journey.lastWriteDate !== todayStr() && journey.lastWriteDate !== yesterdayStr();
 }
 
 /* ── 파생 계산 (저장 없이 매번 writings에서 계산) ── */

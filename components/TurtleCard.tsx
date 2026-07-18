@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { DB } from '@/lib/db';
-import { getWrittenDays, getLevelInfo, getNextLevelInfo, getLevelProgress } from '@/lib/journey';
-import TurtleImage from './TurtleImage';
+import { getWrittenDays, getLevelInfo, getNextLevelInfo, getLevelProgress, toTurtleLevel, isStreakBroken } from '@/lib/journey';
+import TurtleSprite from './TurtleSprite';
 
 export default function TurtleCard({ db }: { db: DB }) {
   const router = useRouter();
@@ -23,6 +23,7 @@ export default function TurtleCard({ db }: { db: DB }) {
   const next = getNextLevelInfo(days);
   const progress = getLevelProgress(days);
   const streak = db.journey?.streak ?? 0;
+  const broken = isStreakBroken(db.journey);
 
   return (
     <div
@@ -34,10 +35,9 @@ export default function TurtleCard({ db }: { db: DB }) {
       }}
     >
       <div className={bounce ? 'turtle-bounce' : undefined} style={{ flexShrink: 0 }}>
-        <TurtleImage
-          src={`/turtle/level-${level.level}.png`}
-          fallback="🐢"
-          alt={level.name}
+        <TurtleSprite
+          level={toTurtleLevel(level.level)}
+          emotion={broken ? 'tired' : 'default'}
           size={64}
         />
       </div>
@@ -46,11 +46,13 @@ export default function TurtleCard({ db }: { db: DB }) {
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em' }}>
             Lv.{level.level} {level.name}
           </span>
-          {streak > 0 && (
+          {!broken && streak > 0 && (
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--moon)' }}>🔥 {streak}일 연속</span>
           )}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--dim-star)', marginBottom: 8 }}>{level.quote}</div>
+        <div style={{ fontSize: 12, color: broken ? 'var(--bad)' : 'var(--dim-star)', marginBottom: 8 }}>
+          {broken ? '오늘부터 다시 시작해요' : level.quote}
+        </div>
         <div style={{ height: 6, background: 'var(--secondary-soft)', borderRadius: 99, overflow: 'hidden' }}>
           <div style={{
             height: '100%', borderRadius: 99, background: 'var(--secondary)',
