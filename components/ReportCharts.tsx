@@ -56,9 +56,9 @@ export function ScoreChart({ data }: { data: { date: string; score: number }[] }
         />
         <Tooltip content={<CleanTooltip />} />
         <Line
-          type="monotone" dataKey="score" stroke="#7C3B49" strokeWidth={2.5}
-          dot={{ fill: '#7C3B49', r: 3, strokeWidth: 0 }}
-          activeDot={{ r: 5, fill: '#7C3B49', stroke: '#fff', strokeWidth: 2 }}
+          type="monotone" dataKey="score" stroke="var(--secondary)" strokeWidth={2.5}
+          dot={{ fill: 'var(--secondary)', r: 3, strokeWidth: 0 }}
+          activeDot={{ r: 5, fill: 'var(--moon)', stroke: 'var(--bg-card)', strokeWidth: 2 }}
         />
       </LineChart>
     </ResponsiveContainer>
@@ -74,7 +74,7 @@ export function StructureChart({ data }: { data: { name: string; v: number }[] }
         <XAxis type="number" tick={{ fill: 'var(--dim-star)', fontSize: 10 }} axisLine={false} tickLine={false} />
         <YAxis type="category" dataKey="name" width={80} tick={{ fill: 'var(--text)', fontSize: 11 }} axisLine={false} tickLine={false} />
         <Tooltip content={<BarTooltip />} />
-        <Bar dataKey="v" fill="#7C3B49" radius={[0, 4, 4, 0]} />
+        <Bar dataKey="v" fill="var(--accent)" radius={[0, 4, 4, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -87,7 +87,7 @@ export function SenseChart({ data }: { data: { subject: string; value: number }[
       <RadarChart data={data} margin={{ top: 8, right: 24, bottom: 8, left: 24 }}>
         <PolarGrid stroke="var(--card-border)" />
         <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--dim-star)', fontSize: 11 }} />
-        <Radar dataKey="value" stroke="#8A7B45" fill="#8A7B45" fillOpacity={0.2} strokeWidth={2} />
+        <Radar dataKey="value" stroke="var(--accent)" fill="var(--accent)" fillOpacity={0.2} strokeWidth={2} />
       </RadarChart>
     </ResponsiveContainer>
   );
@@ -112,7 +112,7 @@ export function MonthlyCountChart({ data }: { data: { month: string; count: numb
             );
           }}
         />
-        <Bar dataKey="count" fill="#4B7A5E" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="count" fill="var(--good)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { User } from '@supabase/supabase-js';
-import type { DB, ExpressionRecord, Settings } from './db';
+import type { DB, ExpressionRecord, Journey, Settings } from './db';
+import { DEFAULT_JOURNEY } from './db';
 
 export type { User };
 
@@ -125,6 +126,16 @@ export function mergeDBs(local: DB, remote: DB): DB {
     return r;
   }
 
+  function mergeJourney(a: Journey, b: Journey): Journey {
+    const newer = (a.lastWriteDate ?? '') >= (b.lastWriteDate ?? '') ? a : b;
+    return {
+      lastWriteDate: newer.lastWriteDate,
+      streak: newer.streak,
+      maxStreak: Math.max(a.maxStreak ?? 0, b.maxStreak ?? 0),
+      badges: Array.from(new Set([...(a.badges ?? []), ...(b.badges ?? [])])),
+    };
+  }
+
   function mergeExprRec(
     a: Record<string, ExpressionRecord>,
     b: Record<string, ExpressionRecord>
@@ -162,6 +173,7 @@ export function mergeDBs(local: DB, remote: DB): DB {
     ...((local.strengthSynthesisAt ?? '') > (remote.strengthSynthesisAt ?? '')
       ? { strengthSynthesis: local.strengthSynthesis ?? [], strengthSynthesisAt: local.strengthSynthesisAt ?? '' }
       : { strengthSynthesis: remote.strengthSynthesis ?? [], strengthSynthesisAt: remote.strengthSynthesisAt ?? '' }),
+    journey:                  mergeJourney(local.journey ?? DEFAULT_JOURNEY, remote.journey ?? DEFAULT_JOURNEY),
     _deletedIds:              Array.from(deletedIds),
   };
 }

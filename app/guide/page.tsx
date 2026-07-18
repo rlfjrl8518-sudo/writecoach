@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 /* ── 유형별 비중 표시 ── */
 const WEIGHT_LABELS = ['표현력', '전달력', '구체성', '논리성', '가독성'] as const;
-const WEIGHT_COLORS = ['#7C3B49', '#7C3B49', '#7C3B49', '#4B7A5E', '#4B7A5E'];
+const WEIGHT_COLORS = ['var(--accent)', 'var(--accent)', 'var(--accent)', 'var(--good)', 'var(--good)'];
 
 const TYPE_DATA: {
   badge: string;
@@ -227,31 +227,31 @@ export default function GuidePage() {
         </div>
 
         <AccordionItem
-          badge="표현력" badgeColor="#7C3B49"
+          badge="표현력" badgeColor="var(--accent)"
           label="얼마나 독창적으로 표현했나"
           desc="진부하거나 상투적인 표현('예쁘다', '힘들었다', '좋았다')을 피하고 신선하고 구체적인 언어로 대체했는지 평가해요. 6점 이상을 받으려면 독자가 멈추고 되읽게 만드는 표현이 최소 하나는 있어야 해요."
           example="낮은 예: 바람이 불었다 → 높은 예: 바람이 옷깃을 파고들었다"
         />
         <AccordionItem
-          badge="전달력" badgeColor="#7C3B49"
+          badge="전달력" badgeColor="var(--accent)"
           label="읽는 사람에게 잘 전달되나"
           desc="글의 의도가 독자에게 명확하게 닿는지 평가해요. '그것', '어떤 면에서', '~것 같다' 같이 모호한 표현이 많으면 점수가 낮아요. 한 문장을 읽고 다음 문장을 예측할 수 있어야 높은 점수를 받아요."
           example="낮은 예: 그것은 어떤 면에서 좋은 것 같았다 → 높은 예: 그 결정은 비용을 30% 줄였다"
         />
         <AccordionItem
-          badge="구체성" badgeColor="#7C3B49"
+          badge="구체성" badgeColor="var(--accent)"
           label="추상적이지 않고 구체적인가"
           desc="'많다', '좋다', '나쁘다', '힘들었다' 같은 추상어 대신 수치, 색깔, 크기, 감각 등 구체적인 디테일을 사용했는지 봐요. 짧은 글일수록 이 기준이 더 엄격하게 적용돼요."
           example="낮은 예: 음식이 맛있었다 → 높은 예: 간장 향이 나는 국물이 혀 끝에 짭짤하게 닿았다"
         />
         <AccordionItem
-          badge="논리성" badgeColor="#4B7A5E"
+          badge="논리성" badgeColor="var(--good)"
           label="주장과 근거가 자연스럽게 연결되나"
           desc="주장만 있고 근거가 없거나, 근거가 있어도 주장과 연결이 어색하면 낮은 점수를 받아요. 의견문(36%)·설명문(20%)에서 가장 높은 비중을 차지해요. 반면 묘사문·카피라이팅·스토리텔링(모두 7%)에서는 점수에 거의 영향을 주지 않아요."
           example="낮은 예: 이 방법이 좋다. 많은 사람이 쓴다. → 높은 예: 이 방법은 효과적이다. 3주 만에 30% 향상된 실험 결과가 있기 때문이다."
         />
         <AccordionItem
-          badge="가독성" badgeColor="#4B7A5E"
+          badge="가독성" badgeColor="var(--good)"
           label="읽기 편한 흐름인가"
           desc="문단이 너무 길거나 문장이 계속 같은 길이로 반복되면 점수가 낮아요. 짧은 문장과 긴 문장이 적절히 섞여 리듬감이 있어야 높은 점수를 받을 수 있어요."
         />
@@ -279,13 +279,13 @@ export default function GuidePage() {
             example: '그는 말없이 문을 닫았다. / 아이가 뛰어갔다.',
           },
           {
-            badge: '감정 표현', color: '#E07B7B',
+            badge: '감정 표현', color: 'var(--bad)',
             label: '내면의 감정·심리 상태를 드러냄',
             desc: '기쁨, 슬픔, 두려움 등 인물의 감정을 직접 또는 간접적으로 드러내요. 독자와 감정적으로 연결되는 순간을 만들어요.',
             example: '나는 외로웠다. / 가슴 깊은 곳이 서늘해졌다.',
           },
           {
-            badge: '분위기 형성', color: '#9B7BE0',
+            badge: '분위기 형성', color: 'var(--secondary)',
             label: '글의 전반적인 톤·무드를 설정',
             desc: '장면 묘사보다 더 넓은 범위의 분위기를 만드는 문장이에요. 독자가 글의 전체적인 느낌을 받아들이게 해요.',
             example: '어딘가 이상했다. 모두 웃고 있었지만 소리가 없었다.',
@@ -329,13 +329,13 @@ export default function GuidePage() {
             example: '예) "빗소리가 지붕을 두드렸다" (청각) / "된장찌개 냄새가 계단을 타고 내려왔다" (후각)',
           },
           {
-            badge: '감정 표현', color: '#E07B7B',
+            badge: '감정 표현', color: 'var(--bad)',
             label: '감정·심리를 언어로 직접 드러냄',
             desc: '기쁨, 슬픔, 불안 등 감정 상태를 직접 서술하거나 간접적으로 전달하는 표현이에요. 독자와 감정적 공명을 만들어요.',
             example: '예) "그리움이 파도처럼 밀려왔다." / "가슴이 서늘해졌다."',
           },
           {
-            badge: '비유 표현', color: '#9B7BE0',
+            badge: '비유 표현', color: 'var(--secondary)',
             label: '낯선 대상을 친숙한 것에 빗대어 설명',
             desc: '직유(~같다, ~처럼)나 은유를 활용해 독자가 쉽고 인상적으로 이해하게 만들어요. 잘 쓴 비유 하나가 문단 전체를 살릴 수 있어요.',
             example: '예) "그의 웃음은 겨울 햇볕 같았다." / "머릿속이 얼어붙었다."',
@@ -354,31 +354,31 @@ export default function GuidePage() {
       {/* ── 4. 감각 표현 가이드 ── */}
       <Section title="감각 표현 가이드" sub="감각 표현 유형일 때 — 어떤 감각을 활용했는지 분류해요">
         <AccordionItem
-          badge="시각" badgeColor="#7C3B49"
+          badge="시각" badgeColor="var(--accent)"
           label="색, 빛, 형태, 움직임 묘사"
           desc="가장 많이 쓰는 감각이에요. 색깔, 밝기, 크기, 형태, 움직임을 구체적으로 묘사하면 장면이 눈앞에 그려져요."
           example="붉은 노을이 창문에 번졌다. / 그림자가 길게 늘어졌다."
         />
         <AccordionItem
-          badge="청각" badgeColor="#4B7A5E"
+          badge="청각" badgeColor="var(--good)"
           label="소리, 목소리, 리듬 묘사"
           desc="소리를 묘사하면 장면의 분위기가 살아나요. 의성어나 비유를 활용하면 더 효과적이에요."
           example="멀리서 기차 소리가 났다. / 빗소리가 지붕을 두드렸다."
         />
         <AccordionItem
-          badge="후각" badgeColor="#8A7B45"
+          badge="후각" badgeColor="var(--moon)"
           label="냄새, 향기 묘사"
           desc="후각은 기억과 감정을 가장 강하게 자극하는 감각이에요. 글에서 가장 적게 쓰이지만, 쓰면 인상 깊은 장면이 돼요."
           example="비 온 뒤 흙냄새가 올라왔다. / 된장찌개 냄새가 계단을 타고 내려왔다."
         />
         <AccordionItem
-          badge="미각" badgeColor="#B14B42"
+          badge="미각" badgeColor="var(--bad)"
           label="맛, 질감 묘사"
           desc="음식 묘사에만 쓰이지 않아요. 공기, 눈물, 피, 긴장감도 미각으로 표현할 수 있어요."
           example="쓴맛이 목 안쪽까지 퍼졌다. / 긴장하면 입안이 텁텁해진다."
         />
         <AccordionItem
-          badge="촉각" badgeColor="#8B95A1"
+          badge="촉각" badgeColor="var(--dim-star)"
           label="온도, 감촉, 압력, 통증 묘사"
           desc="피부로 느끼는 감각이에요. 온도, 질감, 압력, 통증 등을 묘사하면 독자가 직접 경험하는 느낌을 줄 수 있어요."
           example="차가운 손잡이가 손바닥에 닿았다. / 어깨 위에 누군가의 손이 무겁게 얹혔다."
@@ -405,7 +405,7 @@ export default function GuidePage() {
           { badge: '정보 전달형', desc: '가치 있는 정보나 사실을 제공해 독자의 관심과 이해를 유도해요.', example: '커피가 집중력을 높이는 이유, 과학이 밝혔습니다.' },
           { badge: '혼합형',      desc: '두 가지 이상의 유형이 결합된 카피예요.',                        example: '97% 만족(신뢰) + 지금 신청하면 무료(행동 유도)' },
         ].map(item => (
-          <AccordionItem key={item.badge} badge={item.badge} badgeColor="#8A7B45" label="" desc={item.desc} example={item.example} />
+          <AccordionItem key={item.badge} badge={item.badge} badgeColor="var(--moon)" label="" desc={item.desc} example={item.example} />
         ))}
       </Section>
 

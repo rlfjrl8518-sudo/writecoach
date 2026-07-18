@@ -8,6 +8,8 @@ import {
 } from '@/lib/db';
 import { analyzeWriting, evaluateAppeal, proofreadWriting, type AppealResult, type ProofreadResult } from '@/lib/openai';
 import { pushData } from '@/lib/supabase';
+import { updateJourneyOnWrite, pushPendingCelebration, getEmotion } from '@/lib/journey';
+import TurtleImage from '@/components/TurtleImage';
 
 const TYPES: WriteType[] = ['묘사문', '설명문', '감상문', '의견문', '기사 리드', '카피라이팅', '에세이', '스토리텔링'];
 
@@ -150,7 +152,7 @@ function ProofreadPanel({
               padding: '5px 14px', fontSize: 12, fontWeight: tab === t ? 700 : 400,
               border: `1.5px solid ${tab === t ? 'var(--accent)' : 'var(--card-border)'}`,
               background: tab === t ? 'var(--accent)' : 'transparent',
-              color: tab === t ? '#fff' : 'var(--dim-star)',
+              color: tab === t ? 'var(--on-accent)' : 'var(--dim-star)',
               borderRadius: 8, cursor: 'pointer', fontFamily: 'Pretendard, sans-serif',
             }}>
               {t === 'original' ? '원문' : '첨삭본'}
@@ -200,6 +202,15 @@ function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: 
         <div>
           <StarRating score={a.score} />
           <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginTop: 6 }}>총점 / 100</div>
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <TurtleImage
+            src={`/turtle/emotion-${getEmotion(a.score).key}.png`}
+            fallback={getEmotion(a.score).emoji}
+            alt={getEmotion(a.score).label}
+            size={44}
+          />
+          <span style={{ fontSize: 11, color: 'var(--dim-star)', fontWeight: 600 }}>{getEmotion(a.score).message}</span>
         </div>
       </div>
 
@@ -364,6 +375,13 @@ function WritingPageInner() {
     window.dispatchEvent(new CustomEvent('score-updated', { detail: { score } }));
   }, []);
 
+  function applyJourneyUpdate(db: ReturnType<typeof loadDB>) {
+    const result = updateJourneyOnWrite(db);
+    if (result.leveledUp) pushPendingCelebration({ type: 'level', level: result.newLevel });
+    if (result.newShellMilestone) pushPendingCelebration({ type: 'shell', milestone: result.newShellMilestone });
+    window.dispatchEvent(new CustomEvent('turtle-bounce'));
+  }
+
   async function handleAnalyze() {
     const s = loadSettings();
     const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
@@ -381,6 +399,7 @@ function WritingPageInner() {
       db.writings.push({ id: Date.now(), date, type, topic, text, status: '분석완료', analysis: res, createdAt: new Date().toISOString() });
       mergeExpressions(db, res.expressions || []);
       mergeWeaknesses(db, res.weaknesses || []);
+      applyJourneyUpdate(db);
       saveDB(db);
       setAnalyzedText(text); setAnalyzedType(type); setAnalyzedTopic(topic);
       setProofreadResult(null); setProofreadForKey(null);
@@ -416,6 +435,7 @@ function WritingPageInner() {
     if (!text.trim()) { setErr('글을 작성해주세요.'); return; }
     const db = loadDB();
     db.writings.push({ id: Date.now(), date, type, topic, text, status: '미분석', createdAt: new Date().toISOString() });
+    applyJourneyUpdate(db);
     saveDB(db);
     setText(''); setTopic('');
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
@@ -483,7 +503,7 @@ function WritingPageInner() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         <button style={{
           padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
-          border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff',
+          border: '1.5px solid var(--accent)', background: 'var(--accent)', color: 'var(--on-accent)',
           fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
         }}>✏ 글쓰기</button>
         <Link href="/expressions" style={{ textDecoration: 'none' }}>

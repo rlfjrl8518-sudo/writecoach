@@ -6,6 +6,8 @@ import {
   computeXP, computeStreak, computeDailyChars, getWriterRank,
   loadGamification,
 } from '@/lib/db';
+import TurtleCard from '@/components/TurtleCard';
+import CelebrationModal from '@/components/CelebrationModal';
 
 function getHeroContent(streak: number, totalWritings: number) {
   if (streak >= 30) return {
@@ -102,6 +104,10 @@ export default function HomePage() {
         </p>
         <Link href="/writing" className="btn-cta">글쓰기 시작</Link>
       </div>
+
+      {/* ── 거북이 성장 카드 ── */}
+      <TurtleCard db={db} />
+      <CelebrationModal />
 
       {/* ── 일일 목표 ── */}
       <div className="px-card" style={{ marginBottom: 16, padding: '14px 18px' }}>

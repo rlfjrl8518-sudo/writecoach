@@ -36,9 +36,9 @@ function SyncBadge() {
   if (!mounted || !isSupabaseConfigured) return null;
 
   const cfg: Record<SyncStatus, { icon: string; color: string; title: string }> = {
-    synced:  { icon: '☁', color: '#7C3B49', title: '동기화됨 · 계정 설정'  },
-    syncing: { icon: '↻', color: '#F0A500', title: '동기화 중...'            },
-    error:   { icon: '☁', color: '#B14B42', title: '동기화 오류 · 설정 확인' },
+    synced:  { icon: '☁', color: 'var(--accent)', title: '동기화됨 · 계정 설정'  },
+    syncing: { icon: '↻', color: 'var(--moon)',   title: '동기화 중...'            },
+    error:   { icon: '☁', color: 'var(--bad)',    title: '동기화 오류 · 설정 확인' },
     offline: { icon: '☁', color: 'var(--card-border)', title: '로그인하고 동기화하기' },
   };
   const { icon, color, title } = cfg[status];
@@ -163,7 +163,7 @@ function GamificationBar() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 15 }}>{streak > 0 ? '🔥' : '💤'}</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: streak > 0 ? '#F0A500' : 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif' }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: streak > 0 ? 'var(--moon)' : 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif' }}>
             {streak > 0 ? `${streak}일 연속` : '오늘 첫 글을'}
           </span>
         </div>

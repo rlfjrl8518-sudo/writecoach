@@ -1,35 +1,41 @@
 /* Pretendard: layout.tsx CDN <link> 태그로 로드 */
 
 /* ═══════════════════════════════════════════
-   글습관 — Design Tokens (Toss-inspired)
+   글습관 — Design Tokens ("숲속 노트": 크림 베이지 + 뮤트 세이지)
 ═══════════════════════════════════════════ */
 :root {
   /* Backgrounds */
-  --bg:          #EEF0EA;
-  --bg-card:     #F9F9F5;
-  --bg-subtle:   #F3F4EF;
-  --bg-input:    #EEF0EA;
+  --bg:          #F5F1E4;
+  --bg-card:     #FBF8EF;
+  --bg-subtle:   #F1ECDA;
+  --bg-input:    #F5F1E4;
 
   /* Text */
-  --text:        #24251F;
-  --dim-star:    #6E7062;
-  --card-border: #D9DBCE;
+  --text:          #3D4A32;
+  --dim-star:      #8A9179;
+  --text-disabled: #C2C6B8;
+  --card-border:   #E3DECB;
 
-  /* Brand */
-  --accent:      #7C3B49;
-  --accent-dim:  rgba(124,59,73,0.08);
+  /* Brand — primary(다크 올리브) */
+  --accent:      #3D4A32;
+  --accent-dim:  rgba(61,74,50,0.08);
+  --on-accent:   #F5F1E4;
+
+  /* 거북이 세이지 (secondary) */
+  --secondary:      #8FAE7E;
+  --secondary-soft: #C8D5B9;
 
   /* Semantic */
-  --good:        #4B7A5E;
-  --good-dim:    rgba(75,122,94,0.10);
-  --good-border: #4B7A5E;
-  --moon:        #8A7B45;
-  --moon-dim:    rgba(138,123,69,0.10);
-  --bad:         #B14B42;
-  --bad-dim:     rgba(177,75,66,0.08);
-  --bad-border:  #9C3F37;
-  --warn-dim:    rgba(184,134,59,0.10);
-  --warn-border: #96692E;
+  --good:        #8FAE7E;
+  --good-dim:    rgba(143,174,126,0.14);
+  --good-border: #8FAE7E;
+  --moon:        #D4A853;
+  --moon-dim:    rgba(212,168,83,0.14);
+  --bad:         #D97A6C;
+  --bad-dim:     rgba(217,122,108,0.10);
+  --bad-border:  #C2604F;
+  --warn-dim:    rgba(232,168,56,0.14);
+  --warn-border: #B8862E;
 
   /* Legacy aliases */
   --bg-deep:  var(--bg);
@@ -42,28 +48,34 @@
    다크 모드 토큰
 ═══════════════════════════════════════════ */
 [data-theme="dark"] {
-  --bg:          #1B1C17;
-  --bg-card:     #232420;
-  --bg-subtle:   #202119;
-  --bg-input:    #1B1C17;
+  --bg:          #1E211A;
+  --bg-card:     #282C22;
+  --bg-subtle:   #232620;
+  --bg-input:    #1E211A;
 
-  --text:        #EDEEE3;
-  --dim-star:    #9B9C8C;
-  --card-border: #3A3B31;
+  --text:          #EDEAD9;
+  --dim-star:      #A3A894;
+  --text-disabled: #5C6152;
+  --card-border:   rgba(237,234,217,0.08);
 
-  --accent-dim:  rgba(226,154,166,0.16);
-  --good-dim:    rgba(127,174,142,0.15);
-  --moon-dim:    rgba(199,183,126,0.15);
-  --bad-dim:     rgba(217,124,114,0.13);
+  --accent-dim:  rgba(157,187,140,0.16);
+  --on-accent:   #1E211A;
+
+  --secondary:      #9DBB8C;
+  --secondary-soft: #4A5540;
+
+  --good-dim:    rgba(157,187,140,0.15);
+  --moon-dim:    rgba(212,168,83,0.16);
+  --bad-dim:     rgba(224,137,126,0.13);
   --bad-border:  #E0897E;
-  --warn-dim:    rgba(217,168,85,0.15);
+  --warn-dim:    rgba(232,185,104,0.15);
 
-  --accent:      #E29AA6;
-  --good:        #7FAE8E;
-  --good-border: #7FAE8E;
-  --moon:        #C7B77E;
-  --bad:         #D97C72;
-  --warn-border: #D9A855;
+  --accent:      #9DBB8C;
+  --good:        #9DBB8C;
+  --good-border: #9DBB8C;
+  --moon:        #D4A853;
+  --bad:         #E0897E;
+  --warn-border: #E8B968;
 }
 
 [data-theme="dark"] .px-card,
@@ -172,10 +184,10 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
 .px-btn:hover   { opacity: 0.84; }
 .px-btn:active  { transform: scale(0.97); }
 .px-btn:disabled { opacity: 0.36; cursor: not-allowed; pointer-events: none; }
-.px-btn-accent  { background: var(--accent); color: #fff; }
-.px-btn-moon    { background: var(--moon);   color: #fff; }
-.px-btn-good    { background: var(--good);   color: #fff; }
-.px-btn-danger  { background: var(--bad);    color: #fff; }
+.px-btn-accent  { background: var(--accent); color: var(--on-accent); }
+.px-btn-moon    { background: var(--moon);   color: var(--on-accent); }
+.px-btn-good    { background: var(--good);   color: var(--on-accent); }
+.px-btn-danger  { background: var(--bad);    color: var(--on-accent); }
 
 .px-btn-ghost {
   background: var(--bg-subtle);
@@ -265,19 +277,19 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
 ═══════════════════════════════════════════ */
 .px-bar-wrap {
   height: 8px;
-  background: var(--bg-input);
+  background: var(--secondary-soft);
   border-radius: 100px;
   overflow: hidden;
 }
 .px-bar-wrap-thin {
   height: 5px;
-  background: var(--bg-input);
+  background: var(--secondary-soft);
   border-radius: 100px;
   overflow: hidden;
 }
 .px-bar-fill {
   height: 100%;
-  background: var(--accent);
+  background: var(--secondary);
   border-radius: 100px;
   transition: width 0.7s cubic-bezier(0.25,0.46,0.45,0.94);
 }
@@ -454,6 +466,18 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+@keyframes turtle-bounce {
+  0%   { transform: translateY(0) scale(1); }
+  30%  { transform: translateY(-10px) scale(1.05); }
+  55%  { transform: translateY(0) scale(0.97); }
+  75%  { transform: translateY(-4px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); }
+}
+.turtle-bounce { animation: turtle-bounce 0.5s ease; }
+@keyframes confetti-fall {
+  0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(220px) rotate(360deg); opacity: 0; }
+}
 
 /* ═══════════════════════════════════════════
    말풍선
@@ -494,7 +518,7 @@ nav, main, footer, .fixed-char { position: relative; z-index: 1; }
   width: 100%; max-width: 320px;
   margin: 0 auto;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-family: 'Pretendard Variable', Pretendard, sans-serif;
   font-size: 17px; font-weight: 600;
   padding: 17px 24px;
