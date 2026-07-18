@@ -280,7 +280,7 @@ export default function ExpressionsPage() {
         </Link>
         <button style={{
           padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
-          border: '1.5px solid var(--accent)', background: 'var(--accent)', color: '#fff',
+          border: '1.5px solid var(--accent)', background: 'var(--accent)', color: 'var(--on-accent)',
           fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
         }}>辭 표현사전</button>
       </div>

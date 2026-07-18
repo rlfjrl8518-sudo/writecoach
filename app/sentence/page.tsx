@@ -53,8 +53,8 @@ const ROLE_COLOR: Record<string, string> = {
   '장면 묘사':  'var(--good)',
   '대상 설명':  'var(--accent)',
   '행동 전개':  'var(--moon)',
-  '감정 표현':  '#E07B7B',
-  '분위기 형성': '#9B7BE0',
+  '감정 표현':  'var(--bad)',
+  '분위기 형성': 'var(--secondary)',
   '생각 전달':  'var(--dim-star)',
   '정보 전달':  'var(--card-border)',
 };
@@ -63,8 +63,8 @@ const EXPR_COLOR: Record<string, string> = {
   '구체적 표현': 'var(--accent)',
   '추상적 표현': 'var(--dim-star)',
   '감각 표현':  'var(--good)',
-  '감정 표현':  '#E07B7B',
-  '비유 표현':  '#9B7BE0',
+  '감정 표현':  'var(--bad)',
+  '비유 표현':  'var(--secondary)',
   '강조 표현':  'var(--moon)',
 };
 
@@ -504,7 +504,7 @@ function SentencePageInner() {
           padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
           border: `1.5px solid ${activeTab === 'text' ? 'var(--accent)' : 'var(--card-border)'}`,
           background: activeTab === 'text' ? 'var(--accent)' : 'transparent',
-          color: activeTab === 'text' ? '#fff' : 'var(--dim-star)',
+          color: activeTab === 'text' ? 'var(--on-accent)' : 'var(--dim-star)',
           fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
         }}>文 문장</button>
         <Link href="/copy" style={{ textDecoration: 'none' }}>
@@ -519,7 +519,7 @@ function SentencePageInner() {
           padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
           border: `1.5px solid ${activeTab === 'image' ? 'var(--accent)' : 'var(--card-border)'}`,
           background: activeTab === 'image' ? 'var(--accent)' : 'transparent',
-          color: activeTab === 'image' ? '#fff' : 'var(--dim-star)',
+          color: activeTab === 'image' ? 'var(--on-accent)' : 'var(--dim-star)',
           fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
         }}>📷 이미지</button>
       </div>
@@ -554,7 +554,7 @@ function SentencePageInner() {
                     borderRadius: 8,
                     background: sentType === t ? 'var(--accent)' : 'transparent',
                     border: `1.5px solid ${sentType === t ? 'var(--accent)' : 'var(--card-border)'}`,
-                    color: sentType === t ? '#fff' : 'var(--dim-star)',
+                    color: sentType === t ? 'var(--on-accent)' : 'var(--dim-star)',
                     transition: 'all 0.12s',
                   }}
                 >{t}</button>
@@ -831,7 +831,7 @@ function SentencePageInner() {
                   {entry.note && <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif' }}>{entry.note}</div>}
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', fontFamily: 'Pretendard, sans-serif' }}>{new Date(entry.createdAt).toLocaleDateString('ko-KR')}</span>
-                    <button onClick={e => { e.stopPropagation(); handleImgDelete(entry.id); setImgExpanded(null); }} style={{ background: 'rgba(177,75,66,0.2)', color: '#D97C72', border: '1px solid rgba(177,75,66,0.4)', borderRadius: 8, padding: '6px 16px', cursor: 'pointer', fontSize: 12, fontFamily: 'Pretendard, sans-serif' }}>삭제</button>
+                    <button onClick={e => { e.stopPropagation(); handleImgDelete(entry.id); setImgExpanded(null); }} style={{ background: 'var(--bad-dim)', color: 'var(--bad)', border: '1px solid var(--bad-border)', borderRadius: 8, padding: '6px 16px', cursor: 'pointer', fontSize: 12, fontFamily: 'Pretendard, sans-serif' }}>삭제</button>
                   </div>
                 </div>
               </div>

@@ -87,7 +87,7 @@ export default function LoginPage() {
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12,
               width: '100%', padding: '14px 20px',
-              background: 'var(--accent)', color: '#fff',
+              background: 'var(--accent)', color: 'var(--on-accent)',
               border: 'none', borderRadius: 14,
               cursor: loading ? 'not-allowed' : 'pointer',
               fontSize: 15, fontWeight: 700,

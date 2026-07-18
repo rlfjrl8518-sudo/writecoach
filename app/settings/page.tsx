@@ -266,7 +266,7 @@ export default function SettingsPage() {
                   fontFamily: 'Pretendard, sans-serif', fontWeight: 600,
                   borderRadius: 8, border: `1.5px solid ${dailyGoal === v ? 'var(--accent)' : 'var(--card-border)'}`,
                   background: dailyGoal === v ? 'var(--accent)' : 'transparent',
-                  color: dailyGoal === v ? '#fff' : 'var(--dim-star)',
+                  color: dailyGoal === v ? 'var(--on-accent)' : 'var(--dim-star)',
                   transition: 'all 0.12s',
                 }}
               >{v}자</button>
@@ -284,7 +284,7 @@ export default function SettingsPage() {
           <button className="px-btn px-btn-accent" onClick={handleSave}>저장</button>
           {saved && <span style={{ fontSize: 11, color: 'var(--good)' }}>✓ 저장됐어요!</span>}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--dim-star)', lineHeight: 1.8, padding: '8px 12px', background: 'rgba(0,0,0,0.3)', borderLeft: '2px solid var(--card-border)' }}>
+        <div style={{ fontSize: 11, color: 'var(--dim-star)', lineHeight: 1.8, padding: '8px 12px', background: 'var(--bg-subtle)', borderLeft: '2px solid var(--card-border)' }}>
           <span style={{ color: 'var(--moon)' }}>보안:</span> API 키는 이 기기의 브라우저 저장소에만 저장돼요.
         </div>
 
@@ -299,10 +299,10 @@ export default function SettingsPage() {
           ) : userEmail ? (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <span style={{ fontSize: 18, color: '#7C3B49' }}>☁</span>
+                <span style={{ fontSize: 18, color: 'var(--accent)' }}>☁</span>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{userEmail}</div>
-                  <div style={{ fontSize: 11, color: '#4B7A5E', marginTop: 2 }}>동기화 활성화됨</div>
+                  <div style={{ fontSize: 11, color: 'var(--good)', marginTop: 2 }}>동기화 활성화됨</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -332,7 +332,7 @@ export default function SettingsPage() {
               <Link href="/login" style={{ textDecoration: 'none' }}>
                 <button style={{
                   padding: '12px 28px',
-                  background: 'var(--accent)', color: '#fff',
+                  background: 'var(--accent)', color: 'var(--on-accent)',
                   border: 'none', borderRadius: 12,
                   cursor: 'pointer', fontSize: 14, fontWeight: 600,
                   fontFamily: 'Pretendard, sans-serif',

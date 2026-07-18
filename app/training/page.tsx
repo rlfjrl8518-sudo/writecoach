@@ -97,7 +97,7 @@ function MissionCard({ m, onToggle, onDelete, onEvaluate }: {
           width: 20, height: 20, flexShrink: 0, marginTop: 2,
           background: m.completed ? 'var(--good-border)' : 'transparent',
           border: `2px solid ${m.completed ? 'var(--good-border)' : 'var(--card-border)'}`,
-          cursor: 'pointer', color: '#001508', fontSize: 12,
+          cursor: 'pointer', color: 'var(--text)', fontSize: 12,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {m.completed ? '✓' : ''}
@@ -180,7 +180,7 @@ function DataSnapshot({ db }: { db: DB }) {
         {[
           { label: '작성 글',   value: `${db.writings.length}편`,              color: 'var(--text)' },
           { label: '평균 점수', value: avgScore != null ? `${avgScore}점` : '—', color: scoreColor },
-          { label: '스트릭',   value: streak > 0 ? `🔥 ${streak}일 연속` : '오늘 미작성', color: streak > 0 ? '#F0A500' : 'var(--dim-star)' },
+          { label: '스트릭',   value: streak > 0 ? `🔥 ${streak}일 연속` : '오늘 미작성', color: streak > 0 ? 'var(--moon)' : 'var(--dim-star)' },
           { label: '등급',     value: rank.label,                               color: rank.color },
         ].map(({ label, value, color }) => (
           <div key={label} style={{
@@ -285,7 +285,7 @@ const DRILLS: DrillTypeDef[] = [
     ],
   },
   {
-    id: 4, name: '문장 압축 훈련', purpose: '불필요한 설명을 제거하고 핵심만 남기는 능력', time: '3-5분', color: '#7c6aff', accent: 'rgba(124,106,255,0.1)',
+    id: 4, name: '문장 압축 훈련', purpose: '불필요한 설명을 제거하고 핵심만 남기는 능력', time: '3-5분', color: 'var(--secondary)', accent: 'var(--good-dim)',
     problems: [
       { scene: '"그는 오늘 하루 종일 상사에게 혼나 기분이 좋지 않은 상태로 집에 돌아왔다."', instruction: '20자 이하로 압축하세요. 핵심 의미와 여운을 유지하세요.' },
       { scene: '"오랜만에 고향에 가보니 어릴 때 많이 놀던 골목길이 아파트 단지로 바뀌어 있었다."', instruction: '20자 이하로 압축하세요. 감정을 직접 말하지 않고 상황으로만 표현하세요.' },
@@ -317,7 +317,7 @@ const DRILLS: DrillTypeDef[] = [
     ],
   },
   {
-    id: 8, name: '카피 리라이팅', purpose: '평범한 문장을 인상적인 문장으로 바꾸는 능력', time: '5분', color: '#7c6aff', accent: 'rgba(124,106,255,0.1)',
+    id: 8, name: '카피 리라이팅', purpose: '평범한 문장을 인상적인 문장으로 바꾸는 능력', time: '5분', color: 'var(--secondary)', accent: 'var(--good-dim)',
     problems: [
       { scene: '"암보험 준비하세요."', instruction: '이 카피를 더 인상적으로 다시 써보세요. 직접적인 광고 문구보다 공감이나 통찰로 접근하세요.' },
       { scene: '"우리 제품은 품질이 좋습니다."', instruction: '이 카피를 더 인상적으로 다시 써보세요. 구체적인 장면이나 경험으로 표현하세요.' },

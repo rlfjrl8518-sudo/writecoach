@@ -33,7 +33,7 @@ function CallbackInner() {
       {status && (
         <button
           onClick={() => router.replace('/settings')}
-          style={{ marginTop: 20, padding: '10px 24px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}
+          style={{ marginTop: 20, padding: '10px 24px', background: 'var(--accent)', color: 'var(--on-accent)', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}
         >
           설정으로 돌아가기
         </button>

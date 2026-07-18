@@ -219,6 +219,15 @@ export interface BookNote {
   order?: number;         // manual drag-and-drop order override; falls back to createdAt when absent
 }
 
+/* ── 거북이 성장 (Journey) ── */
+export interface Journey {
+  lastWriteDate: string;
+  streak: number;
+  maxStreak: number;
+  badges: string[];
+}
+export const DEFAULT_JOURNEY: Journey = { lastWriteDate: '', streak: 0, maxStreak: 0, badges: [] };
+
 /* ── DB ── */
 export interface DB {
   writings: WritingEntry[];
@@ -239,6 +248,7 @@ export interface DB {
   weaknessSynthesisAt: string;
   strengthSynthesis: StrengthSynthesis[];
   strengthSynthesisAt: string;
+  journey: Journey;
   _deletedIds: number[];
   // legacy — 데이터 호환용, 더 이상 신규 기록 안 함
   structures: Record<string, number>;
@@ -259,6 +269,7 @@ const EMPTY: DB = {
   bookNotes: [],
   weaknessSynthesis: [], weaknessSynthesisAt: '',
   strengthSynthesis: [], strengthSynthesisAt: '',
+  journey: { ...DEFAULT_JOURNEY },
   _deletedIds: [],
   structures: {}, senses: {}, sentenceStructures: {}, sentenceCopyStructures: {},
 };
@@ -384,7 +395,7 @@ export const WRITER_RANKS: WriterRank[] = [
   { label: '글꾼',      minXP: 100,  nextXP: 300,  color: 'var(--accent)'   },
   { label: '문장가',    minXP: 300,  nextXP: 700,  color: 'var(--moon)'     },
   { label: '이야기꾼',  minXP: 700,  nextXP: 1500, color: 'var(--good)'     },
-  { label: '작가',      minXP: 1500, nextXP: 3000, color: '#E07B7B'         },
+  { label: '작가',      minXP: 1500, nextXP: 3000, color: 'var(--bad)'      },
   { label: '대가',      minXP: 3000, nextXP: null, color: 'var(--accent)'   },
 ];
 
