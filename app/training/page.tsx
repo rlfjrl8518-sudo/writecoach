@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { loadDB, saveDB, loadSettings, computeXP, computeStreak, getWriterRank, type Mission, type MissionEvaluation, type DB } from '@/lib/db';
 import { generateMissions, evaluateMission, evaluateDrill, type DrillEvaluation } from '@/lib/openai';
+import { getWrittenDays, getLevelInfo, toTurtleLevel } from '@/lib/journey';
+import TurtleSprite from '@/components/TurtleSprite';
 
 /* ── 공통 로더 ── */
 function StarLoader({ label }: { label: string }) {
@@ -623,9 +625,14 @@ export default function TrainingPage() {
   const pending   = db.missions.filter(m => !m.completed);
   const completed = db.missions.filter(m => m.completed);
 
+  const currentLevel = toTurtleLevel(getLevelInfo(getWrittenDays(db.writings)).level);
+
   return (
     <div>
-      <div className="px-sec-title" style={{ marginBottom: 18 }}>◎ 훈련</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <TurtleSprite level={currentLevel} emotion="motivated" size={48} />
+        <div className="px-sec-title" style={{ marginBottom: 0, border: 'none', padding: 0, flex: 1 }}>◎ 훈련</div>
+      </div>
 
       {/* 탭 */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--card-border)', paddingBottom: 0 }}>

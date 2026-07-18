@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { loadDB, type DB } from '@/lib/db';
 import {
   LEVELS, REGIONS, SHELL_MILESTONES, STREAK_BADGES,
-  getWrittenDays, getWritingCount, getLevelInfo, getCurrentRegion, getUnlockedShells,
+  getWrittenDays, getWritingCount, getLevelInfo, getCurrentRegion, getUnlockedShells, toTurtleLevel,
 } from '@/lib/journey';
 import TurtleImage from '@/components/TurtleImage';
+import TurtleSprite from '@/components/TurtleSprite';
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return <div className="px-sec-title" style={{ marginBottom: 14 }}>{children}</div>;
@@ -32,7 +33,9 @@ export default function JourneyPage() {
 
       {/* 1. 현재 거북이 */}
       <div style={{ textAlign: 'center', padding: '24px 0 32px' }}>
-        <TurtleImage src={`/turtle/level-${level.level}.png`} fallback="🐢" alt={level.name} size={120} />
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <TurtleSprite level={toTurtleLevel(level.level)} emotion="default" size={120} />
+        </div>
         <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginTop: 14, letterSpacing: '-0.02em' }}>
           Lv.{level.level} {level.name}
         </div>
@@ -51,7 +54,14 @@ export default function JourneyPage() {
             const current = l.level === level.level;
             const locked = days < l.days;
             return (
-              <div key={l.level} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <div key={l.level} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <TurtleSprite
+                  level={toTurtleLevel(l.level)}
+                  emotion="default"
+                  size={40}
+                  grayscale={locked}
+                  style={{ marginTop: -4 }}
+                />
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20 }}>
                   <div style={{
                     width: 20, height: 20, borderRadius: '50%', flexShrink: 0,

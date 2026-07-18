@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { popPendingCelebration, type CelebrationItem } from '@/lib/journey';
+import { popPendingCelebration, toTurtleLevel, type CelebrationItem } from '@/lib/journey';
 import TurtleImage from './TurtleImage';
+import TurtleSprite from './TurtleSprite';
 
 const CONFETTI_COLORS = ['var(--secondary)', 'var(--moon)', 'var(--accent)', 'var(--good)'];
 
@@ -40,7 +41,6 @@ export default function CelebrationModal() {
   const desc = item.type === 'level'
     ? `Lv.${item.level.level} · ${item.level.quote}`
     : `누적 ${item.milestone}편 달성`;
-  const imgSrc = item.type === 'level' ? `/turtle/level-${item.level.level}.png` : `/turtle/shell-${item.milestone}.png`;
 
   return (
     <div
@@ -62,7 +62,11 @@ export default function CelebrationModal() {
       >
         <Confetti />
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-          <TurtleImage src={imgSrc} fallback={item.type === 'level' ? '🐢' : '✦'} alt={title} size={88} />
+          {item.type === 'level' ? (
+            <TurtleSprite level={toTurtleLevel(item.level.level)} emotion="happy" size={88} />
+          ) : (
+            <TurtleImage src={`/turtle/shell-${item.milestone}.png`} fallback="✦" alt={title} size={88} />
+          )}
         </div>
         <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 6, letterSpacing: '-0.01em' }}>
           {title}
