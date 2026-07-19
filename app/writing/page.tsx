@@ -312,7 +312,6 @@ function WritingPageInner() {
   const [streamLen, setStreamLen] = useState(0);
   const [result,  setResult]  = useState<WritingAnalysis | null>(null);
   const [analysisOpen, setAnalysisOpen] = useState(true);
-  const [xpToast,      setXpToast]      = useState<number | null>(null);
   const [appealOpen,   setAppealOpen]   = useState(false);
   const [appealText,   setAppealText]   = useState('');
   const [appealLoading, setAppealLoading] = useState(false);
@@ -403,9 +402,6 @@ function WritingPageInner() {
       setProofreadResult(null); setProofreadForKey(null);
       setText(''); setTopic('');
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
-      const earned = Math.round(res.score / 2);
-      setXpToast(earned);
-      setTimeout(() => setXpToast(null), 3000);
       setSaved(s => !s);
     } catch (e: unknown) {
       setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e)));
@@ -437,8 +433,6 @@ function WritingPageInner() {
     saveDB(db);
     setText(''); setTopic('');
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
-    setXpToast(10);
-    setTimeout(() => setXpToast(null), 3000);
     setSaved(s => !s);
   }
 
@@ -550,15 +544,6 @@ function WritingPageInner() {
               {loading ? (streamLen > 0 ? `★ ${streamLen}자 수신 중...` : '★ 연결 중...') : '✦ AI 분석'}
             </button>
             <button className="px-btn-ghost" onClick={handleSaveOnly} disabled={loading}>저장만</button>
-            {xpToast !== null && (
-              <span style={{
-                fontSize: 13, fontWeight: 700, color: 'var(--good)',
-                fontFamily: 'Pretendard, sans-serif',
-                animation: 'fadeInUp 0.3s ease',
-              }}>
-                +{xpToast} XP ✦
-              </span>
-            )}
             <span style={{ marginLeft: 'auto', fontFamily: 'Pretendard, sans-serif', fontSize: 12, fontWeight: 500, color: 'var(--dim-star)' }}>
               {text.length.toLocaleString()}자
             </span>

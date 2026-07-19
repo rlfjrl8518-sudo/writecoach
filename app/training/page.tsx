@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { loadDB, saveDB, loadSettings, computeXP, computeStreak, getWriterRank, type Mission, type MissionEvaluation, type DB } from '@/lib/db';
+import { loadDB, saveDB, loadSettings, type Mission, type MissionEvaluation, type DB } from '@/lib/db';
 import { generateMissions, evaluateMission, evaluateDrill, type DrillEvaluation } from '@/lib/openai';
 import { getWrittenDays, getLevelInfo, toTurtleLevel } from '@/lib/journey';
 import TurtleSprite from '@/components/TurtleSprite';
@@ -151,9 +151,8 @@ function DataSnapshot({ db }: { db: DB }) {
   const avgScore  = analyzed.length
     ? Math.round(analyzed.reduce((s, w) => s + w.analysis!.score, 0) / analyzed.length)
     : null;
-  const xp     = computeXP(db);
-  const rank   = getWriterRank(xp);
-  const streak = computeStreak(db.writings);
+  const streak = db.journey?.streak ?? 0;
+  const level  = getLevelInfo(getWrittenDays(db.writings));
 
   const weakSynth   = db.weaknessSynthesis?.length   ? db.weaknessSynthesis   : null;
   const strSynth    = db.strengthSynthesis?.length   ? db.strengthSynthesis   : null;
@@ -183,7 +182,7 @@ function DataSnapshot({ db }: { db: DB }) {
           { label: '작성 글',   value: `${db.writings.length}편`,              color: 'var(--text)' },
           { label: '평균 점수', value: avgScore != null ? `${avgScore}점` : '—', color: scoreColor },
           { label: '스트릭',   value: streak > 0 ? `🔥 ${streak}일 연속` : '오늘 미작성', color: streak > 0 ? 'var(--moon)' : 'var(--dim-star)' },
-          { label: '등급',     value: rank.label,                               color: rank.color },
+          { label: '레벨',     value: `Lv.${level.level} ${level.name}`,        color: 'var(--accent)' },
         ].map(({ label, value, color }) => (
           <div key={label} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
