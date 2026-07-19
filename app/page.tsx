@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   loadDB, type DB,
-  computeXP, computeStreak, computeDailyChars, getWriterRank,
+  computeDailyChars,
   loadGamification,
 } from '@/lib/db';
+import { getWrittenDays } from '@/lib/journey';
 import TurtleCard from '@/components/TurtleCard';
 import CelebrationModal from '@/components/CelebrationModal';
 
@@ -69,9 +70,8 @@ export default function HomePage() {
 
   if (!db) return null;
 
-  const streak = computeStreak(db.writings);
-  const xp = computeXP(db);
-  const rank = getWriterRank(xp);
+  const streak = db.journey?.streak ?? 0;
+  const writtenDays = getWrittenDays(db.writings);
   const dailyChars = computeDailyChars(db.writings);
   const dailyGoal = loadGamification().dailyGoal;
   const dailyPct = Math.min(100, Math.round((dailyChars / dailyGoal) * 100));
@@ -141,8 +141,8 @@ export default function HomePage() {
       <div className="px-card" style={{ display: 'flex', padding: 0, overflow: 'hidden', marginBottom: 20 }}>
         {[
           { label: '작성 글', value: db.writings.length, unit: '편' },
-          { label: '누적 XP', value: xp, unit: 'XP', color: rank.color },
-          { label: rank.label, value: rank.nextXP ? `${rank.progress}%` : 'MAX', unit: '', color: rank.color },
+          { label: '누적 작성일', value: writtenDays, unit: '일' },
+          { label: '최고 연속기록', value: db.journey?.maxStreak ?? 0, unit: '일' },
         ].map((s, i) => (
           <div key={i} style={{
             flex: 1, textAlign: 'center', padding: '18px 8px',
