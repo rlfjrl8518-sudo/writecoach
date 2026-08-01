@@ -6,6 +6,14 @@ import type {
   WriteType, ScoreBreakdown,
 } from './db';
 
+/** gpt-5-mini/gpt-5-nano 같은 reasoning 계열은 temperature를 기본값(1) 외엔 거부한다
+ *  ("Unsupported value: 'temperature' does not support 0.3 ... Only the default (1)
+ *  value is supported") — gpt-5-chat-latest/gpt-4o 계열은 커스텀 temperature를 그대로
+ *  지원하므로 구분한다. */
+function supportsCustomTemperature(model: string): boolean {
+  return !(model.startsWith('gpt-5') && !model.includes('chat'));
+}
+
 /* ── OpenAI 호출 (스트리밍 지원) ── */
 async function callOpenAI(
   apiKey: string, model: string, system: string, user: string,
@@ -19,8 +27,11 @@ async function callOpenAI(
 
   const useStream = !!onStream;
   const body: Record<string, unknown> = {
-    model, max_completion_tokens: maxTokens, temperature: temp, messages, stream: useStream,
+    model, max_completion_tokens: maxTokens, messages, stream: useStream,
   };
+  if (supportsCustomTemperature(model)) {
+    body.temperature = temp;
+  }
   // schema 제공 시 structured outputs(스키마 강제) — json_object보다 신뢰도 훨씬 높음
   if (schema) {
     body.response_format = { type: 'json_schema', json_schema: { name: 'result', strict: true, schema } };
