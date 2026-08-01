@@ -6,13 +6,19 @@ import type {
   WriteType, ScoreBreakdown,
 } from './db';
 
-/** gpt-5-mini/gpt-5-nano 같은 reasoning 계열은 temperature를 기본값(1) 외엔 거부한다
- *  ("Unsupported value: 'temperature' does not support 0.3 ... Only the default (1)
- *  value is supported") — gpt-5-chat-latest/gpt-4o 계열은 커스텀 temperature를 그대로
- *  지원하므로 구분한다. */
-function supportsCustomTemperature(model: string): boolean {
-  return !(model.startsWith('gpt-5') && !model.includes('chat'));
+/** gpt-5-mini/gpt-5(-nano) 같은 reasoning 계열 판별 — gpt-5-chat-latest/gpt-4o 계열은
+ *  일반 채팅 모델이라 여기 해당하지 않는다. 두 군데서 쓴다:
+ *  1) temperature — reasoning 계열은 기본값(1) 외엔 거부한다
+ *     ("Unsupported value: 'temperature' does not support 0.3 ... Only the default (1)
+ *     value is supported").
+ *  2) max_completion_tokens — reasoning 계열은 화면에 안 보이는 "추론 토큰"을 먼저 쓰고
+ *     남은 예산으로 답을 쓴다. 호출부가 요청한 건 화면에 보일 답변 분량인데, 그 값을
+ *     그대로 max_completion_tokens에 넣으면 추론만 하다 예산이 바닥나 빈 응답이 될 수
+ *     있다("OpenAI가 빈 응답을 반환했습니다") — 추론용 여유분을 더 얹어준다. */
+function isReasoningModel(model: string): boolean {
+  return model.startsWith('gpt-5') && !model.includes('chat');
 }
+const REASONING_TOKEN_HEADROOM = 4000;
 
 /* ── OpenAI 호출 (스트리밍 지원) ── */
 async function callOpenAI(
@@ -25,11 +31,12 @@ async function callOpenAI(
     ? [{ role: 'system', content: system }, { role: 'user', content: user }]
     : [{ role: 'user', content: user }];
 
+  const reasoning = isReasoningModel(model);
   const useStream = !!onStream;
   const body: Record<string, unknown> = {
-    model, max_completion_tokens: maxTokens, messages, stream: useStream,
+    model, max_completion_tokens: reasoning ? maxTokens + REASONING_TOKEN_HEADROOM : maxTokens, messages, stream: useStream,
   };
-  if (supportsCustomTemperature(model)) {
+  if (!reasoning) {
     body.temperature = temp;
   }
   // schema 제공 시 structured outputs(스키마 강제) — json_object보다 신뢰도 훨씬 높음
