@@ -94,10 +94,16 @@ function ThemeToggle() {
 
 function CoachChatButton() {
   const [open, setOpen] = useState(false);
+  const [turtleLevel, setTurtleLevel] = useState<ReturnType<typeof toTurtleLevel>>(1);
   useEffect(() => {
     const handler = (e: Event) => setOpen((e as CustomEvent<boolean>).detail);
     window.addEventListener('coach-chat-state', handler);
     return () => window.removeEventListener('coach-chat-state', handler);
+  }, []);
+  useEffect(() => {
+    // /journey·GamificationBar와 같은 레벨 계산 — 챗봇 버튼도 같은 거북이로
+    const db = loadDB();
+    setTurtleLevel(toTurtleLevel(getLevelInfo(getWrittenDays(db.writings)).level));
   }, []);
   return (
     <button
@@ -111,17 +117,15 @@ function CoachChatButton() {
         cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
       }}
     >
-      {/* 프로필 이미지 */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/character-default.png.png"
-        alt="코치"
-        style={{
-          width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', display: 'block',
-          border: `2px solid ${open ? 'var(--accent)' : 'var(--card-border)'}`,
-          transition: 'border-color 0.15s',
-        }}
-      />
+      {/* 프로필 이미지 — /journey의 거북이와 같은 레벨 */}
+      <div style={{
+        width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', display: 'flex',
+        alignItems: 'center', justifyContent: 'center',
+        border: `2px solid ${open ? 'var(--accent)' : 'var(--card-border)'}`,
+        transition: 'border-color 0.15s',
+      }}>
+        <TurtleSprite level={turtleLevel} emotion="default" size={36} />
+      </div>
       <span style={{ fontSize: 13, fontWeight: 600, color: open ? 'var(--accent)' : 'var(--dim-star)', transition: 'color 0.15s', fontFamily: 'Pretendard, sans-serif' }}>
         코치
       </span>

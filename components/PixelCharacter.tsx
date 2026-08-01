@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { loadDB, loadSettings } from '@/lib/db';
 import { chatWithCoach } from '@/lib/openai';
+import { getWrittenDays, getLevelInfo, toTurtleLevel, isStreakBroken } from '@/lib/journey';
+import TurtleSprite, { type TurtleLevel, type TurtleEmotion } from './TurtleSprite';
 
 const POS_KEY = 'wc_char_pos';
 const SIZE = 72;
@@ -55,16 +57,23 @@ export default function PixelCharacter() {
   const [isDragging, setIsDragging] = useState(false);
   const [mounted, setMounted]       = useState(false);
   const [inputActive, setInputActive] = useState(false);
+  const [turtleLevel, setTurtleLevel] = useState<TurtleLevel>(1);
+  const [turtleEmotion, setTurtleEmotion] = useState<TurtleEmotion>('default');
 
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0, moved: false });
   const endRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const db = loadDB();
     const t = getTier(getCount());
     setTier(t);
     setMessages([{ role: 'assistant', content: t.greeting }]);
     setPos(loadPos());
+    // /journey 카드(TurtleCard)와 같은 레벨 계산 — 챗봇 캐릭터도 같은 거북이로, 같은 레벨로 보이게
+    const days = getWrittenDays(db.writings);
+    setTurtleLevel(toTurtleLevel(getLevelInfo(days).level));
+    setTurtleEmotion(isStreakBroken(db.journey) ? 'tired' : 'default');
     setMounted(true);
   }, []);
 
@@ -205,13 +214,10 @@ export default function PixelCharacter() {
                 </div>
               ) : (
                 <div key={i} style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-                  {/* 프로필 이미지 */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/character-default.png.png"
-                    alt="코치"
-                    style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `1.5px solid ${tier.outfitMain}55` }}
-                  />
+                  {/* 프로필 이미지 — /journey의 거북이와 같은 레벨/이모션 */}
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${tier.outfitMain}55` }}>
+                    <TurtleSprite level={turtleLevel} emotion={turtleEmotion} size={40} />
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {/* 이름 (첫 메시지 또는 이전이 유저 메시지일 때만) */}
                     {(i === 0 || messages[i - 1]?.role === 'user') && (
@@ -233,8 +239,9 @@ export default function PixelCharacter() {
             ))}
             {aiLoading && (
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/character-default.png.png" alt="코치" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `1.5px solid ${tier.outfitMain}55` }} />
+                <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${tier.outfitMain}55` }}>
+                  <TurtleSprite level={turtleLevel} emotion={turtleEmotion} size={40} />
+                </div>
                 <div style={{ padding: '8px 14px', borderRadius: '4px 14px 14px 14px', background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', color: 'var(--dim-star)', fontSize: 18, letterSpacing: 4 }}>···</div>
               </div>
             )}
@@ -289,6 +296,8 @@ export default function PixelCharacter() {
           width: SIZE, height: SIZE,
           cursor: isDragging ? 'grabbing' : 'grab',
           borderRadius: '50%', overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--bg-card)',
           userSelect: 'none', touchAction: 'none',
           animation: isDragging ? undefined : 'float-up 4s ease-in-out infinite',
           filter: chatOpen
@@ -297,12 +306,11 @@ export default function PixelCharacter() {
           transition: isDragging ? undefined : 'filter 0.2s',
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/character-default.png.png"
-          alt="글쓰기 코치"
-          draggable={false}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', pointerEvents: 'none' }}
+        <TurtleSprite
+          level={turtleLevel}
+          emotion={turtleEmotion}
+          size={SIZE * 1.15}
+          style={{ pointerEvents: 'none' }}
         />
       </div>}
     </>

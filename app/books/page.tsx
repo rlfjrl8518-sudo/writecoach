@@ -75,15 +75,15 @@ function NoteItem({
           <span className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)' }}>{fmtDate(note.date)}</span>
           {note.progress && <span className="px-tag-expr">{note.progress}</span>}
         </div>
-        <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.8, whiteSpace: 'pre-wrap', margin: 0 }}>
-          {note.text}
-        </p>
         {note.quote && (
-          <div style={{ marginTop: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
+          <div style={{ marginBottom: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
             <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 700, display: 'block', marginBottom: 3, letterSpacing: '0.02em' }}>인상 깊은 구절</span>
             {note.quote}
           </div>
         )}
+        <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.8, whiteSpace: 'pre-wrap', margin: 0 }}>
+          {note.text}
+        </p>
       </div>
     </div>
   );
@@ -279,21 +279,21 @@ export default function BooksPage() {
               <input className="px-input" placeholder="예: 120쪽까지" value={progress} onChange={e => setProgress(e.target.value)} />
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label className="px-label">느낀 점</label>
-              <textarea
-                className="px-textarea" rows={4}
-                placeholder="오늘 읽으면서 든 생각이나 느낌을 적어보세요..."
-                value={noteText} onChange={e => setNoteText(e.target.value)}
-                style={{ minHeight: 90 }}
-              />
-            </div>
-            <div style={{ marginBottom: 14 }}>
               <label className="px-label">인상 깊은 구절 <span style={{ fontSize: 10, color: 'var(--dim-star)', fontWeight: 400 }}>(선택)</span></label>
               <textarea
                 className="px-textarea" rows={2}
                 placeholder="마음에 남은 문장을 옮겨 적어보세요..."
                 value={quote} onChange={e => setQuote(e.target.value)}
                 style={{ minHeight: 56 }}
+              />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <label className="px-label">느낀 점</label>
+              <textarea
+                className="px-textarea" rows={4}
+                placeholder="오늘 읽으면서 든 생각이나 느낌을 적어보세요..."
+                value={noteText} onChange={e => setNoteText(e.target.value)}
+                style={{ minHeight: 90 }}
               />
             </div>
             <button type="submit" className="px-btn px-btn-accent">✦ 기록 남기기</button>

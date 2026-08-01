@@ -19,7 +19,7 @@ async function callOpenAI(
 
   const useStream = !!onStream;
   const body: Record<string, unknown> = {
-    model, max_tokens: maxTokens, temperature: temp, messages, stream: useStream,
+    model, max_completion_tokens: maxTokens, temperature: temp, messages, stream: useStream,
   };
   // schema 제공 시 structured outputs(스키마 강제) — json_object보다 신뢰도 훨씬 높음
   if (schema) {
