@@ -419,7 +419,7 @@ export interface Settings {
   geminiModel: string;
 }
 const DEFAULTS: Settings = {
-  provider: 'openai', apiKey: '', model: 'gpt-4o-mini',
+  provider: 'openai', apiKey: '', model: 'gpt-5-mini',
   geminiApiKey: '', geminiModel: 'gemini-2.0-flash',
 };
 export function loadSettings(): Settings {

@@ -22,7 +22,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function SettingsPage() {
   const [provider,      setProvider]      = useState<'openai' | 'gemini'>('openai');
   const [apiKey,        setApiKey]        = useState('');
-  const [model,         setModel]         = useState('gpt-4o-mini');
+  const [model,         setModel]         = useState('gpt-5-mini');
   const [showKey,       setShowKey]       = useState(false);
   const [geminiApiKey,  setGeminiApiKey]  = useState('');
   const [geminiModel,   setGeminiModel]   = useState('gemini-2.0-flash');
@@ -41,7 +41,7 @@ export default function SettingsPage() {
     const s = loadSettings();
     setProvider(s.provider || 'openai');
     setApiKey(s.apiKey || '');
-    setModel(s.model || 'gpt-4o-mini');
+    setModel(s.model || 'gpt-5-mini');
     setGeminiApiKey(s.geminiApiKey || '');
     setGeminiModel(s.geminiModel || 'gemini-2.0-flash');
     setDailyGoal(loadGamification().dailyGoal);
@@ -235,7 +235,8 @@ export default function SettingsPage() {
             {provider === 'openai' ? (
               <select className="px-select" value={model} onChange={e => setModel(e.target.value)}>
                 <option value="gpt-5-chat-latest">gpt-5-chat-latest — 최신 최고성능</option>
-                <option value="gpt-4o-mini">gpt-4o-mini — 빠름 · 저렴</option>
+                <option value="gpt-5-mini">gpt-5-mini — 빠름 · 저렴 (추천)</option>
+                <option value="gpt-4o-mini">gpt-4o-mini — 빠름 · 저렴 (구형)</option>
                 <option value="gpt-4o">gpt-4o — 고성능</option>
                 <option value="gpt-4-turbo">gpt-4-turbo — 구형 고성능</option>
               </select>
