@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
   loadDB, saveDB, saveDBLocal, loadSettings, mergeExpressions, mergeWeaknesses, groupByMonth,
-  type WritingAnalysis, type WriteType, type WritingEntry,
+  type WritingAnalysis, type WriteType, type WritingEntry, type ProofreadResult,
 } from '@/lib/db';
-import { analyzeWriting, evaluateAppeal, proofreadWriting, type AppealResult, type ProofreadResult } from '@/lib/openai';
+import { analyzeWriting, evaluateAppeal, proofreadWriting, type AppealResult } from '@/lib/openai';
 import { pushData } from '@/lib/supabase';
 import { updateJourneyOnWrite, pushPendingCelebration, getScoreEmotion, getWrittenDays, getLevelInfo, toTurtleLevel } from '@/lib/journey';
 import TurtleSprite, { type TurtleLevel } from '@/components/TurtleSprite';
@@ -132,7 +132,7 @@ function AppealResultView({ appeal, originalScore, onReset }: { appeal: AppealRe
 }
 
 function ProofreadPanel({
-  result, loading, streamLen, tab, onTabChange, originalText, onClose,
+  result, loading, streamLen, tab, onTabChange, originalText, onReanalyze,
 }: {
   result: ProofreadResult | null;
   loading: boolean;
@@ -140,7 +140,7 @@ function ProofreadPanel({
   tab: 'original' | 'corrected';
   onTabChange: (t: 'original' | 'corrected') => void;
   originalText: string;
-  onClose: () => void;
+  onReanalyze: () => void;
 }) {
   if (loading) return <StarLoader streamLen={streamLen} />;
   if (!result) return null;
@@ -160,7 +160,7 @@ function ProofreadPanel({
             </button>
           ))}
         </div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 11 }}>✕ 닫기</button>
+        <button onClick={onReanalyze} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 11 }}>↺ 재첨삭</button>
       </div>
       <p style={{
         fontSize: 13, color: 'var(--text)', lineHeight: 1.9, whiteSpace: 'pre-wrap',
@@ -327,6 +327,7 @@ function WritingPageInner() {
   const [analyzedText,  setAnalyzedText]  = useState('');
   const [analyzedType,  setAnalyzedType]  = useState<WriteType>('에세이');
   const [analyzedTopic, setAnalyzedTopic] = useState('');
+  const [currentEntryId, setCurrentEntryId] = useState<number | null>(null);
   const [proofreadResult,    setProofreadResult]    = useState<ProofreadResult | null>(null);
   const [proofreadLoading,   setProofreadLoading]   = useState(false);
   const [proofreadStreamLen, setProofreadStreamLen] = useState(0);
@@ -393,12 +394,14 @@ function WritingPageInner() {
       setAppealOpen(false); setAppealText(''); setAppealResult(null); setAppealedFor(null);
       dispatchScore(res.score);
       const db = loadDB();
-      db.writings.push({ id: Date.now(), date, type, topic, text, status: '분석완료', analysis: res, createdAt: new Date().toISOString() });
+      const newId = Date.now();
+      db.writings.push({ id: newId, date, type, topic, text, status: '분석완료', analysis: res, createdAt: new Date().toISOString() });
       mergeExpressions(db, res.expressions || []);
       mergeWeaknesses(db, res.weaknesses || []);
       applyJourneyUpdate(db);
       saveDB(db);
       setAnalyzedText(text); setAnalyzedType(type); setAnalyzedTopic(topic);
+      setCurrentEntryId(newId);
       setProofreadResult(null); setProofreadForKey(null);
       setText(''); setTopic('');
       try { localStorage.removeItem(DRAFT_KEY); } catch {}
@@ -460,7 +463,7 @@ function WritingPageInner() {
 
   async function handleProofread(
     targetText: string, targetType: WriteType, targetTopic: string,
-    analysis: WritingAnalysis, key: string,
+    analysis: WritingAnalysis, key: string, entryId: number | null,
   ) {
     const s = loadSettings();
     const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
@@ -471,6 +474,16 @@ function WritingPageInner() {
       const res = await proofreadWriting(s, targetType, targetTopic, targetText, analysis,
         (chunk) => setProofreadStreamLen(l => l + chunk.length));
       setProofreadResult(res);
+      // 첨삭 결과를 기록에 저장 — 패널을 닫거나 다시 열어도 유지된다("재첨삭"으로 덮어쓸 수 있음)
+      if (entryId !== null) {
+        const db = loadDB();
+        const idx = db.writings.findIndex(w => w.id === entryId);
+        if (idx !== -1) {
+          db.writings[idx] = { ...db.writings[idx], proofread: res };
+          saveDB(db);
+          setSaved(s => !s);
+        }
+      }
     } catch (e: unknown) {
       setErr('첨삭 오류: ' + (e instanceof Error ? e.message : String(e)));
       setProofreadForKey(null);
@@ -630,31 +643,36 @@ function WritingPageInner() {
           )}
 
           {/* 첨삭 */}
-          {result && !loading && (
-            <div style={{ marginTop: 14, borderTop: '1px solid var(--card-border)', paddingTop: 14 }}>
-              <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10 }}>✦ 첨삭</div>
-              {proofreadForKey !== 'current' ? (
-                <button
-                  className="px-btn-ghost"
-                  style={{ fontSize: 12 }}
-                  disabled={proofreadLoading}
-                  onClick={() => handleProofread(analyzedText, analyzedType, analyzedTopic, result, 'current')}
-                >
-                  ✎ 첨삭 받기
-                </button>
-              ) : (
-                <ProofreadPanel
-                  result={proofreadResult}
-                  loading={proofreadLoading}
-                  streamLen={proofreadStreamLen}
-                  tab={proofreadTab}
-                  onTabChange={setProofreadTab}
-                  originalText={analyzedText}
-                  onClose={() => { setProofreadResult(null); setProofreadForKey(null); }}
-                />
-              )}
-            </div>
-          )}
+          {result && !loading && (() => {
+            const persisted = history.find(h => h.id === currentEntryId)?.proofread ?? null;
+            const isThis = proofreadForKey === 'current';
+            const display = (isThis ? proofreadResult : null) ?? persisted;
+            return (
+              <div style={{ marginTop: 14, borderTop: '1px solid var(--card-border)', paddingTop: 14 }}>
+                <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10 }}>✦ 첨삭</div>
+                {!(isThis && proofreadLoading) && !display ? (
+                  <button
+                    className="px-btn-ghost"
+                    style={{ fontSize: 12 }}
+                    disabled={proofreadLoading}
+                    onClick={() => handleProofread(analyzedText, analyzedType, analyzedTopic, result, 'current', currentEntryId)}
+                  >
+                    ✎ 첨삭 받기
+                  </button>
+                ) : (
+                  <ProofreadPanel
+                    result={display}
+                    loading={isThis && proofreadLoading}
+                    streamLen={proofreadStreamLen}
+                    tab={proofreadTab}
+                    onTabChange={setProofreadTab}
+                    originalText={analyzedText}
+                    onReanalyze={() => handleProofread(analyzedText, analyzedType, analyzedTopic, result, 'current', currentEntryId)}
+                  />
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -739,40 +757,44 @@ function WritingPageInner() {
                       </div>
                     )}
 
-                    {entry.analysis && (
-                      <>
-                        <div className="px-divider" />
-                        <AnalysisDetail a={entry.analysis} compact={false} level={currentLevel} />
-                        <div style={{ marginTop: 14, borderTop: '1px solid var(--card-border)', paddingTop: 14 }}>
-                          <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10 }}>✦ 첨삭</div>
-                          {proofreadForKey !== String(entry.id) ? (
-                            <button
-                              className="px-btn-ghost"
-                              style={{ fontSize: 12 }}
-                              disabled={proofreadLoading}
-                              onClick={e => {
-                                e.stopPropagation();
-                                handleProofread(entry.text, entry.type as WriteType, entry.topic ?? '', entry.analysis!, String(entry.id));
-                              }}
-                            >
-                              ✎ 첨삭 받기
-                            </button>
-                          ) : (
-                            <div onClick={e => e.stopPropagation()}>
-                              <ProofreadPanel
-                                result={proofreadResult}
-                                loading={proofreadLoading}
-                                streamLen={proofreadStreamLen}
-                                tab={proofreadTab}
-                                onTabChange={setProofreadTab}
-                                originalText={entry.text}
-                                onClose={() => { setProofreadResult(null); setProofreadForKey(null); }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    )}
+                    {entry.analysis && (() => {
+                      const isThis = proofreadForKey === String(entry.id);
+                      const display = (isThis ? proofreadResult : null) ?? entry.proofread ?? null;
+                      return (
+                        <>
+                          <div className="px-divider" />
+                          <AnalysisDetail a={entry.analysis} compact={false} level={currentLevel} />
+                          <div style={{ marginTop: 14, borderTop: '1px solid var(--card-border)', paddingTop: 14 }}>
+                            <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10 }}>✦ 첨삭</div>
+                            {!(isThis && proofreadLoading) && !display ? (
+                              <button
+                                className="px-btn-ghost"
+                                style={{ fontSize: 12 }}
+                                disabled={proofreadLoading}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleProofread(entry.text, entry.type as WriteType, entry.topic ?? '', entry.analysis!, String(entry.id), entry.id);
+                                }}
+                              >
+                                ✎ 첨삭 받기
+                              </button>
+                            ) : (
+                              <div onClick={e => e.stopPropagation()}>
+                                <ProofreadPanel
+                                  result={display}
+                                  loading={isThis && proofreadLoading}
+                                  streamLen={proofreadStreamLen}
+                                  tab={proofreadTab}
+                                  onTabChange={setProofreadTab}
+                                  originalText={entry.text}
+                                  onReanalyze={() => handleProofread(entry.text, entry.type as WriteType, entry.topic ?? '', entry.analysis!, String(entry.id), entry.id)}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

@@ -3,7 +3,7 @@ import type {
   WritingAnalysis, SentenceAnalysis, CopyAnalysis,
   Settings, DB, Mission, MissionEvaluation, SentenceExamples, WeaknessSynthesis, StrengthSynthesis,
   DictResult, ExpressionAnalysis, ExpressionCategory, ExpressionSense, ExpressionLevel, ExpressionUseContext,
-  WriteType, ScoreBreakdown,
+  WriteType, ScoreBreakdown, ProofreadResult,
 } from './db';
 
 /** gpt-5-mini/gpt-5(-nano) 같은 reasoning 계열 판별 — gpt-5-chat-latest/gpt-4o 계열은
@@ -837,11 +837,6 @@ export async function synthesizeStrengths(
 }
 
 /* ── 글쓰기 첨삭 ── */
-export interface ProofreadResult {
-  corrected: string;
-  changes: { original: string; revised: string; reason: string }[];
-}
-
 const PROOFREAD_SYS = `너는 전문 글쓰기 첨삭가다. 글쓴이의 목소리와 개성을 최대한 살리면서 분석에서 지적된 약점 중심으로 최소한만 수정한다.
 원문을 통째로 새로 쓰지 말고, 실제로 바꿔야 하는 부분만 손댄다. 맞춤법·비문·클리셰·추상어 등 명백한 문제 우선.
 JSON 형식으로만 응답하라. 설명·마크다운 금지.`;

@@ -51,6 +51,11 @@ export interface WritingAnalysis {
 export interface WeaknessSynthesis { title: string; explanation: string; suggestion: string; }
 export interface StrengthSynthesis { title: string; explanation: string; }
 
+export interface ProofreadResult {
+  corrected: string;
+  changes: { original: string; revised: string; reason: string }[];
+}
+
 export interface WritingEntry {
   id: number;
   date: string;
@@ -59,6 +64,8 @@ export interface WritingEntry {
   text: string;
   status: '미분석' | '분석완료';
   analysis?: WritingAnalysis;
+  /** 첨삭 결과 — 받으면 저장되어 다시 열어도 유지된다. "재첨삭"으로 덮어쓸 수 있다. */
+  proofread?: ProofreadResult;
   createdAt: string;
 }
 
@@ -419,7 +426,7 @@ export interface Settings {
   geminiModel: string;
 }
 const DEFAULTS: Settings = {
-  provider: 'openai', apiKey: '', model: 'gpt-5-mini',
+  provider: 'openai', apiKey: '', model: 'gpt-4o',
   geminiApiKey: '', geminiModel: 'gemini-2.0-flash',
 };
 export function loadSettings(): Settings {
