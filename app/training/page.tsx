@@ -606,12 +606,17 @@ export default function TrainingPage() {
     if (m) m.completed = !m.completed; saveDB(fresh); setSaved(v => !v);
   }
   function deleteMission(id: number) {
-    const fresh = loadDB(); fresh.missions = fresh.missions.filter(m => m.id !== id);
+    const fresh = loadDB();
+    fresh.missions = fresh.missions.filter(m => m.id !== id);
+    fresh._deletedIds = [...(fresh._deletedIds ?? []), id];
     saveDB(fresh); setSaved(v => !v);
   }
   function clearCompleted() {
     if (!confirm('완료된 과제를 모두 삭제할까요?')) return;
-    const fresh = loadDB(); fresh.missions = fresh.missions.filter(m => !m.completed);
+    const fresh = loadDB();
+    const removedIds = fresh.missions.filter(m => m.completed).map(m => m.id);
+    fresh.missions = fresh.missions.filter(m => !m.completed);
+    fresh._deletedIds = [...(fresh._deletedIds ?? []), ...removedIds];
     saveDB(fresh); setSaved(v => !v);
   }
 

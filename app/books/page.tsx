@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  loadDB, saveDB, groupByMonth, getBookNotes,
+  loadDB, saveDB, saveDBLocal, groupByMonth, getBookNotes,
   type Book, type BookNote, type BookStatus,
 } from '@/lib/db';
+import { pushData } from '@/lib/supabase';
 
 function todayStr() { return new Date().toISOString().split('T')[0]; }
 function fmtDate(d?: string) {
@@ -41,7 +42,7 @@ function BookCard({ book, noteCount, onClick }: { book: Book; noteCount: number;
 }
 
 function NoteItem({
-  note, dragging, itemRef, onHandlePointerDown, onHandlePointerMove, onHandlePointerUp,
+  note, dragging, itemRef, onHandlePointerDown, onHandlePointerMove, onHandlePointerUp, onDelete,
 }: {
   note: BookNote;
   dragging?: boolean;
@@ -49,6 +50,7 @@ function NoteItem({
   onHandlePointerDown?: (e: React.PointerEvent<HTMLSpanElement>) => void;
   onHandlePointerMove?: (e: React.PointerEvent<HTMLSpanElement>) => void;
   onHandlePointerUp?: (e: React.PointerEvent<HTMLSpanElement>) => void;
+  onDelete?: () => void;
 }) {
   return (
     <div
@@ -74,6 +76,12 @@ function NoteItem({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <span className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)' }}>{fmtDate(note.date)}</span>
           {note.progress && <span className="px-tag-expr">{note.progress}</span>}
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bad)', fontSize: 11, opacity: 0.7, flexShrink: 0 }}
+            >✕ 삭제</button>
+          )}
         </div>
         {note.quote && (
           <div style={{ marginBottom: 8, padding: '7px 10px', background: 'var(--accent-dim)', borderLeft: '2px solid var(--accent)', fontSize: 12, color: 'var(--text)', lineHeight: 1.7, fontFamily: 'Pretendard, sans-serif', whiteSpace: 'pre-wrap' }}>
@@ -102,6 +110,10 @@ export default function BooksPage() {
   const [noteText, setNoteText] = useState('');
   const [quote, setQuote] = useState('');
 
+  const [editingBook, setEditingBook] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAuthor, setEditAuthor] = useState('');
+
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
 
   // ── 기록 타임라인 드래그 앤 드롭 재정렬 상태 ──
@@ -114,6 +126,8 @@ export default function BooksPage() {
     setBooks([...db.books].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
     setBookNotes(db.bookNotes);
   }, [saved]);
+
+  useEffect(() => { setEditingBook(false); }, [selectedId]);
 
   const [booksQuery, setBooksQuery] = useState('');
   const reading = useMemo(() => books.filter(b => b.status === '읽는 중'), [books]);
@@ -182,6 +196,48 @@ export default function BooksPage() {
       saveDB(db);
       setSaved(v => !v);
     }
+  }
+
+  function handleEditBookStart(book: Book) {
+    setEditTitle(book.title);
+    setEditAuthor(book.author ?? '');
+    setEditingBook(true);
+  }
+
+  function handleEditBookSave(bookId: number) {
+    if (!editTitle.trim()) return;
+    const db = loadDB();
+    const found = db.books.find(b => b.id === bookId);
+    if (found) {
+      found.title = editTitle.trim();
+      found.author = editAuthor.trim() || undefined;
+      saveDB(db);
+      setSaved(v => !v);
+    }
+    setEditingBook(false);
+  }
+
+  async function handleDeleteBook(bookId: number) {
+    if (!confirm('이 책과 읽은 기록을 모두 삭제할까요? 되돌릴 수 없어요.')) return;
+    const db = loadDB();
+    const noteIds = db.bookNotes.filter(n => n.bookId === bookId).map(n => n.id);
+    db.books = db.books.filter(b => b.id !== bookId);
+    db.bookNotes = db.bookNotes.filter(n => n.bookId !== bookId);
+    db._deletedIds = [...(db._deletedIds ?? []), bookId, ...noteIds];
+    saveDBLocal(db);
+    setSelectedId(null);
+    setSaved(s => !s);
+    try { await pushData(db); } catch {}
+  }
+
+  async function handleDeleteNote(noteId: number) {
+    if (!confirm('이 기록을 삭제할까요?')) return;
+    const db = loadDB();
+    db.bookNotes = db.bookNotes.filter(n => n.id !== noteId);
+    db._deletedIds = [...(db._deletedIds ?? []), noteId];
+    saveDBLocal(db);
+    setSaved(s => !s);
+    try { await pushData(db); } catch {}
   }
 
   // ── 기록 타임라인 드래그 앤 드롭 재정렬 핸들러 ──
@@ -259,18 +315,43 @@ export default function BooksPage() {
         </button>
 
         <div className="px-card" style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-            <span className="px-sec-title" style={{ marginBottom: 0 }}>{selectedBook.title}</span>
-            <StatusBadge status={selectedBook.status} />
-          </div>
-          {selectedBook.author && (
-            <div style={{ fontSize: 13, color: 'var(--dim-star)', marginBottom: 8 }}>{selectedBook.author}</div>
+          {editingBook ? (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ marginBottom: 8 }}>
+                <input className="px-input" value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="책 제목" />
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <input className="px-input" value={editAuthor} onChange={e => setEditAuthor(e.target.value)} placeholder="저자명" />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="px-btn px-btn-accent" style={{ fontSize: 12, padding: '6px 14px' }} onClick={() => handleEditBookSave(selectedBook.id)}>저장</button>
+                <button className="px-btn-ghost" style={{ fontSize: 12, padding: '6px 14px' }} onClick={() => setEditingBook(false)}>취소</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                <span className="px-sec-title" style={{ marginBottom: 0 }}>{selectedBook.title}</span>
+                <StatusBadge status={selectedBook.status} />
+                <button
+                  onClick={() => handleEditBookStart(selectedBook)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 12, opacity: 0.7 }}
+                >✎ 수정</button>
+                <button
+                  onClick={() => handleDeleteBook(selectedBook.id)}
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bad)', fontSize: 12, opacity: 0.7 }}
+                >✕ 삭제</button>
+              </div>
+              {selectedBook.author && (
+                <div style={{ fontSize: 13, color: 'var(--dim-star)', marginBottom: 8 }}>{selectedBook.author}</div>
+              )}
+            </>
           )}
           <div style={{ fontSize: 11, color: 'var(--dim-star)', marginBottom: 12 }}>
             시작 {fmtDate(selectedBook.startedAt)}
             {selectedBook.finishedAt && ` · 완독 ${fmtDate(selectedBook.finishedAt)}`}
           </div>
-          {selectedBook.status === '읽는 중' && (
+          {!editingBook && selectedBook.status === '읽는 중' && (
             <button className="px-btn-ghost" style={{ fontSize: 12 }} onClick={() => handleMarkFinished(selectedBook.id)}>
               ✦ 완독으로 표시
             </button>
@@ -323,6 +404,7 @@ export default function BooksPage() {
               onHandlePointerDown={e => handleNotePointerDown(e, note.id, displayTimeline)}
               onHandlePointerMove={e => handleNotePointerMove(e, note.id)}
               onHandlePointerUp={e => handleNotePointerUp(e, note.id)}
+              onDelete={() => handleDeleteNote(note.id)}
             />
           ))}
         </div>

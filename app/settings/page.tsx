@@ -116,10 +116,14 @@ export default function SettingsPage() {
     e.target.value = '';
   }
 
-  function handleClear() {
+  async function handleClear() {
     if (!confirm('모든 데이터를 삭제할까요? 되돌릴 수 없어요.')) return;
     if (!confirm('정말요? 기록이 영구 삭제돼요.')) return;
     localStorage.removeItem('wc_v2_data');
+    // 클라우드 동기화 중이었다면 원격 데이터도 함께 비워야 다음 로그인 때 되살아나지 않는다
+    if (isSupabaseConfigured) {
+      try { await pushData(loadDB()); } catch {}
+    }
     alert('초기화 완료');
   }
 
