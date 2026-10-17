@@ -4,6 +4,7 @@ import { loadDB, saveDB, loadSettings, type Mission, type MissionEvaluation, typ
 import { generateMissions, evaluateMission, evaluateDrill, type DrillEvaluation } from '@/lib/openai';
 import { getWrittenDays, getLevelInfo, toTurtleLevel } from '@/lib/journey';
 import TurtleSprite from '@/components/TurtleSprite';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 /* ── 공통 로더 ── */
 function StarLoader({ label }: { label: string }) {
@@ -611,8 +612,8 @@ export default function TrainingPage() {
     fresh._deletedIds = [...(fresh._deletedIds ?? []), id];
     saveDB(fresh); setSaved(v => !v);
   }
-  function clearCompleted() {
-    if (!confirm('완료된 과제를 모두 삭제할까요?')) return;
+  async function clearCompleted() {
+    if (!await confirmDialog('완료된 과제를 모두 삭제할까요?', { danger: true, confirmLabel: '삭제' })) return;
     const fresh = loadDB();
     const removedIds = fresh.missions.filter(m => m.completed).map(m => m.id);
     fresh.missions = fresh.missions.filter(m => !m.completed);

@@ -10,6 +10,7 @@ import {
 } from '@/lib/db';
 import { analyzeSentence, generateSentenceExamples } from '@/lib/openai';
 import { pushData } from '@/lib/supabase';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 const SENTENCE_TYPES: SentenceType[] = ['기사 리드', '칼럼', '에세이', '소설', 'SNS 게시글', '기타'];
 
@@ -421,7 +422,7 @@ function SentencePageInner() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('이 문장을 삭제할까요?')) return;
+    if (!await confirmDialog('이 문장을 삭제할까요?', { danger: true, confirmLabel: '삭제' })) return;
     const db = loadDB();
     db.sentences = db.sentences.filter(s => s.id !== id);
     db._deletedIds = [...(db._deletedIds ?? []), id];
@@ -492,7 +493,7 @@ function SentencePageInner() {
   }
 
   async function handleImgDelete(id: number) {
-    if (!confirm('이 이미지를 삭제할까요?')) return;
+    if (!await confirmDialog('이 이미지를 삭제할까요?', { danger: true, confirmLabel: '삭제' })) return;
     const db = loadDB();
     db.images = db.images.filter(i => i.id !== id);
     db._deletedIds = [...(db._deletedIds ?? []), id];

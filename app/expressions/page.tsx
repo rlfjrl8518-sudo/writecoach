@@ -8,6 +8,7 @@ import {
 } from '@/lib/db';
 import { pushData } from '@/lib/supabase';
 import { analyzeExpression, suggestExpressions, type ExpressionSuggestion } from '@/lib/openai';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 const CATEGORIES: ExpressionCategory[] = ['평가 표현', '감정 표현', '행동 표현', '상태 표현', '묘사 표현', '시간 표현', '공간 표현', '비유 표현', '설득 표현'];
 
@@ -232,7 +233,7 @@ export default function ExpressionsPage() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('이 표현을 삭제할까요?')) return;
+    if (!await confirmDialog('이 표현을 삭제할까요?', { danger: true, confirmLabel: '삭제' })) return;
     const db = loadDB();
     db.expressionEntries = (db.expressionEntries ?? []).filter(e => e.id !== id);
     db._deletedIds = [...(db._deletedIds ?? []), id];

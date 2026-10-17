@@ -7,6 +7,7 @@ import {
   isSupabaseConfigured, getCurrentUser, signOut,
   onAuthChange, pushData, pullData, mergeDBs, pushSettings,
 } from '@/lib/supabase';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -101,11 +102,11 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = async ev => {
       try {
         const data = JSON.parse(ev.target?.result as string);
         if (!data.writings) throw new Error('올바른 형식이 아니에요.');
-        if (!confirm(`${data.writings.length}편의 데이터를 가져올까요? 기존 데이터는 덮어써져요.`)) return;
+        if (!await confirmDialog(`${data.writings.length}편의 데이터를 가져올까요? 기존 데이터는 덮어써져요.`, { confirmLabel: '가져오기' })) return;
         saveDB(data);
         alert('가져오기 완료!');
       } catch (err: unknown) {
@@ -117,8 +118,7 @@ export default function SettingsPage() {
   }
 
   async function handleClear() {
-    if (!confirm('모든 데이터를 삭제할까요? 되돌릴 수 없어요.')) return;
-    if (!confirm('정말요? 기록이 영구 삭제돼요.')) return;
+    if (!await confirmDialog('모든 데이터를 삭제할까요?\n글, 문장, 카피, 책 기록이 전부 영구 삭제돼요. 되돌릴 수 없어요.', { danger: true, confirmLabel: '전부 삭제' })) return;
     localStorage.removeItem('wc_v2_data');
     // 클라우드 동기화 중이었다면 원격 데이터도 함께 비워야 다음 로그인 때 되살아나지 않는다
     if (isSupabaseConfigured) {

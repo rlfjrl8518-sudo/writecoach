@@ -10,6 +10,7 @@ import { analyzeWriting, evaluateAppeal, proofreadWriting, type AppealResult } f
 import { pushData } from '@/lib/supabase';
 import { updateJourneyOnWrite, pushPendingCelebration, getScoreEmotion, getWrittenDays, getLevelInfo, toTurtleLevel } from '@/lib/journey';
 import TurtleSprite, { type TurtleLevel } from '@/components/TurtleSprite';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 const TYPES: WriteType[] = ['묘사문', '설명문', '감상문', '의견문', '기사 리드', '카피라이팅', '에세이', '스토리텔링'];
 
@@ -500,7 +501,7 @@ function WritingPageInner() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('이 글을 삭제할까요?')) return;
+    if (!await confirmDialog('이 글을 삭제할까요?', { danger: true, confirmLabel: '삭제' })) return;
     const db = loadDB();
     db.writings = db.writings.filter(w => w.id !== id);
     db._deletedIds = [...(db._deletedIds ?? []), id];

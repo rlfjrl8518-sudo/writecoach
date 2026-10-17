@@ -4,6 +4,7 @@ import Navigation from '@/components/Navigation';
 import PixelCharacter from '@/components/PixelCharacter';
 import CloudSync from '@/components/CloudSync';
 import ClientLayout from '@/components/ClientLayout';
+import ConfirmDialogRoot from '@/components/ConfirmDialog';
 
 export const metadata: Metadata = {
   title: '글습관 — AI 글쓰기 훈련',
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <CloudSync />
+        <ConfirmDialogRoot />
         <ClientLayout>
           <Navigation />
           <main className="main-layout">

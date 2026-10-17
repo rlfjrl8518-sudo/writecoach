@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { loadDB, saveDB, saveDBLocal, loadSettings, mergeCopyType, groupByMonth, type CopyEntry, type CopyAnalysis } from '@/lib/db';
+import { confirmDialog } from '@/components/ConfirmDialog';
 import { pushData } from '@/lib/supabase';
 import { analyzeCopy } from '@/lib/openai';
 
@@ -208,7 +209,7 @@ function CopyPageInner() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('이 카피를 삭제할까요?')) return;
+    if (!await confirmDialog('이 카피를 삭제할까요?', { danger: true, confirmLabel: '삭제' })) return;
     const db = loadDB();
     db.copies = db.copies.filter(c => c.id !== id);
     db._deletedIds = [...(db._deletedIds ?? []), id];

@@ -5,6 +5,7 @@ import {
   type Book, type BookNote, type BookStatus,
 } from '@/lib/db';
 import { pushData } from '@/lib/supabase';
+import { confirmDialog } from '@/components/ConfirmDialog';
 
 function todayStr() { return new Date().toISOString().split('T')[0]; }
 function fmtDate(d?: string) {
@@ -218,7 +219,7 @@ export default function BooksPage() {
   }
 
   async function handleDeleteBook(bookId: number) {
-    if (!confirm('이 책과 읽은 기록을 모두 삭제할까요? 되돌릴 수 없어요.')) return;
+    if (!await confirmDialog('이 책과 읽은 기록을 모두 삭제할까요? 되돌릴 수 없어요.', { danger: true, confirmLabel: '삭제' })) return;
     const db = loadDB();
     const noteIds = db.bookNotes.filter(n => n.bookId === bookId).map(n => n.id);
     db.books = db.books.filter(b => b.id !== bookId);
@@ -231,7 +232,7 @@ export default function BooksPage() {
   }
 
   async function handleDeleteNote(noteId: number) {
-    if (!confirm('이 기록을 삭제할까요?')) return;
+    if (!await confirmDialog('이 기록을 삭제할까요?', { danger: true, confirmLabel: '삭제' })) return;
     const db = loadDB();
     db.bookNotes = db.bookNotes.filter(n => n.id !== noteId);
     db._deletedIds = [...(db._deletedIds ?? []), noteId];
