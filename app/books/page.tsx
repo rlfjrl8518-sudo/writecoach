@@ -115,11 +115,17 @@ export default function BooksPage() {
     setBookNotes(db.bookNotes);
   }, [saved]);
 
+  const [booksQuery, setBooksQuery] = useState('');
   const reading = useMemo(() => books.filter(b => b.status === '읽는 중'), [books]);
   const others  = useMemo(() => books.filter(b => b.status !== '읽는 중'), [books]);
+  const filteredOthers = useMemo(() => {
+    const q = booksQuery.trim().toLowerCase();
+    if (!q) return others;
+    return others.filter(b => b.title.toLowerCase().includes(q) || (b.author ?? '').toLowerCase().includes(q));
+  }, [others, booksQuery]);
   const otherGroups = useMemo(
-    () => groupByMonth(others, b => b.finishedAt || b.createdAt),
-    [others]
+    () => groupByMonth(filteredOthers, b => b.finishedAt || b.createdAt),
+    [filteredOthers]
   );
 
   function toggleMonth(key: string) {
@@ -367,7 +373,17 @@ export default function BooksPage() {
 
       {others.length > 0 && (
         <div>
-          <div className="px-sec-title" style={{ marginBottom: 14 }}>✦ 완독 · 중단 ({others.length}개)</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            <div className="px-sec-title" style={{ marginBottom: 0 }}>✦ 완독 · 중단 ({filteredOthers.length}/{others.length}개)</div>
+            <input
+              className="px-input" placeholder="제목·저자 검색" value={booksQuery}
+              onChange={e => setBooksQuery(e.target.value)}
+              style={{ fontSize: 12, padding: '6px 10px', width: 160 }}
+            />
+          </div>
+          {otherGroups.length === 0 && (
+            <p style={{ fontSize: 13, color: 'var(--dim-star)', padding: '12px 0' }}>검색 결과가 없어요.</p>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {otherGroups.map(group => {
               const isOpen = openMonths.has(group.key);

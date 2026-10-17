@@ -24,6 +24,12 @@ async function doSync(db: DB) {
   }
 }
 
+/** 동기화 오류 상태에서 사용자가 직접 재시도할 때 호출 (Navigation의 동기화 아이콘) */
+export async function retrySync() {
+  if (!isSupabaseConfigured || !supabase) return;
+  await doSync(loadDB());
+}
+
 export default function CloudSync() {
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;

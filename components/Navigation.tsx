@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { loadDB } from '@/lib/db';
 import { getWrittenDays, getLevelInfo, getLevelProgress, toTurtleLevel } from '@/lib/journey';
 import TurtleSprite from '@/components/TurtleSprite';
+import { retrySync } from '@/components/CloudSync';
 import type { SyncStatus } from '@/components/CloudSync';
 
 const TABS = [
@@ -40,7 +41,7 @@ function SyncBadge() {
   const cfg: Record<SyncStatus, { icon: string; color: string; title: string }> = {
     synced:  { icon: '☁', color: 'var(--accent)', title: '동기화됨 · 계정 설정'  },
     syncing: { icon: '↻', color: 'var(--moon)',   title: '동기화 중...'            },
-    error:   { icon: '☁', color: 'var(--bad)',    title: '동기화 오류 · 설정 확인' },
+    error:   { icon: '⟲', color: 'var(--bad)',    title: '동기화 오류 · 눌러서 재시도' },
     offline: { icon: '☁', color: 'var(--card-border)', title: '로그인하고 동기화하기' },
   };
   const { icon, color, title } = cfg[status];
@@ -48,7 +49,10 @@ function SyncBadge() {
   return (
     <button
       title={title}
-      onClick={() => router.push(status === 'offline' ? '/login' : '/settings')}
+      onClick={() => {
+        if (status === 'error') { retrySync(); return; }
+        router.push(status === 'offline' ? '/login' : '/settings');
+      }}
       style={{
         width: 28, height: 28, flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',

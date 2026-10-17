@@ -143,7 +143,16 @@ function CopyPageInner() {
     setHistory([...db.copies].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   }, [saved]);
 
-  const monthGroups = useMemo(() => groupByMonth(history, e => e.createdAt), [history]);
+  const [historyQuery, setHistoryQuery] = useState('');
+  const filteredHistory = useMemo(() => {
+    const q = historyQuery.trim().toLowerCase();
+    if (!q) return history;
+    return history.filter(e =>
+      e.copy.toLowerCase().includes(q) || e.brand.toLowerCase().includes(q) ||
+      e.source.toLowerCase().includes(q) || (e.memo ?? '').toLowerCase().includes(q)
+    );
+  }, [history, historyQuery]);
+  const monthGroups = useMemo(() => groupByMonth(filteredHistory, e => e.createdAt), [filteredHistory]);
 
   function toggleMonth(key: string) {
     setOpenMonths(prev => {
@@ -344,7 +353,17 @@ function CopyPageInner() {
       {/* 수집 목록 */}
       {history.length > 0 && (
         <div style={{ marginTop: 24 }}>
-          <div className="px-sec-title" style={{ marginBottom: 14 }}>✦ 수집 카피 ({history.length}개)</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            <div className="px-sec-title" style={{ marginBottom: 0 }}>✦ 수집 카피 ({filteredHistory.length}/{history.length}개)</div>
+            <input
+              className="px-input" placeholder="카피·브랜드·출처 검색" value={historyQuery}
+              onChange={e => setHistoryQuery(e.target.value)}
+              style={{ fontSize: 12, padding: '6px 10px', width: 160 }}
+            />
+          </div>
+          {monthGroups.length === 0 && (
+            <p style={{ fontSize: 13, color: 'var(--dim-star)', padding: '12px 0' }}>검색 결과가 없어요.</p>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {monthGroups.map(group => {
               const isOpen = openMonths.has(group.key);

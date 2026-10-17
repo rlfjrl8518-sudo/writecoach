@@ -324,6 +324,8 @@ function WritingPageInner() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [analyzingId, setAnalyzingId] = useState<number | null>(null);
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
+  const [historyQuery, setHistoryQuery] = useState('');
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<WriteType | ''>('');
   const [analyzedText,  setAnalyzedText]  = useState('');
   const [analyzedType,  setAnalyzedType]  = useState<WriteType>('에세이');
   const [analyzedTopic, setAnalyzedTopic] = useState('');
@@ -343,7 +345,14 @@ function WritingPageInner() {
     setHistory([...db.writings].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)));
   }, [saved]);
 
-  const monthGroups = useMemo(() => groupByMonth(history, e => e.date), [history]);
+  const filteredHistory = useMemo(() => {
+    const q = historyQuery.trim().toLowerCase();
+    return history.filter(e =>
+      (!historyTypeFilter || e.type === historyTypeFilter) &&
+      (!q || e.topic.toLowerCase().includes(q) || e.text.toLowerCase().includes(q))
+    );
+  }, [history, historyQuery, historyTypeFilter]);
+  const monthGroups = useMemo(() => groupByMonth(filteredHistory, e => e.date), [filteredHistory]);
   const currentLevel = useMemo(() => toTurtleLevel(getLevelInfo(getWrittenDays(history)).level), [history]);
 
   function toggleMonth(key: string) {
@@ -679,7 +688,26 @@ function WritingPageInner() {
       {/* 기록 목록 */}
       {history.length > 0 && (
         <div style={{ marginTop: 24 }}>
-          <div className="px-sec-title" style={{ marginBottom: 14 }}>✦ 작성 기록 ({history.length}편)</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            <div className="px-sec-title" style={{ marginBottom: 0 }}>✦ 작성 기록 ({filteredHistory.length}/{history.length}편)</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                className="px-input" placeholder="주제·본문 검색" value={historyQuery}
+                onChange={e => setHistoryQuery(e.target.value)}
+                style={{ fontSize: 12, padding: '6px 10px', width: 160 }}
+              />
+              <select
+                className="px-select" style={{ fontSize: 12, padding: '6px 10px' }}
+                value={historyTypeFilter} onChange={e => setHistoryTypeFilter(e.target.value as WriteType | '')}
+              >
+                <option value="">전체 유형</option>
+                {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          {monthGroups.length === 0 && (
+            <p style={{ fontSize: 13, color: 'var(--dim-star)', padding: '12px 0' }}>검색 결과가 없어요.</p>
+          )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {monthGroups.map(group => {
               const isOpen = openMonths.has(group.key);
