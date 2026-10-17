@@ -271,17 +271,17 @@ const DRILLS: DrillTypeDef[] = [
   {
     id: 1, name: '관찰 훈련', purpose: '사실과 해석을 구분하는 능력', time: '3-5분', color: 'var(--accent)', accent: 'var(--accent-dim)',
     problems: [
-      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-1', imageQuery: 'candid street photography', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['보인다', '것 같다', '해 보인다', '느껴진다'] },
+      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-1', imageQuery: 'street photography', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['보인다', '것 같다', '해 보인다', '느껴진다'] },
     ],
   },
   {
     id: 2, name: '보여주기 훈련', purpose: '감정을 직접 말하지 않고 장면으로 전달하는 능력', time: '3-5분', color: 'var(--moon)', accent: 'var(--moon-dim)',
     problems: [
-      { scene: '감정: 슬픔', imageSeed: 'wc-show-1', imageQuery: 'melancholy rain window', instruction: '사진 속 장면을 활용해, "슬프다/슬픔/우울하다/힘들다/그립다" 없이 슬픔이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['슬프다', '슬픔', '우울하다', '힘들다', '그립다', '눈물'] },
-      { scene: '감정: 설렘', imageSeed: 'wc-show-2', imageQuery: 'sunrise anticipation morning light', instruction: '사진 속 장면을 활용해, "설렌다/두근거린다/기대된다/좋다" 없이 설렘이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['설렌다', '설레다', '두근', '기대된다', '좋다', '행복'] },
-      { scene: '감정: 불안', imageSeed: 'wc-show-3', imageQuery: 'empty hallway dim light', instruction: '사진 속 장면을 활용해, "불안하다/초조하다/걱정되다/긴장된다" 없이 불안이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['불안하다', '불안', '초조하다', '걱정되다', '긴장된다'] },
-      { scene: '감정: 그리움', imageSeed: 'wc-show-4', imageQuery: 'old photograph nostalgia faded', instruction: '사진 속 장면을 활용해, "그립다/보고싶다/그리움" 없이 그리움이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['그립다', '그리움', '보고싶다', '보고 싶다'] },
-      { scene: '감정: 외로움', imageSeed: 'wc-show-5', imageQuery: 'solitude empty bench alone', instruction: '사진 속 장면을 활용해, "외롭다/쓸쓸하다/혼자/고독" 없이 외로움이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['외롭다', '외로움', '쓸쓸하다', '혼자', '고독'] },
+      { scene: '감정: 슬픔', imageSeed: 'wc-show-1', imageQuery: 'rainy window', instruction: '사진 속 장면을 활용해, "슬프다/슬픔/우울하다/힘들다/그립다" 없이 슬픔이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['슬프다', '슬픔', '우울하다', '힘들다', '그립다', '눈물'] },
+      { scene: '감정: 설렘', imageSeed: 'wc-show-2', imageQuery: 'sunrise morning', instruction: '사진 속 장면을 활용해, "설렌다/두근거린다/기대된다/좋다" 없이 설렘이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['설렌다', '설레다', '두근', '기대된다', '좋다', '행복'] },
+      { scene: '감정: 불안', imageSeed: 'wc-show-3', imageQuery: 'empty hallway', instruction: '사진 속 장면을 활용해, "불안하다/초조하다/걱정되다/긴장된다" 없이 불안이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['불안하다', '불안', '초조하다', '걱정되다', '긴장된다'] },
+      { scene: '감정: 그리움', imageSeed: 'wc-show-4', imageQuery: 'old photograph', instruction: '사진 속 장면을 활용해, "그립다/보고싶다/그리움" 없이 그리움이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['그립다', '그리움', '보고싶다', '보고 싶다'] },
+      { scene: '감정: 외로움', imageSeed: 'wc-show-5', imageQuery: 'lonely bench', instruction: '사진 속 장면을 활용해, "외롭다/쓸쓸하다/혼자/고독" 없이 외로움이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['외롭다', '외로움', '쓸쓸하다', '혼자', '고독'] },
     ],
   },
   {
@@ -292,18 +292,18 @@ const DRILLS: DrillTypeDef[] = [
        (D) 정지한 사물에 생명 불어넣기 — 무생물에 동작 동사 적용 */
     id: 3, name: '동사의 힘 훈련', purpose: '동사 하나로 장면의 생생함·속도·책임을 조율하는 능력', time: '3-6분', color: 'var(--good)', accent: 'var(--good-dim)',
     problems: [
-      { scene: '오늘의 장면 사진', imageSeed: 'wc-verb-1', imageQuery: 'everyday life scene', instruction: '[죽은 동사 무덤] 사진 속 장면을 2-3문장으로 묘사하세요. "이다/있다/하다/되다"와 그 활용형(이었다·있었다·했다·됐다 등)은 무덤에 묻혔습니다 — 더 구체적이고 생생한 동사로 바꿔 쓰세요.', constraints: ['이다', '있다', '없다', '하다', '되다', '이었다', '있었다', '했다', '됐다', '했었다'] },
+      { scene: '오늘의 장면 사진', imageSeed: 'wc-verb-1', imageQuery: 'daily life', instruction: '[죽은 동사 무덤] 사진 속 장면을 2-3문장으로 묘사하세요. "이다/있다/하다/되다"와 그 활용형(이었다·있었다·했다·됐다 등)은 무덤에 묻혔습니다 — 더 구체적이고 생생한 동사로 바꿔 쓰세요.', constraints: ['이다', '있다', '없다', '하다', '되다', '이었다', '있었다', '했다', '됐다', '했었다'] },
       { scene: '"그 과정에서 실수가 있었다."', instruction: '[수동태의 책임] 이 문장은 수동태 뒤에 책임질 사람이 숨어 있습니다. 누가 무엇을 했는지 분명히 드러나도록 능동태로 다시 쓰세요.' },
       { scene: '"고객님께 불편을 드려 죄송합니다. 해당 건은 확인 후 조치될 예정입니다."', instruction: '[수동태의 책임] 누가 무슨 잘못을 했고, 누가 무엇을 하겠다는 건지 주어와 행동을 분명히 밝혀 능동태로 다시 쓰세요.' },
       { scene: '"이번 분기 예산이 초과 집행되었다."', instruction: '[수동태의 책임] "되었다" 뒤에 숨은 행위자를 찾아, 누가 예산을 초과해서 썼는지 드러나도록 능동태로 다시 쓰세요.' },
-      { scene: '오늘의 장면 사진', imageSeed: 'wc-pace-1', imageQuery: 'motion street city', instruction: '[동사와 속도] 사진 속 장면을 두 버전으로 묘사하세요 — (1) 독자가 천천히 읽게 되는 느릿한 동사로 2문장, (2) 독자를 빠르게 몰아가는 동사로 2문장. 같은 장면, 다른 속도여야 합니다.' },
-      { scene: '오늘의 장면 사진', imageSeed: 'wc-animate-1', imageQuery: 'still life objects room', instruction: '[사물에 생명 불어넣기] 사진 속 움직이지 않는 사물 하나를 골라, 마치 살아 움직이는 것처럼 동작 동사로 표현하는 문장을 2-3개 쓰세요. (예: 전선이 벽을 타고 달린다, 그림자가 바닥에 드리워진다)' },
+      { scene: '오늘의 장면 사진', imageSeed: 'wc-pace-1', imageQuery: 'street motion', instruction: '[동사와 속도] 사진 속 장면을 두 버전으로 묘사하세요 — (1) 독자가 천천히 읽게 되는 느릿한 동사로 2문장, (2) 독자를 빠르게 몰아가는 동사로 2문장. 같은 장면, 다른 속도여야 합니다.' },
+      { scene: '오늘의 장면 사진', imageSeed: 'wc-animate-1', imageQuery: 'still life', instruction: '[사물에 생명 불어넣기] 사진 속 움직이지 않는 사물 하나를 골라, 마치 살아 움직이는 것처럼 동작 동사로 표현하는 문장을 2-3개 쓰세요. (예: 전선이 벽을 타고 달린다, 그림자가 바닥에 드리워진다)' },
     ],
   },
   {
     id: 4, name: '한 줄 통찰 훈련', purpose: '평범한 장면에서 의미를 발견해 한 줄로 압축하는 능력', time: '5분', color: 'var(--secondary)', accent: 'var(--good-dim)',
     problems: [
-      { scene: '오늘의 장면 사진', imageSeed: 'wc-line-1', imageQuery: 'ordinary life moment', instruction: '사진 속 장면을 보고, 그 안에 담긴 의미나 이야기를 한 줄의 카피로 압축하세요. 설명하지 말고, 여운이 남도록 짧게 쓰세요 (20자 내외 권장).' },
+      { scene: '오늘의 장면 사진', imageSeed: 'wc-line-1', imageQuery: 'everyday moment', instruction: '사진 속 장면을 보고, 그 안에 담긴 의미나 이야기를 한 줄의 카피로 압축하세요. 설명하지 말고, 여운이 남도록 짧게 쓰세요 (20자 내외 권장).' },
     ],
   },
 ];
@@ -382,15 +382,22 @@ function DrillResult({ result }: { result: DrillEvaluation }) {
 /* ── 사진 로딩: Unsplash 키가 있으면 주제 검색, 없으면(또는 실패 시) Picsum 무작위로 폴백 ── */
 interface DrillPhoto { url: string; credit?: string; creditUrl?: string; }
 
+interface UnsplashResult { urls?: { regular?: string }; user?: { name?: string }; links?: { html?: string } }
+
 async function fetchUnsplashPhoto(accessKey: string, query: string): Promise<DrillPhoto | null> {
   try {
     const res = await fetch(`/api/unsplash?query=${encodeURIComponent(query)}&orientation=landscape`, {
       headers: { Authorization: `Client-ID ${accessKey}` },
     });
     if (!res.ok) return null;
-    const data = await res.json() as { urls?: { regular?: string }; user?: { name?: string }; links?: { html?: string } };
-    if (!data.urls?.regular) return null;
-    return { url: data.urls.regular, credit: data.user?.name, creditUrl: data.links?.html };
+    const data = await res.json() as { results?: UnsplashResult[] };
+    const pool = (data.results ?? []).filter(r => r.urls?.regular);
+    if (pool.length === 0) return null;
+    // 관련성 순으로 정렬된 상위 결과 중 무작위 선택 — 1등만 고정으로 반복해서 보여주지 않으면서도
+    // 관련 없는 사진이 섞이지 않도록 상위 절반 정도로만 범위를 좁힌다.
+    const topN = pool.slice(0, Math.max(1, Math.ceil(pool.length / 2)));
+    const pick = topN[Math.floor(Math.random() * topN.length)];
+    return { url: pick.urls!.regular!, credit: pick.user?.name, creditUrl: pick.links?.html };
   } catch { return null; }
 }
 
