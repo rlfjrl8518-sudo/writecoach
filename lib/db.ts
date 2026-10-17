@@ -424,10 +424,13 @@ export interface Settings {
   model: string;
   geminiApiKey: string;
   geminiModel: string;
+  /** 선택 — 글쓰기 도장 사진을 Picsum(무작위) 대신 Unsplash(주제 검색)로 가져올 때 사용 */
+  unsplashAccessKey: string;
 }
 const DEFAULTS: Settings = {
   provider: 'openai', apiKey: '', model: 'gpt-4o',
   geminiApiKey: '', geminiModel: 'gemini-2.0-flash',
+  unsplashAccessKey: '',
 };
 export function loadSettings(): Settings {
   if (typeof window === 'undefined') return DEFAULTS;

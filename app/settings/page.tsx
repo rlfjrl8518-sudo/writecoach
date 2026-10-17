@@ -28,6 +28,8 @@ export default function SettingsPage() {
   const [geminiApiKey,  setGeminiApiKey]  = useState('');
   const [geminiModel,   setGeminiModel]   = useState('gemini-2.0-flash');
   const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [unsplashAccessKey, setUnsplashAccessKey] = useState('');
+  const [showUnsplashKey,   setShowUnsplashKey]   = useState(false);
   const [saved,         setSaved]         = useState(false);
   const [dailyGoal,     setDailyGoal]     = useState(300);
   const importRef = useRef<HTMLInputElement>(null);
@@ -45,6 +47,7 @@ export default function SettingsPage() {
     setModel(s.model || 'gpt-4o');
     setGeminiApiKey(s.geminiApiKey || '');
     setGeminiModel(s.geminiModel || 'gemini-2.0-flash');
+    setUnsplashAccessKey(s.unsplashAccessKey || '');
     setDailyGoal(loadGamification().dailyGoal);
 
     if (isSupabaseConfigured) {
@@ -54,7 +57,7 @@ export default function SettingsPage() {
   }, []);
 
   function handleSave() {
-    const s = { provider, apiKey: apiKey.trim(), model, geminiApiKey: geminiApiKey.trim(), geminiModel };
+    const s = { provider, apiKey: apiKey.trim(), model, geminiApiKey: geminiApiKey.trim(), geminiModel, unsplashAccessKey: unsplashAccessKey.trim() };
     saveSettings(s);
     saveGamification({ dailyGoal: Math.max(50, Math.min(5000, dailyGoal)) });
     setSaved(true);
@@ -252,6 +255,41 @@ export default function SettingsPage() {
                 <option value="gemini-1.5-pro">gemini-1.5-pro — 구형 고성능</option>
               </select>
             )}
+          </div>
+        </Section>
+
+        <div className="px-divider" />
+
+        {/* 글쓰기 도장 사진 (선택) */}
+        <Section title="글쓰기 도장 사진 (선택)">
+          <p style={{ fontSize: 12, color: 'var(--dim-star)', lineHeight: 1.7, marginBottom: 12 }}>
+            비워두면 무작위 사진(Picsum)을 써요. 키를 넣으면 훈련 주제("쓸쓸함", "비 오는 거리" 등)에 더 맞는 사진을 Unsplash에서 가져와요.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <label className="px-label" style={{ margin: 0 }}>Unsplash Access Key</label>
+            <a
+              href="https://unsplash.com/oauth/applications"
+              target="_blank" rel="noopener noreferrer"
+              style={{ fontSize: 12, color: 'var(--accent)', textDecoration: 'none', fontWeight: 500, fontFamily: 'Pretendard, sans-serif' }}
+            >
+              무료로 발급하기 →
+            </a>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <input
+              className="px-input"
+              type={showUnsplashKey ? 'text' : 'password'}
+              placeholder="(선택) Unsplash Access Key"
+              value={unsplashAccessKey}
+              onChange={e => setUnsplashAccessKey(e.target.value)}
+              style={{ fontFamily: 'monospace', paddingRight: 48 }}
+            />
+            <button
+              onClick={() => setShowUnsplashKey(v => !v)}
+              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 14 }}
+            >
+              {showUnsplashKey ? '🙈' : '👁'}
+            </button>
           </div>
         </Section>
 
