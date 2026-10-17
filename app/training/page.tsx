@@ -250,6 +250,8 @@ interface DrillProblem {
   scene: string;
   instruction: string;
   constraints?: string[];
+  /** 있으면 텍스트 대신 실제 사진으로 관찰/감각 훈련을 진행 (Picsum seed) */
+  imageSeed?: string;
 }
 interface DrillTypeDef {
   id: number;
@@ -265,17 +267,17 @@ const DRILLS: DrillTypeDef[] = [
   {
     id: 1, name: '관찰 훈련', purpose: '사실과 해석을 구분하는 능력', time: '3-5분', color: 'var(--accent)', accent: 'var(--accent-dim)',
     problems: [
-      { scene: '비 오는 버스 정류장', instruction: '보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['외로워 보인다', '기다리는 것 같다', '쓸쓸하다', '누군가를'] },
-      { scene: '새벽 3시 편의점 내부', instruction: '보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['피곤해 보인다', '힘들어 보인다', '~인 것 같다'] },
-      { scene: '일요일 오후 공원 벤치', instruction: '보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['쓸쓸해 보인다', '행복해 보인다', '~것 같다'] },
+      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-1', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['외로워 보인다', '기다리는 것 같다', '쓸쓸하다', '~인 것 같다'] },
+      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-2', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['피곤해 보인다', '힘들어 보인다', '~인 것 같다'] },
+      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-3', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['쓸쓸해 보인다', '행복해 보인다', '~것 같다'] },
     ],
   },
   {
     id: 2, name: '감각 묘사 훈련', purpose: '오감을 활용한 묘사 능력', time: '3-5분', color: 'var(--moon)', accent: 'var(--moon-dim)',
     problems: [
-      { scene: '새벽 5시 전통시장', instruction: '시각 표현 금지. 청각만으로 이 장면을 묘사하세요.', constraints: ['보인다', '보이다', '빛난다', '색', '형태', '모습'] },
-      { scene: '겨울 목욕탕 탈의실', instruction: '시각 표현 금지. 후각과 촉각만으로 묘사하세요.', constraints: ['보인다', '보이다', '색깔', '빛', '눈에'] },
-      { scene: '비 오는 일요일 오후 집 안', instruction: '시각 표현 금지. 청각과 촉각만으로 묘사하세요.', constraints: ['보인다', '보이다', '보여', '빛', '색'] },
+      { scene: '오늘의 장면 사진', imageSeed: 'wc-sense-1', instruction: '사진 속 장소에 있다고 상상하세요. 시각 표현은 금지, 청각만으로 이 장면을 묘사하세요.', constraints: ['보인다', '보이다', '빛난다', '색', '형태', '모습'] },
+      { scene: '오늘의 장면 사진', imageSeed: 'wc-sense-2', instruction: '사진 속 장소에 있다고 상상하세요. 시각 표현은 금지, 후각과 촉각만으로 묘사하세요.', constraints: ['보인다', '보이다', '색깔', '빛', '눈에'] },
+      { scene: '오늘의 장면 사진', imageSeed: 'wc-sense-3', instruction: '사진 속 장소에 있다고 상상하세요. 시각 표현은 금지, 청각과 촉각만으로 묘사하세요.', constraints: ['보인다', '보이다', '보여', '빛', '색'] },
     ],
   },
   {
@@ -332,6 +334,14 @@ const DRILLS: DrillTypeDef[] = [
       { scene: '"컵은 두 개였다."', instruction: `아래 4가지를 각각 작성하세요:\n1. 보이는 사실 (이 문장이 서술하는 것)\n2. 생략된 정보 (말하지 않지만 느껴지는 것)\n3. 숨겨진 감정 (키워드 1-2개)\n4. 왜 인상적인가 (1문장)` },
       { scene: '"가로등이 꺼지기 전에 집에 도착하고 싶었다."', instruction: `아래 4가지를 각각 작성하세요:\n1. 보이는 사실\n2. 생략된 정보\n3. 숨겨진 감정\n4. 왜 인상적인가` },
       { scene: '"그 문자는 3년 뒤에 읽었다."', instruction: `아래 4가지를 각각 작성하세요:\n1. 보이는 사실\n2. 생략된 정보\n3. 숨겨진 감정\n4. 왜 인상적인가` },
+    ],
+  },
+  {
+    id: 10, name: '동사 무덤 훈련', purpose: '밋밋한 동사를 생생하고 구체적인 동사로 바꾸는 능력', time: '3-5분', color: 'var(--moon)', accent: 'var(--moon-dim)',
+    problems: [
+      { scene: '"그는 슬픈 얼굴로 의자에 앉아 있었다."', instruction: '"있었다", "앉아" 같은 밋밋한 동사를 무덤에 묻으세요. 슬픔이 자세·동작만으로 느껴지도록 생생한 동사로 다시 쓰세요.', constraints: ['있었다', '앉아', '슬픈', '슬프다'] },
+      { scene: '"그녀는 화가 나서 문을 세게 닫았다."', instruction: '"나서", "닫았다" 같은 밋밋한 동사를 무덤에 묻으세요. 분노가 동작의 세기와 질감으로 전해지도록 다시 쓰세요.', constraints: ['화가 나서', '닫았다'] },
+      { scene: '"강아지가 신이 나서 마당을 뛰어다녔다."', instruction: '"나서", "뛰어다녔다" 같은 흔한 동사를 무덤에 묻으세요. 강아지의 움직임이 눈에 보이듯 구체적인 동사로 다시 쓰세요.', constraints: ['신이 나서', '뛰어다녔다'] },
     ],
   },
 ];
@@ -415,8 +425,13 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
   const [result, setResult] = useState<DrillEvaluation | null>(null);
   const [err, setErr] = useState('');
   const [streamLen, setStreamLen] = useState(0);
+  const [imgSeedOverride, setImgSeedOverride] = useState<string | null>(null);
 
   const prob = drill.problems[probIdx];
+  const imgSeed = imgSeedOverride ?? prob.imageSeed;
+
+  useEffect(() => { setImgSeedOverride(null); }, [probIdx]);
+  function shuffleImage() { setImgSeedOverride('wc-' + Math.random().toString(36).slice(2, 10)); }
 
   async function handleEvaluate() {
     if (!answer.trim()) return;
@@ -428,6 +443,7 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
       const ev = await evaluateDrill(
         s, drill.name, drill.purpose, prob.scene, prob.instruction, prob.constraints || [], answer.trim(),
         (chunk) => setStreamLen(l => l + chunk.length),
+        imgSeed ? `https://picsum.photos/seed/${imgSeed}/640/400` : undefined,
       );
       setResult(ev);
       setPhase('result');
@@ -460,9 +476,38 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
       {/* 문제 */}
       <div style={{ marginBottom: 16 }}>
         <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginBottom: 8 }}>✦ 상황 / 장면</div>
-        <div style={{ padding: '14px 16px', background: 'var(--bg-card)', border: `1px solid ${drill.color}44`, borderRadius: 8, fontSize: 15, fontWeight: 700, color: 'var(--text)', lineHeight: 1.7 }}>
-          {prob.scene}
-        </div>
+        {imgSeed ? (
+          <div style={{ position: 'relative' }}>
+            <img
+              key={imgSeed}
+              src={`https://picsum.photos/seed/${imgSeed}/640/400`}
+              alt={prob.scene}
+              loading="lazy"
+              style={{
+                width: '100%', aspectRatio: '16 / 10', objectFit: 'cover',
+                borderRadius: 8, border: `1px solid ${drill.color}44`,
+                background: 'var(--bg-subtle)', display: 'block',
+              }}
+            />
+            {phase === 'write' && (
+              <button
+                onClick={shuffleImage}
+                style={{
+                  position: 'absolute', top: 10, right: 10,
+                  padding: '6px 12px', fontSize: 12, fontWeight: 600,
+                  background: 'rgba(0,0,0,0.55)', color: '#fff',
+                  border: 'none', borderRadius: 6, cursor: 'pointer',
+                }}
+              >
+                ↻ 다른 사진
+              </button>
+            )}
+          </div>
+        ) : (
+          <div style={{ padding: '14px 16px', background: 'var(--bg-card)', border: `1px solid ${drill.color}44`, borderRadius: 8, fontSize: 15, fontWeight: 700, color: 'var(--text)', lineHeight: 1.7 }}>
+            {prob.scene}
+          </div>
+        )}
       </div>
       <div style={{ marginBottom: prob.constraints?.length ? 12 : 16 }}>
         <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginBottom: 6 }}>✦ 작성 지시</div>

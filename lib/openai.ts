@@ -26,10 +26,15 @@ async function callOpenAI(
   maxTokens: number, temp: number, jsonMode: boolean,
   onStream?: (chunk: string) => void,
   schema?: object,
+  imageUrl?: string,
 ): Promise<string> {
+  // 비전 입력 — 이미지 URL은 OpenAI가 서버에서 직접 가져온다 (별도 fetch 불필요)
+  const userContent: unknown = imageUrl
+    ? [{ type: 'text', text: user }, { type: 'image_url', image_url: { url: imageUrl } }]
+    : user;
   const messages = system
-    ? [{ role: 'system', content: system }, { role: 'user', content: user }]
-    : [{ role: 'user', content: user }];
+    ? [{ role: 'system', content: system }, { role: 'user', content: userContent }]
+    : [{ role: 'user', content: userContent }];
 
   const reasoning = isReasoningModel(model);
   const useStream = !!onStream;
@@ -110,12 +115,30 @@ async function callOpenAI(
   return full;
 }
 
+/** 이미지 URL → Gemini inline_data 파트. Gemini REST는 외부 URL을 직접 못 받아서
+ *  브라우저에서 바이트를 받아 base64로 인코딩해 보낸다. fetch 실패(CORS 등)는 조용히
+ *  건너뛴다 — 이미지 없이 텍스트만으로 평가가 진행된다. */
+async function imageUrlToGeminiPart(url: string): Promise<{ inline_data: { mime_type: string; data: string } } | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunkSize)));
+    }
+    return { inline_data: { mime_type: res.headers.get('Content-Type') || 'image/jpeg', data: btoa(binary) } };
+  } catch { return null; }
+}
+
 /* ── Gemini 호출 (스트리밍 지원) ── */
 async function callGemini(
   apiKey: string, model: string, system: string, user: string,
   maxTokens: number, temp: number, jsonMode: boolean,
   onStream?: (chunk: string) => void,
   schema?: object,
+  imageUrl?: string,
 ): Promise<string> {
   const generationConfig: Record<string, unknown> = { temperature: temp, maxOutputTokens: maxTokens };
   if (schema) {
@@ -124,8 +147,9 @@ async function callGemini(
   } else if (jsonMode) {
     generationConfig.responseMimeType = 'application/json';
   }
+  const imagePart = imageUrl ? await imageUrlToGeminiPart(imageUrl) : null;
   const body: Record<string, unknown> = {
-    contents: [{ role: 'user', parts: [{ text: user }] }],
+    contents: [{ role: 'user', parts: imagePart ? [{ text: user }, imagePart] : [{ text: user }] }],
     generationConfig,
   };
   if (system) body.system_instruction = { parts: [{ text: system }] };
@@ -196,13 +220,14 @@ async function callAI(
   maxTokens = 2000, temp = 0.3, jsonMode = false,
   onStream?: (chunk: string) => void,
   schema?: object,
+  imageUrl?: string,
 ): Promise<string> {
   if (s.provider === 'gemini') {
     if (!s.geminiApiKey) throw new Error('설정에서 Gemini API 키를 먼저 입력해주세요.');
-    return callGemini(s.geminiApiKey, s.geminiModel, system, user, maxTokens, temp, jsonMode, onStream, schema);
+    return callGemini(s.geminiApiKey, s.geminiModel, system, user, maxTokens, temp, jsonMode, onStream, schema, imageUrl);
   }
   if (!s.apiKey) throw new Error('설정에서 OpenAI API 키를 먼저 입력해주세요.');
-  return callOpenAI(s.apiKey, s.model, system, user, maxTokens, temp, jsonMode, onStream, schema);
+  return callOpenAI(s.apiKey, s.model, system, user, maxTokens, temp, jsonMode, onStream, schema, imageUrl);
 }
 
 /* ── AI 코치 채팅 ── */
@@ -734,10 +759,12 @@ export async function evaluateDrill(
   constraints: string[],
   answer: string,
   onStream?: (chunk: string) => void,
+  imageUrl?: string,
 ): Promise<DrillEvaluation> {
   const sys = `너는 글쓰기 트레이너다. 훈련 유형과 목적에 맞게 사용자 답변을 분석한다.
 훈련: ${drillName} — ${purpose}
 ${constraints.length ? `금지 표현 위반 여부 반드시 확인: ${constraints.join(', ')}` : ''}
+${imageUrl ? '사용자에게는 사진 한 장이 주어졌다. 첨부된 사진을 직접 보고, 답변이 사진 속 실제 내용과 일치하는 사실인지(관찰력), 사진에 없는 내용을 지어내지 않았는지 반드시 확인해 평가하라.' : ''}
 
 점수 기준 (각 0-10):
 관찰력: 사실을 정확히 포착했는가
@@ -753,7 +780,7 @@ ${constraints.length ? `금지 표현 위반 여부 반드시 확인: ${constrai
 {"scores":"관찰력:7|구체성:8|표현다양성:6|감정전달력:7|문장밀도:8|독창성:9|추상어비율:30|감각표현비율:60","feedback":"전반적 피드백 2-3문장 (따뜻하고 구체적으로)","strengths":"잘된점1|잘된점2","improvements":"개선점1|개선점2","model":"모범답안 (1-3문장)","why":"왜 좋은 답변인지 핵심 해설 1-2문장"}`;
 
   const user = `[상황/장면]\n${scene}\n\n[작성 지시]\n${instruction}\n\n[사용자 답변]\n${answer}`;
-  const raw = await callAI(s, sys, user, 1200, 0.3, true, onStream);
+  const raw = await callAI(s, sys, user, 1200, 0.3, true, onStream, undefined, imageUrl);
 
   const r = safeParseJSON<{ scores: string; feedback: string; strengths: string; improvements: string; model: string; why: string }>(raw);
   const sp = (v: string) => (v || '').split('|').map(x => x.trim()).filter(Boolean);
