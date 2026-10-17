@@ -263,85 +263,35 @@ interface DrillTypeDef {
   problems: DrillProblem[];
 }
 
+/* 핵심 4단계로 압축: 관찰(사실 포착) → 보여주기(감정→장면) → 동사 무덤(동작을 정밀하게)
+   → 한 줄 통찰(의미 압축). 전부 실사진 기반 — "다른 사진" 버튼으로 매번 새 소재를 받는다. */
 const DRILLS: DrillTypeDef[] = [
   {
     id: 1, name: '관찰 훈련', purpose: '사실과 해석을 구분하는 능력', time: '3-5분', color: 'var(--accent)', accent: 'var(--accent-dim)',
     problems: [
-      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-1', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['외로워 보인다', '기다리는 것 같다', '쓸쓸하다', '~인 것 같다'] },
-      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-2', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['피곤해 보인다', '힘들어 보인다', '~인 것 같다'] },
-      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-3', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['쓸쓸해 보인다', '행복해 보인다', '~것 같다'] },
+      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-1', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['보인다', '것 같다', '해 보인다', '느껴진다'] },
     ],
   },
   {
-    id: 2, name: '감각 묘사 훈련', purpose: '오감을 활용한 묘사 능력', time: '3-5분', color: 'var(--moon)', accent: 'var(--moon-dim)',
+    id: 2, name: '보여주기 훈련', purpose: '감정을 직접 말하지 않고 장면으로 전달하는 능력', time: '3-5분', color: 'var(--moon)', accent: 'var(--moon-dim)',
     problems: [
-      { scene: '오늘의 장면 사진', imageSeed: 'wc-sense-1', instruction: '사진 속 장소에 있다고 상상하세요. 시각 표현은 금지, 청각만으로 이 장면을 묘사하세요.', constraints: ['보인다', '보이다', '빛난다', '색', '형태', '모습'] },
-      { scene: '오늘의 장면 사진', imageSeed: 'wc-sense-2', instruction: '사진 속 장소에 있다고 상상하세요. 시각 표현은 금지, 후각과 촉각만으로 묘사하세요.', constraints: ['보인다', '보이다', '색깔', '빛', '눈에'] },
-      { scene: '오늘의 장면 사진', imageSeed: 'wc-sense-3', instruction: '사진 속 장소에 있다고 상상하세요. 시각 표현은 금지, 청각과 촉각만으로 묘사하세요.', constraints: ['보인다', '보이다', '보여', '빛', '색'] },
+      { scene: '감정: 슬픔', imageSeed: 'wc-show-1', instruction: '사진 속 장면을 활용해, "슬프다/슬픔/우울하다/힘들다/그립다" 없이 슬픔이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['슬프다', '슬픔', '우울하다', '힘들다', '그립다', '눈물'] },
+      { scene: '감정: 설렘', imageSeed: 'wc-show-2', instruction: '사진 속 장면을 활용해, "설렌다/두근거린다/기대된다/좋다" 없이 설렘이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['설렌다', '설레다', '두근', '기대된다', '좋다', '행복'] },
+      { scene: '감정: 불안', imageSeed: 'wc-show-3', instruction: '사진 속 장면을 활용해, "불안하다/초조하다/걱정되다/긴장된다" 없이 불안이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['불안하다', '불안', '초조하다', '걱정되다', '긴장된다'] },
+      { scene: '감정: 그리움', imageSeed: 'wc-show-4', instruction: '사진 속 장면을 활용해, "그립다/보고싶다/그리움" 없이 그리움이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['그립다', '그리움', '보고싶다', '보고 싶다'] },
+      { scene: '감정: 외로움', imageSeed: 'wc-show-5', instruction: '사진 속 장면을 활용해, "외롭다/쓸쓸하다/혼자/고독" 없이 외로움이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['외롭다', '외로움', '쓸쓸하다', '혼자', '고독'] },
     ],
   },
   {
-    id: 3, name: '문장 확장 훈련', purpose: '단순 문장을 구체적 장면으로 발전시키는 능력', time: '3-5분', color: 'var(--good)', accent: 'var(--good-dim)',
+    id: 3, name: '동사 무덤 훈련', purpose: '밋밋한 동사를 생생하고 구체적인 동사로 바꾸는 능력', time: '3-5분', color: 'var(--good)', accent: 'var(--good-dim)',
     problems: [
-      { scene: '"비가 온다."', instruction: '이 문장을 구체적인 장면이 보이도록 1-3문장으로 확장하세요. 감각 묘사를 포함하세요.' },
-      { scene: '"사람들이 웃는다."', instruction: '이 문장을 구체적인 장면이 보이도록 1-3문장으로 확장하세요. 어디서, 어떻게, 누가를 담으세요.' },
-      { scene: '"그는 집으로 돌아왔다."', instruction: '이 문장을 구체적인 장면이 보이도록 1-3문장으로 확장하세요. 감각과 감정을 간접적으로 담으세요.' },
+      { scene: '오늘의 장면 사진', imageSeed: 'wc-verb-1', instruction: '사진 속 장면을 2-3문장으로 묘사하세요. "이다/있다/하다/되다"와 그 활용형(이었다·있었다·했다·됐다 등)은 무덤에 묻혔습니다 — 더 구체적이고 생생한 동사로 바꿔 쓰세요.', constraints: ['이다', '있다', '없다', '하다', '되다', '이었다', '있었다', '했다', '됐다', '했었다'] },
     ],
   },
   {
-    id: 4, name: '문장 압축 훈련', purpose: '불필요한 설명을 제거하고 핵심만 남기는 능력', time: '3-5분', color: 'var(--secondary)', accent: 'var(--good-dim)',
+    id: 4, name: '한 줄 통찰 훈련', purpose: '평범한 장면에서 의미를 발견해 한 줄로 압축하는 능력', time: '5분', color: 'var(--secondary)', accent: 'var(--good-dim)',
     problems: [
-      { scene: '"그는 오늘 하루 종일 상사에게 혼나 기분이 좋지 않은 상태로 집에 돌아왔다."', instruction: '20자 이하로 압축하세요. 핵심 의미와 여운을 유지하세요.' },
-      { scene: '"오랜만에 고향에 가보니 어릴 때 많이 놀던 골목길이 아파트 단지로 바뀌어 있었다."', instruction: '20자 이하로 압축하세요. 감정을 직접 말하지 않고 상황으로만 표현하세요.' },
-      { scene: '"매일 아침 습관처럼 켜던 라디오에서 더 이상 좋아하던 프로그램이 방송되지 않는다는 것을 알게 되었다."', instruction: '20자 이하로 압축하세요. 여운이 남도록 압축하세요.' },
-    ],
-  },
-  {
-    id: 5, name: '보여주기 훈련', purpose: '감정을 직접 표현하지 않고 전달하는 능력', time: '5-7분', color: 'var(--bad)', accent: 'var(--bad-dim)',
-    problems: [
-      { scene: '감정: 슬픔', instruction: '"슬프다", "우울하다", "힘들다", "그립다" 사용 금지. 이 감정을 장면·행동·사물로만 표현하세요.', constraints: ['슬프다', '슬픔', '우울하다', '힘들다', '그립다', '눈물'] },
-      { scene: '감정: 설렘', instruction: '"설렌다", "두근거린다", "기대된다", "좋다" 사용 금지. 장면·행동·사물로만 표현하세요.', constraints: ['설렌다', '설레다', '두근', '기대된다', '좋다', '행복'] },
-      { scene: '감정: 외로움', instruction: '"외롭다", "쓸쓸하다", "혼자", "고독" 사용 금지. 장면·행동·사물로만 표현하세요.', constraints: ['외롭다', '외로움', '쓸쓸하다', '혼자', '고독'] },
-    ],
-  },
-  {
-    id: 6, name: '일본식 카피 훈련', purpose: '일상 장면을 통찰 있는 한 줄 카피로 전환하는 능력', time: '5분', color: 'var(--moon)', accent: 'var(--moon-dim)',
-    problems: [
-      { scene: '퇴근 후 빈 지하철', instruction: '이 장면을 한 줄 카피로 작성하세요. 관찰형/공감형/통찰형/감성형 중 하나로.' },
-      { scene: '비 오는 일요일 오후', instruction: '이 장면을 한 줄 카피로 작성하세요. 일상에서 의미를 발견하는 시선으로.' },
-      { scene: '첫눈 오는 날 아침 지하철 플랫폼', instruction: '이 장면을 한 줄 카피로 작성하세요. 여운이 남도록.' },
-    ],
-  },
-  {
-    id: 7, name: '관찰 → 의미 발견', purpose: '일상 속에서 통찰을 발견하는 능력', time: '5분', color: 'var(--accent)', accent: 'var(--accent-dim)',
-    problems: [
-      { scene: '아버지가 돋보기를 찾고 있다.', instruction: '이 장면이 의미하는 바를 한 문장으로 작성하세요. 시간·관계·변화를 담으세요.' },
-      { scene: '할머니가 아무도 없는데 밥을 많이 지었다.', instruction: '이 장면이 의미하는 바를 한 문장으로 작성하세요.' },
-      { scene: '오래된 쇼핑몰 빈 가게에 임대 문의 전화번호가 붙어 있다.', instruction: '이 장면이 의미하는 바를 한 문장으로 작성하세요. 감정을 직접 말하지 말고.' },
-    ],
-  },
-  {
-    id: 8, name: '카피 리라이팅', purpose: '평범한 문장을 인상적인 문장으로 바꾸는 능력', time: '5분', color: 'var(--secondary)', accent: 'var(--good-dim)',
-    problems: [
-      { scene: '"암보험 준비하세요."', instruction: '이 카피를 더 인상적으로 다시 써보세요. 직접적인 광고 문구보다 공감이나 통찰로 접근하세요.' },
-      { scene: '"우리 제품은 품질이 좋습니다."', instruction: '이 카피를 더 인상적으로 다시 써보세요. 구체적인 장면이나 경험으로 표현하세요.' },
-      { scene: '"건강을 위해 운동하세요."', instruction: '이 카피를 더 인상적으로 다시 써보세요. 직접 설명 대신 감정·상황으로 접근하세요.' },
-    ],
-  },
-  {
-    id: 9, name: '카피 해부 훈련', purpose: '좋은 문장의 구조와 의미를 분석하는 능력', time: '7-10분', color: 'var(--good)', accent: 'var(--good-dim)',
-    problems: [
-      { scene: '"컵은 두 개였다."', instruction: `아래 4가지를 각각 작성하세요:\n1. 보이는 사실 (이 문장이 서술하는 것)\n2. 생략된 정보 (말하지 않지만 느껴지는 것)\n3. 숨겨진 감정 (키워드 1-2개)\n4. 왜 인상적인가 (1문장)` },
-      { scene: '"가로등이 꺼지기 전에 집에 도착하고 싶었다."', instruction: `아래 4가지를 각각 작성하세요:\n1. 보이는 사실\n2. 생략된 정보\n3. 숨겨진 감정\n4. 왜 인상적인가` },
-      { scene: '"그 문자는 3년 뒤에 읽었다."', instruction: `아래 4가지를 각각 작성하세요:\n1. 보이는 사실\n2. 생략된 정보\n3. 숨겨진 감정\n4. 왜 인상적인가` },
-    ],
-  },
-  {
-    id: 10, name: '동사 무덤 훈련', purpose: '밋밋한 동사를 생생하고 구체적인 동사로 바꾸는 능력', time: '3-5분', color: 'var(--moon)', accent: 'var(--moon-dim)',
-    problems: [
-      { scene: '"그는 슬픈 얼굴로 의자에 앉아 있었다."', instruction: '"있었다", "앉아" 같은 밋밋한 동사를 무덤에 묻으세요. 슬픔이 자세·동작만으로 느껴지도록 생생한 동사로 다시 쓰세요.', constraints: ['있었다', '앉아', '슬픈', '슬프다'] },
-      { scene: '"그녀는 화가 나서 문을 세게 닫았다."', instruction: '"나서", "닫았다" 같은 밋밋한 동사를 무덤에 묻으세요. 분노가 동작의 세기와 질감으로 전해지도록 다시 쓰세요.', constraints: ['화가 나서', '닫았다'] },
-      { scene: '"강아지가 신이 나서 마당을 뛰어다녔다."', instruction: '"나서", "뛰어다녔다" 같은 흔한 동사를 무덤에 묻으세요. 강아지의 움직임이 눈에 보이듯 구체적인 동사로 다시 쓰세요.', constraints: ['신이 나서', '뛰어다녔다'] },
+      { scene: '오늘의 장면 사진', imageSeed: 'wc-line-1', instruction: '사진 속 장면을 보고, 그 안에 담긴 의미나 이야기를 한 줄의 카피로 압축하세요. 설명하지 말고, 여운이 남도록 짧게 쓰세요 (20자 내외 권장).' },
     ],
   },
 ];
@@ -455,6 +405,9 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
 
   function nextProblem() {
     setProbIdx(i => (i + 1) % drill.problems.length);
+    // 문제가 하나뿐인 드릴(관찰/동사무덤/한줄통찰)은 probIdx가 안 바뀌므로 사진을 직접 새로 뽑아준다.
+    // 문제가 여러 개인 드릴(보여주기)은 probIdx 변경 useEffect가 곧바로 새 문제의 기본 사진으로 되돌린다.
+    if (prob.imageSeed) setImgSeedOverride('wc-' + Math.random().toString(36).slice(2, 10));
     setAnswer(''); setResult(null); setPhase('write'); setErr('');
   }
 
@@ -542,13 +495,13 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
             {phase === 'write' && (
               <>
                 <button className="px-btn px-btn-accent" onClick={handleEvaluate} disabled={!answer.trim()}>✦ AI 평가 받기</button>
-                <button className="px-btn-ghost-sm" onClick={nextProblem}>다른 문제</button>
+                {drill.problems.length > 1 && <button className="px-btn-ghost-sm" onClick={nextProblem}>다른 문제</button>}
               </>
             )}
             {phase === 'result' && (
               <>
                 <button className="px-btn-ghost-sm" onClick={retry}>↺ 다시 도전</button>
-                <button className="px-btn-ghost-sm" onClick={nextProblem}>다음 문제 →</button>
+                <button className="px-btn-ghost-sm" onClick={nextProblem}>{drill.problems.length > 1 ? '다음 문제 →' : '↻ 새 사진으로'}</button>
               </>
             )}
           </div>
@@ -567,7 +520,7 @@ function DrillDojo({ onDrillSelect, activeDrillId }: { onDrillSelect: (id: numbe
   return (
     <div>
       <p style={{ fontSize: 13, color: 'var(--dim-star)', lineHeight: 1.8, marginBottom: 20 }}>
-        관찰력부터 카피 감각까지 — 3~10분 짧은 훈련을 매일 반복해 문장력을 키워요.
+        실제 사진을 보고 쓰는 4가지 핵심 훈련 — 관찰 → 보여주기 → 동사 무덤 → 한 줄 통찰. 3~5분씩 매일 반복해 문장력을 키워요.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
         {DRILLS.map(d => (
