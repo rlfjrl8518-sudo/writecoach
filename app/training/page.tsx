@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { loadDB, saveDB, loadSettings, type Mission, type MissionEvaluation, type DB } from '@/lib/db';
 import { generateMissions, evaluateMission, evaluateDrill, type DrillEvaluation } from '@/lib/openai';
 import { getWrittenDays, getLevelInfo, toTurtleLevel } from '@/lib/journey';
@@ -405,10 +405,17 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
   const [photo, setPhoto] = useState<DrillPhoto | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoNonce, setPhotoNonce] = useState(0);
+  const photoFallbackUsed = useRef(false);
 
   const prob = drill.problems[probIdx];
 
+  function picsumUrl(suffix: string) {
+    const seed = photoNonce > 0 ? `${prob.imageSeed}-${photoNonce}${suffix}` : `${prob.imageSeed}${suffix}`;
+    return `https://picsum.photos/seed/${seed}/640/400`;
+  }
+
   useEffect(() => {
+    photoFallbackUsed.current = false;
     if (!prob.imageSeed && !prob.imageQuery) { setPhoto(null); setPhotoLoading(false); return; }
     let cancelled = false;
     setPhotoLoading(true);
@@ -420,8 +427,7 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
         if (p) { setPhoto(p); setPhotoLoading(false); return; }
       }
       if (cancelled) return;
-      const seed = photoNonce > 0 ? `${prob.imageSeed}-${photoNonce}` : prob.imageSeed;
-      setPhoto({ url: `https://picsum.photos/seed/${seed}/640/400` });
+      setPhoto({ url: picsumUrl('') });
       setPhotoLoading(false);
     })();
     return () => { cancelled = true; };
@@ -429,6 +435,14 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
   }, [probIdx, photoNonce]);
 
   function shufflePhoto() { setPhotoNonce(n => n + 1); }
+
+  /** Unsplash에서 URL은 받아왔지만 실제 이미지 로드가 실패한 경우(CDN 일시 오류 등)
+   *  — 한 번만 Picsum으로 조용히 대체한다 (무한 루프 방지). */
+  function handlePhotoError() {
+    if (photoFallbackUsed.current || !prob.imageSeed) return;
+    photoFallbackUsed.current = true;
+    setPhoto({ url: picsumUrl('-fb') });
+  }
 
   async function handleEvaluate() {
     if (!answer.trim()) return;
@@ -492,6 +506,7 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
                   src={photo.url}
                   alt={prob.scene}
                   loading="lazy"
+                  onError={handlePhotoError}
                   style={{
                     width: '100%', aspectRatio: '16 / 10', objectFit: 'cover',
                     borderRadius: 8, border: `1px solid ${drill.color}44`,
