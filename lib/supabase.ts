@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { User } from '@supabase/supabase-js';
 import type { DB, ExpressionRecord, Journey, Settings } from './db';
 import { DEFAULT_JOURNEY } from './db';
+import { DEFAULT_GAME, type GameState } from './game';
 
 export type { User };
 
@@ -136,6 +137,21 @@ export function mergeDBs(local: DB, remote: DB): DB {
     };
   }
 
+  /** 게임 상태 — 더 나중 해(year)를 따르고, 본 장면·시련 기록은 합집합 */
+  function mergeGame(a?: GameState, b?: GameState): GameState {
+    const x = { ...DEFAULT_GAME, ...(a ?? {}) }, y = { ...DEFAULT_GAME, ...(b ?? {}) };
+    const lead = x.year !== y.year ? (x.year > y.year ? x : y) : (x.yearStart >= y.yearStart ? x : y);
+    const trials = new Map<number, GameState['trials'][number]>();
+    [...y.trials, ...x.trials].forEach(t => trials.set(t.id, t));
+    return {
+      name: x.name || y.name,
+      year: lead.year,
+      yearStart: lead.yearStart,
+      seenScenes: Array.from(new Set([...x.seenScenes, ...y.seenScenes])),
+      trials: Array.from(trials.values()).sort((p, q) => p.id - q.id),
+    };
+  }
+
   function mergeExprRec(
     a: Record<string, ExpressionRecord>,
     b: Record<string, ExpressionRecord>
@@ -173,6 +189,8 @@ export function mergeDBs(local: DB, remote: DB): DB {
     ...((local.strengthSynthesisAt ?? '') > (remote.strengthSynthesisAt ?? '')
       ? { strengthSynthesis: local.strengthSynthesis ?? [], strengthSynthesisAt: local.strengthSynthesisAt ?? '' }
       : { strengthSynthesis: remote.strengthSynthesis ?? [], strengthSynthesisAt: remote.strengthSynthesisAt ?? '' }),
+    drillLogs:                mergeArr(local.drillLogs ?? [], remote.drillLogs ?? []),
+    game:                     mergeGame(local.game, remote.game),
     journey:                  mergeJourney(local.journey ?? DEFAULT_JOURNEY, remote.journey ?? DEFAULT_JOURNEY),
     _deletedIds:              Array.from(deletedIds),
   };

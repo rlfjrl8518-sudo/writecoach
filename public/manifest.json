@@ -1,11 +1,11 @@
 {
   "name": "글습관",
   "short_name": "글습관",
-  "description": "AI 글쓰기 훈련 플랫폼",
+  "description": "노작가의 서재에서 매일 쓰는 픽셀 글쓰기 수련 RPG",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#7C3B49",
-  "theme_color": "#7C3B49",
+  "background_color": "#101018",
+  "theme_color": "#101018",
   "orientation": "portrait-primary",
   "icons": [
     {

@@ -214,6 +214,57 @@ async function callGemini(
   return full;
 }
 
+/* ── GCP Vertex AI 호출 (서버 /api/ai, 키 불필요, 스트리밍 지원) ──
+ *  thinking 토큰 여유분·이미지 fetch는 서버 라우트가 처리한다. */
+async function callGCP(
+  model: string, system: string, user: string,
+  maxTokens: number, temp: number, jsonMode: boolean,
+  onStream?: (chunk: string) => void,
+  schema?: object,
+  imageUrl?: string,
+): Promise<string> {
+  const res = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system, user, maxTokens, temperature: temp, json: jsonMode,
+      schema, imageUrl, stream: !!onStream, model: model || undefined,
+    }),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    let msg = `HTTP ${res.status}`;
+    try { msg = (JSON.parse(txt) as { error?: string }).error ?? msg; } catch { /* */ }
+    if (msg === 'AI_OFF') msg = '서버 AI가 설정되지 않았어요. 설정 탭에서 OpenAI/Gemini API 키 방식으로 바꿔주세요.';
+    throw new Error(`AI: ${msg}`);
+  }
+
+  if (!onStream) {
+    const data = await res.json() as { text?: string; error?: string };
+    if (data.error) throw new Error(`AI: ${data.error}`);
+    if (!data.text) throw new Error('AI가 빈 응답을 반환했습니다.');
+    return data.text;
+  }
+
+  if (!res.body) throw new Error('AI: 응답 스트림이 없습니다.');
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let full = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      const tail = dec.decode();
+      if (tail) { full += tail; onStream(tail); }
+      break;
+    }
+    const delta = dec.decode(value, { stream: true });
+    if (delta) { full += delta; onStream(delta); }
+  }
+  if (!full) throw new Error('AI가 빈 응답을 반환했습니다. 잠시 후 다시 시도해주세요.');
+  return full;
+}
+
 /* ── 라우터 ── */
 async function callAI(
   s: Settings, system: string, user: string,
@@ -222,6 +273,9 @@ async function callAI(
   schema?: object,
   imageUrl?: string,
 ): Promise<string> {
+  if (s.provider === 'gcp') {
+    return callGCP(s.gcpModel, system, user, maxTokens, temp, jsonMode, onStream, schema, imageUrl);
+  }
   if (s.provider === 'gemini') {
     if (!s.geminiApiKey) throw new Error('설정에서 Gemini API 키를 먼저 입력해주세요.');
     return callGemini(s.geminiApiKey, s.geminiModel, system, user, maxTokens, temp, jsonMode, onStream, schema, imageUrl);
@@ -231,13 +285,16 @@ async function callAI(
 }
 
 /* ── AI 코치 채팅 ── */
+/* 묵당 선생(산마루 서재의 노작가, 가상 인물) — 제자와 함께한 시간(기록 수)이 쌓일수록 말투가 허물없어진다.
+   키는 components/PixelCharacter.tsx TIERS의 name과 같다. */
+const MUKDANG = '당신은 글쓰기 수련 게임 "산마루 서재"의 스승 "묵당 선생"이다. 30년 전 마지막 원고를 끝내지 못하고 펜을 놓았다가 제자를 받으며 다시 쓰기 시작한 노작가다. 문장 하나를 귀하게 여기고, 말은 짧고 구체적이다. 제자를 "자네"라고 부른다.';
 const COACH_PERSONAS: Record<string, string> = {
-  '글 선생님': '당신은 "글 선생님"이라는 AI 글쓰기 코치입니다. 정중하고 따뜻한 격식체를 사용합니다. 초보 작가를 세심하게 안내하며, 글쓰기 관련 질문에만 답합니다. 답변은 3문장 이내로 간결하게.',
-  '선생님': '당신은 "선생님"이라는 AI 글쓰기 코치입니다. 친절하고 응원해주는 말투로 답합니다. 꾸준히 써온 사용자를 격려하며 실용적인 조언을 줍니다. 3문장 이내.',
-  '선배': '당신은 "선배"라는 AI 글쓰기 코치입니다. 친근한 반말로 현실적인 조언을 합니다. 너무 길게 말하지 않고 핵심만. 2~3문장.',
-  '글쟁이 아저씨': '당신은 "글쟁이 아저씨"라는 AI 글쓰기 코치입니다. 투박하지만 핵심을 꿰뚫는 조언을 합니다. 퉁명스럽지만 진심입니다. 2문장 이내.',
-  '영감님': '당신은 "영감님"이라는 AI 글쓰기 코치입니다. 짧고 강렬하게. 군더더기 없이 핵심 한마디. 1~2문장.',
-  '욕쟁이 영감': '당신은 "욕쟁이 영감"이라는 AI 글쓰기 코치입니다. 거칠지만 깊은 애정으로 조언합니다. 직설적이되 욕설 없이. 1~2문장.',
+  '글 선생님': `${MUKDANG} 아직 서먹한 사이다. 정중하고 차분한 하오체를 쓴다. 3문장 이내.`,
+  '선생님': `${MUKDANG} 제자가 꾸준히 찾아와 반갑다. 따뜻하게 격려하되 실용적인 조언 하나를 꼭 준다. 3문장 이내.`,
+  '선배': `${MUKDANG} 이제 편한 사이다. 반말을 섞어 현실적인 조언을 한다. 2~3문장.`,
+  '글쟁이 아저씨': `${MUKDANG} 허물없는 사이다. 투박하고 퉁명스럽지만 핵심을 꿰뚫는다. 2문장 이내.`,
+  '영감님': `${MUKDANG} 막역한 사이다. 짧고 강렬하게, 군더더기 없이 한마디. 1~2문장.`,
+  '욕쟁이 영감': `${MUKDANG} 피붙이 같은 사이다. 거칠게 타박하지만 깊은 애정이 묻어난다. 욕설은 쓰지 않는다. 1~2문장.`,
 };
 
 export async function chatWithCoach(

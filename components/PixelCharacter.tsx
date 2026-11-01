@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { loadDB, loadSettings } from '@/lib/db';
+import { loadDB, loadSettings, aiReady } from '@/lib/db';
 import { chatWithCoach } from '@/lib/openai';
-import { getWrittenDays, getLevelInfo, toTurtleLevel, isStreakBroken } from '@/lib/journey';
-import TurtleSprite, { type TurtleLevel, type TurtleEmotion } from './TurtleSprite';
+import { isStreakBroken, getScoreEmotion } from '@/lib/journey';
+import { Speaker } from './pixel/Pixel';
+import type { Emotion } from './pixel/sprites';
 
 const POS_KEY = 'wc_char_pos';
 const SIZE = 72;
@@ -27,12 +28,13 @@ function clamp(pos: { x: number; y: number }) {
 }
 
 const TIERS = [
-  { min: 0,  max: 2,       name: '글 선생님',    outfitMain: '#9B59B6', labelColor: '#9B59B6', greeting: '어서 오십시오. 오늘도 좋은 문장을.' },
-  { min: 3,  max: 8,       name: '선생님',       outfitMain: '#2E86C1', labelColor: '#2E86C1', greeting: '오늘도 오셨군요. 잘 하셨어요.' },
-  { min: 9,  max: 19,      name: '선배',         outfitMain: '#1E8449', labelColor: '#1E8449', greeting: '오 또 왔어요? 좋아요 그 습관 ㅎ' },
-  { min: 20, max: 35,      name: '글쟁이 아저씨', outfitMain: '#B7770D', labelColor: '#B7770D', greeting: '또 왔어? 글이나 써.' },
-  { min: 36, max: 59,      name: '영감님',        outfitMain: '#D35400', labelColor: '#D35400', greeting: '에이 또 왔냐. 귀찮다귀찮어.' },
-  { min: 60, max: Infinity, name: '욕쟁이 영감',  outfitMain: '#922B21', labelColor: '#C0392B', greeting: '이 자식, 또 왔어?' },
+  // name은 lib/openai.ts COACH_PERSONAS의 키(말투 단계). bond는 화면에 보이는 '정' 단계.
+  { min: 0,  max: 2,       name: '글 선생님',    bond: '서먹함',   outfitMain: '#5a6ab8', labelColor: '#8f9fe8', greeting: '어서 오시오. 오늘은 무엇을 쓰려 하오?' },
+  { min: 3,  max: 8,       name: '선생님',       bond: '반가움',   outfitMain: '#2e86c1', labelColor: '#37c4ff', greeting: '왔군. 오늘도 먹을 갈아 두었네.' },
+  { min: 9,  max: 19,      name: '선배',         bond: '편함',     outfitMain: '#3e8e41', labelColor: '#7cff6b', greeting: '또 왔나. 좋아, 그 습관이 실력이야.' },
+  { min: 20, max: 35,      name: '글쟁이 아저씨', bond: '허물없음', outfitMain: '#b7770d', labelColor: '#f7e26b', greeting: '왔으면 앉아. 글이나 쓰자고.' },
+  { min: 36, max: 59,      name: '영감님',        bond: '막역함',   outfitMain: '#d35400', labelColor: '#ff8c42', greeting: '에잉, 또 왔냐. …차 식기 전에 앉아.' },
+  { min: 60, max: Infinity, name: '욕쟁이 영감',  bond: '피붙이',   outfitMain: '#922b21', labelColor: '#ef3e4a', greeting: '이 녀석, 오늘은 늦었구먼. 어서 써.' },
 ] as const;
 
 type Tier = (typeof TIERS)[number];
@@ -57,8 +59,7 @@ export default function PixelCharacter() {
   const [isDragging, setIsDragging] = useState(false);
   const [mounted, setMounted]       = useState(false);
   const [inputActive, setInputActive] = useState(false);
-  const [turtleLevel, setTurtleLevel] = useState<TurtleLevel>(1);
-  const [turtleEmotion, setTurtleEmotion] = useState<TurtleEmotion>('default');
+  const [emotion, setEmotion] = useState<Emotion>('default');
 
   const dragRef = useRef({ startX: 0, startY: 0, startPosX: 0, startPosY: 0, moved: false });
   const endRef  = useRef<HTMLDivElement>(null);
@@ -70,11 +71,15 @@ export default function PixelCharacter() {
     setTier(t);
     setMessages([{ role: 'assistant', content: t.greeting }]);
     setPos(loadPos());
-    // /journey 카드(TurtleCard)와 같은 레벨 계산 — 챗봇 캐릭터도 같은 거북이로, 같은 레벨로 보이게
-    const days = getWrittenDays(db.writings);
-    setTurtleLevel(toTurtleLevel(getLevelInfo(days).level));
-    setTurtleEmotion(isStreakBroken(db.journey) ? 'tired' : 'default');
+    // 묵당 선생 — 등불이 꺼져 있으면 시무룩, 글 분석 점수가 오면 표정이 바뀐다
+    setEmotion(isStreakBroken(db.journey) ? 'sad' : 'default');
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const onScore = (e: Event) => setEmotion(getScoreEmotion((e as CustomEvent<{ score: number }>).detail.score).emotion);
+    window.addEventListener('score-updated', onScore);
+    return () => window.removeEventListener('score-updated', onScore);
   }, []);
 
   useEffect(() => {
@@ -151,8 +156,7 @@ export default function PixelCharacter() {
     setInput('');
     setNoKey(false);
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setNoKey(true); return; }
+    if (!aiReady(s)) { setNoKey(true); return; }
     setMessages(prev => [...prev, { role: 'user', content: text }]);
     setAiLoading(true);
     try {
@@ -195,7 +199,7 @@ export default function PixelCharacter() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: tier.outfitMain, boxShadow: `0 0 6px ${tier.outfitMain}` }} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: tier.labelColor, fontFamily: 'Pretendard, sans-serif' }}>{tier.name}</span>
+              <span style={{ fontSize: 13, color: tier.labelColor }}>묵당 선생 <span style={{ fontSize: 10, color: 'var(--dim-star)' }}>· 정 {tier.bond}</span></span>
             </div>
             <button onClick={() => { setInputActive(false); setChatOpen(false); window.dispatchEvent(new CustomEvent('coach-chat-state', { detail: false })); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dim-star)', fontSize: 18, lineHeight: 1, padding: 2 }}>×</button>
           </div>
@@ -214,15 +218,15 @@ export default function PixelCharacter() {
                 </div>
               ) : (
                 <div key={i} style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-                  {/* 프로필 이미지 — /journey의 거북이와 같은 레벨/이모션 */}
+                  {/* 프로필 — 묵당 선생 */}
                   <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${tier.outfitMain}55` }}>
-                    <TurtleSprite level={turtleLevel} emotion={turtleEmotion} size={40} />
+                    <Speaker id="muk" emotion={emotion} size={28} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {/* 이름 (첫 메시지 또는 이전이 유저 메시지일 때만) */}
                     {(i === 0 || messages[i - 1]?.role === 'user') && (
                       <span style={{ fontSize: 11, fontWeight: 600, color: tier.labelColor, fontFamily: 'Pretendard, sans-serif', paddingLeft: 2 }}>
-                        {tier.name}
+                        묵당 선생
                       </span>
                     )}
                     <div style={{
@@ -240,7 +244,7 @@ export default function PixelCharacter() {
             {aiLoading && (
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
                 <div style={{ width: 32, height: 32, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${tier.outfitMain}55` }}>
-                  <TurtleSprite level={turtleLevel} emotion={turtleEmotion} size={40} />
+                  <Speaker id="muk" emotion={emotion} size={28} />
                 </div>
                 <div style={{ padding: '8px 14px', borderRadius: '4px 14px 14px 14px', background: 'var(--bg-subtle)', border: '1px solid var(--card-border)', color: 'var(--dim-star)', fontSize: 18, letterSpacing: 4 }}>···</div>
               </div>
@@ -264,7 +268,7 @@ export default function PixelCharacter() {
                   setTimeout(() => inputRef.current?.focus(), 50);
                 }
               }}
-              placeholder="글쓰기에 대해 물어보세요..."
+              placeholder="스승에게 물어보기..."
               disabled={aiLoading}
               style={{
                 flex: 1, padding: '8px 12px', borderRadius: 10,
@@ -306,12 +310,7 @@ export default function PixelCharacter() {
           transition: isDragging ? undefined : 'filter 0.2s',
         }}
       >
-        <TurtleSprite
-          level={turtleLevel}
-          emotion={turtleEmotion}
-          size={SIZE * 1.15}
-          style={{ pointerEvents: 'none' }}
-        />
+        <Speaker id="muk" emotion={emotion} size={SIZE * 0.8} style={{ pointerEvents: 'none' }} />
       </div>}
     </>
   );

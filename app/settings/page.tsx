@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { loadSettings, saveSettings, loadDB, saveDB, saveDBLocal, loadGamification, saveGamification } from '@/lib/db';
+import { loadSettings, saveSettings, loadDB, saveDB, saveDBLocal, loadGamification, saveGamification, GCP_MODELS, type Settings } from '@/lib/db';
 import {
   isSupabaseConfigured, getCurrentUser, signOut,
   onAuthChange, pushData, pullData, mergeDBs, pushSettings,
@@ -21,7 +21,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function SettingsPage() {
-  const [provider,      setProvider]      = useState<'openai' | 'gemini'>('openai');
+  const [provider,      setProvider]      = useState<Settings['provider']>('gcp');
+  const [gcpModel,      setGcpModel]      = useState<string>('gemini-3.8-flash');
   const [apiKey,        setApiKey]        = useState('');
   const [model,         setModel]         = useState('gpt-4o');
   const [showKey,       setShowKey]       = useState(false);
@@ -42,7 +43,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const s = loadSettings();
-    setProvider(s.provider || 'openai');
+    setProvider(s.provider || 'gcp');
+    setGcpModel(s.gcpModel || 'gemini-3.8-flash');
     setApiKey(s.apiKey || '');
     setModel(s.model || 'gpt-4o');
     setGeminiApiKey(s.geminiApiKey || '');
@@ -57,7 +59,10 @@ export default function SettingsPage() {
   }, []);
 
   function handleSave() {
-    const s = { provider, apiKey: apiKey.trim(), model, geminiApiKey: geminiApiKey.trim(), geminiModel, unsplashAccessKey: unsplashAccessKey.trim() };
+    const s: Settings = {
+      ...loadSettings(),
+      provider, gcpModel, apiKey: apiKey.trim(), model, geminiApiKey: geminiApiKey.trim(), geminiModel, unsplashAccessKey: unsplashAccessKey.trim(),
+    };
     saveSettings(s);
     saveGamification({ dailyGoal: Math.max(50, Math.min(5000, dailyGoal)) });
     setSaved(true);
@@ -184,7 +189,22 @@ export default function SettingsPage() {
       <div className="px-card">
         {/* AI 서비스 */}
         <Section title="AI 서비스">
-          {/* 제공업체 선택 카드 */}
+          {/* 기본: 서버 GCP Vertex AI (키 불필요) */}
+          <button
+            onClick={() => setProvider('gcp')}
+            style={{
+              width: '100%', padding: '14px 16px', textAlign: 'left', cursor: 'pointer', marginBottom: 14,
+              background: provider === 'gcp' ? 'var(--accent-dim)' : 'var(--bg-subtle)',
+              border: `1.5px solid ${provider === 'gcp' ? 'var(--accent)' : 'var(--card-border)'}`,
+              borderRadius: 12, transition: 'all 0.12s',
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 700, color: provider === 'gcp' ? 'var(--accent)' : 'var(--text)', marginBottom: 3, fontFamily: 'Pretendard, sans-serif', letterSpacing: '-0.01em' }}>GCP Vertex AI (기본, 키 불필요)</div>
+            <div style={{ fontSize: 11, color: 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif' }}>서버에서 Gemini 3.x로 바로 분석해요</div>
+          </button>
+
+          {/* 선택: 개인 API 키 (BYOK) */}
+          <div style={{ fontSize: 11, color: 'var(--dim-star)', marginBottom: 8, fontFamily: 'Pretendard, sans-serif' }}>또는 내 API 키 사용 (선택)</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
             {([
               { id: 'openai', name: 'OpenAI', sub: 'GPT-4o · GPT-4o mini', color: '#10a37f' },
@@ -206,6 +226,18 @@ export default function SettingsPage() {
             ))}
           </div>
 
+          {provider === 'gcp' ? (
+            <div>
+              <label className="px-label">모델</label>
+              <select className="px-select" value={gcpModel} onChange={e => setGcpModel(e.target.value)}>
+                {GCP_MODELS.map(m => (
+                  <option key={m} value={m}>
+                    {m}{m === 'gemini-3.8-flash' ? ' — 기본 (추천)' : m === 'gemini-3.1-pro-preview' ? ' — 고성능 · 느림' : m === 'gemini-3.1-flash-lite' ? ' — 가장 빠름' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (<>
           {/* API 키 입력 */}
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -256,6 +288,7 @@ export default function SettingsPage() {
               </select>
             )}
           </div>
+          </>)}
         </Section>
 
         <div className="px-divider" />

@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { loadDB, saveDB, loadSettings, type Mission, type MissionEvaluation, type DB } from '@/lib/db';
+import { loadDB, saveDB, loadSettings, aiReady, type Mission, type MissionEvaluation, type DB } from '@/lib/db';
 import { generateMissions, evaluateMission, evaluateDrill, type DrillEvaluation } from '@/lib/openai';
-import { getWrittenDays, getLevelInfo, toTurtleLevel } from '@/lib/journey';
-import TurtleSprite from '@/components/TurtleSprite';
+import { computeInk, levelInfo } from '@/lib/game';
+import { Speaker } from '@/components/pixel/Pixel';
 import { confirmDialog } from '@/components/ConfirmDialog';
 
 /* ── 공통 로더 ── */
@@ -153,7 +153,7 @@ function DataSnapshot({ db }: { db: DB }) {
     ? Math.round(analyzed.reduce((s, w) => s + w.analysis!.score, 0) / analyzed.length)
     : null;
   const streak = db.journey?.streak ?? 0;
-  const level  = getLevelInfo(getWrittenDays(db.writings));
+  const level  = levelInfo(computeInk(db).total);
 
   const weakSynth   = db.weaknessSynthesis?.length   ? db.weaknessSynthesis   : null;
   const strSynth    = db.strengthSynthesis?.length   ? db.strengthSynthesis   : null;
@@ -183,7 +183,7 @@ function DataSnapshot({ db }: { db: DB }) {
           { label: '작성 글',   value: `${db.writings.length}편`,              color: 'var(--text)' },
           { label: '평균 점수', value: avgScore != null ? `${avgScore}점` : '—', color: scoreColor },
           { label: '스트릭',   value: streak > 0 ? `🔥 ${streak}일 연속` : '오늘 미작성', color: streak > 0 ? 'var(--moon)' : 'var(--dim-star)' },
-          { label: '레벨',     value: `Lv.${level.level} ${level.name}`,        color: 'var(--accent)' },
+          { label: '레벨',     value: `Lv.${level.level} ${level.rank.title}`,        color: 'var(--accent)' },
         ].map(({ label, value, color }) => (
           <div key={label} style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -271,14 +271,14 @@ const DRILLS: DrillTypeDef[] = [
   {
     id: 1, name: '관찰 훈련', purpose: '사실과 해석을 구분하는 능력', time: '3-5분', color: 'var(--accent)', accent: 'var(--accent-dim)',
     problems: [
-      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-1', imageQuery: 'street photography', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['보인다', '것 같다', '해 보인다', '느껴진다'] },
+      { scene: '오늘의 관찰 사진', imageSeed: 'wc-obs-1', imageQuery: 'city street', instruction: '사진을 보고, 보이는 사실만 5개 작성하세요. 해석·감정·추측은 금지입니다.', constraints: ['보인다', '것 같다', '해 보인다', '느껴진다'] },
     ],
   },
   {
     id: 2, name: '보여주기 훈련', purpose: '감정을 직접 말하지 않고 장면으로 전달하는 능력', time: '3-5분', color: 'var(--moon)', accent: 'var(--moon-dim)',
     problems: [
       { scene: '감정: 슬픔', imageSeed: 'wc-show-1', imageQuery: 'rainy window', instruction: '사진 속 장면을 활용해, "슬프다/슬픔/우울하다/힘들다/그립다" 없이 슬픔이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['슬프다', '슬픔', '우울하다', '힘들다', '그립다', '눈물'] },
-      { scene: '감정: 설렘', imageSeed: 'wc-show-2', imageQuery: 'sunrise morning', instruction: '사진 속 장면을 활용해, "설렌다/두근거린다/기대된다/좋다" 없이 설렘이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['설렌다', '설레다', '두근', '기대된다', '좋다', '행복'] },
+      { scene: '감정: 설렘', imageSeed: 'wc-show-2', imageQuery: 'morning light', instruction: '사진 속 장면을 활용해, "설렌다/두근거린다/기대된다/좋다" 없이 설렘이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['설렌다', '설레다', '두근', '기대된다', '좋다', '행복'] },
       { scene: '감정: 불안', imageSeed: 'wc-show-3', imageQuery: 'empty hallway', instruction: '사진 속 장면을 활용해, "불안하다/초조하다/걱정되다/긴장된다" 없이 불안이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['불안하다', '불안', '초조하다', '걱정되다', '긴장된다'] },
       { scene: '감정: 그리움', imageSeed: 'wc-show-4', imageQuery: 'old photograph', instruction: '사진 속 장면을 활용해, "그립다/보고싶다/그리움" 없이 그리움이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['그립다', '그리움', '보고싶다', '보고 싶다'] },
       { scene: '감정: 외로움', imageSeed: 'wc-show-5', imageQuery: 'lonely bench', instruction: '사진 속 장면을 활용해, "외롭다/쓸쓸하다/혼자/고독" 없이 외로움이 느껴지도록 2-4문장으로 쓰세요.', constraints: ['외롭다', '외로움', '쓸쓸하다', '혼자', '고독'] },
@@ -303,7 +303,7 @@ const DRILLS: DrillTypeDef[] = [
   {
     id: 4, name: '한 줄 통찰 훈련', purpose: '평범한 장면에서 의미를 발견해 한 줄로 압축하는 능력', time: '5분', color: 'var(--secondary)', accent: 'var(--good-dim)',
     problems: [
-      { scene: '오늘의 장면 사진', imageSeed: 'wc-line-1', imageQuery: 'everyday moment', instruction: '사진 속 장면을 보고, 그 안에 담긴 의미나 이야기를 한 줄의 카피로 압축하세요. 설명하지 말고, 여운이 남도록 짧게 쓰세요 (20자 내외 권장).' },
+      { scene: '오늘의 장면 사진', imageSeed: 'wc-line-1', imageQuery: 'quiet moment', instruction: '사진 속 장면을 보고, 그 안에 담긴 의미나 이야기를 한 줄의 카피로 압축하세요. 설명하지 말고, 여운이 남도록 짧게 쓰세요 (20자 내외 권장).' },
     ],
   },
 ];
@@ -454,8 +454,7 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
   async function handleEvaluate() {
     if (!answer.trim()) return;
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     setPhase('evaluating'); setErr(''); setStreamLen(0);
     try {
       const ev = await evaluateDrill(
@@ -464,6 +463,14 @@ function DrillSession({ drill, onClose }: { drill: DrillTypeDef; onClose: () => 
         photo?.url,
       );
       setResult(ev);
+      // 훈련 기록 — 일일 숙제·이야기 조건·먹 계산에 쓰인다
+      {
+        const vals = [ev.scores.관찰력, ev.scores.구체성, ev.scores.표현다양성, ev.scores.감정전달력, ev.scores.문장밀도, ev.scores.독창성];
+        const avg = Math.round((vals.reduce((a, b) => a + (b || 0), 0) / vals.length) * 10) / 10;
+        const fresh = loadDB();
+        fresh.drillLogs = [...(fresh.drillLogs ?? []), { id: Date.now(), drill: drill.name, avg, createdAt: new Date().toISOString() }];
+        saveDB(fresh);
+      }
       setPhase('result');
     } catch (e: unknown) {
       setErr('평가 오류: ' + (e instanceof Error ? e.message : String(e)));
@@ -654,8 +661,7 @@ export default function TrainingPage() {
 
   async function handleGenerate() {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     if (!db) return;
     if (db.writings.length === 0) { setErr('글쓰기 기록이 1편 이상 있어야 과제를 생성할 수 있어요.'); return; }
     setLoading(true); setErr('');
@@ -674,8 +680,7 @@ export default function TrainingPage() {
 
   async function handleEvaluate(id: number, submission: string) {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     const fresh = loadDB();
     const mission = fresh.missions.find(m => m.id === id);
     if (!mission) return;
@@ -719,12 +724,11 @@ export default function TrainingPage() {
   const pending   = db.missions.filter(m => !m.completed);
   const completed = db.missions.filter(m => m.completed);
 
-  const currentLevel = toTurtleLevel(getLevelInfo(getWrittenDays(db.writings)).level);
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <TurtleSprite level={currentLevel} emotion="motivated" size={48} />
+        <Speaker id="muk" size={48} />
         <div className="px-sec-title" style={{ marginBottom: 0, border: 'none', padding: 0, flex: 1 }}>◎ 훈련</div>
       </div>
 

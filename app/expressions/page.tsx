@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
-  loadDB, saveDB, saveDBLocal, loadSettings,
+  loadDB, saveDB, saveDBLocal, loadSettings, aiReady,
   type ExpressionLabEntry, type ExpressionAnalysis, type DictResult,
   type ExpressionCategory,
 } from '@/lib/db';
@@ -169,8 +169,7 @@ export default function ExpressionsPage() {
 
   function checkApiKey(): boolean {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return false; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return false; }
     return true;
   }
 

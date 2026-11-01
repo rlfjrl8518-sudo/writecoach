@@ -1,3 +1,4 @@
+import type { GameState, DrillLog } from './game';
 export type WriteType = '묘사문' | '설명문' | '감상문' | '의견문' | '기사 리드' | '카피라이팅' | '에세이' | '스토리텔링';
 export type CopyType = '브랜딩형' | '혜택 전달형' | '문제 제기형' | '위험 환기형' | '감성 공감형' | '행동 유도형' | '신뢰 확보형' | '정보 전달형' | '혼합형';
 
@@ -66,6 +67,10 @@ export interface WritingEntry {
   analysis?: WritingAnalysis;
   /** 첨삭 결과 — 받으면 저장되어 다시 열어도 유지된다. "재첨삭"으로 덮어쓸 수 있다. */
   proofread?: ProofreadResult;
+  /** 첨삭 받은 시각 — 일일 숙제·장 조건 집계용 */
+  proofreadAt?: string;
+  /** 시련(보스전)으로 쓴 글이면 장 id */
+  trial?: string;
   createdAt: string;
 }
 
@@ -226,7 +231,7 @@ export interface BookNote {
   order?: number;         // manual drag-and-drop order override; falls back to createdAt when absent
 }
 
-/* ── 거북이 성장 (Journey) ── */
+/* ── 연속 기록(등불) ── */
 export interface Journey {
   lastWriteDate: string;
   streak: number;
@@ -256,6 +261,10 @@ export interface DB {
   strengthSynthesis: StrengthSynthesis[];
   strengthSynthesisAt: string;
   journey: Journey;
+  /** 산마루 서재 이야기 진행 상태 (lib/game.ts) */
+  game?: GameState;
+  /** 글쓰기 도장 훈련 기록 */
+  drillLogs?: DrillLog[];
   _deletedIds: number[];
   // legacy — 데이터 호환용, 더 이상 신규 기록 안 함
   structures: Record<string, number>;
@@ -277,6 +286,7 @@ const EMPTY: DB = {
   weaknessSynthesis: [], weaknessSynthesisAt: '',
   strengthSynthesis: [], strengthSynthesisAt: '',
   journey: { ...DEFAULT_JOURNEY },
+  drillLogs: [],
   _deletedIds: [],
   structures: {}, senses: {}, sentenceStructures: {}, sentenceCopyStructures: {},
 };
@@ -418,25 +428,48 @@ export function saveGamification(g: GamificationStore) {
 
 /* Settings */
 const SETTINGS_KEY = 'wc_settings';
+/** 2 = 서버 GCP(Vertex AI) 기본값 도입. 그 전 저장본(provider 'openai' 등)은 한 번 'gcp'로 옮긴다. */
+const SETTINGS_VERSION = 2;
+export const GCP_MODELS = [
+  'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite',
+] as const;
 export interface Settings {
-  provider: 'openai' | 'gemini';
+  /** gcp = 서버 Vertex AI(키 불필요, 기본) · openai/gemini = 개인 API 키(BYOK) */
+  provider: 'gcp' | 'openai' | 'gemini';
+  gcpModel: string;
   apiKey: string;
   model: string;
   geminiApiKey: string;
   geminiModel: string;
   /** 선택 — 글쓰기 도장 사진을 Picsum(무작위) 대신 Unsplash(주제 검색)로 가져올 때 사용 */
   unsplashAccessKey: string;
+  settingsVersion?: number;
 }
 const DEFAULTS: Settings = {
-  provider: 'openai', apiKey: '', model: 'gpt-4o',
+  provider: 'gcp', gcpModel: 'gemini-3.8-flash',
+  apiKey: '', model: 'gpt-4o',
   geminiApiKey: '', geminiModel: 'gemini-2.0-flash',
   unsplashAccessKey: '',
+  settingsVersion: SETTINGS_VERSION,
 };
+/** AI를 바로 쓸 수 있는지 — gcp는 서버가 처리하므로 항상 true, BYOK는 키가 있어야 한다 */
+export function aiReady(s: Settings): boolean {
+  if (s.provider === 'gcp') return true;
+  return s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
+}
 export function loadSettings(): Settings {
   if (typeof window === 'undefined') return DEFAULTS;
   try {
-    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
-    return s ? { ...DEFAULTS, ...s } : DEFAULTS;
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null') as Partial<Settings> | null;
+    if (!s) return DEFAULTS;
+    const merged: Settings = { ...DEFAULTS, ...s };
+    if ((s.settingsVersion ?? 1) < SETTINGS_VERSION) {
+      // 1회 마이그레이션: 기존 BYOK 키는 남겨두고 기본 공급자만 서버 GCP로 전환
+      merged.provider = 'gcp';
+      merged.settingsVersion = SETTINGS_VERSION;
+      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged)); } catch { /* */ }
+    }
+    return merged;
   } catch { return DEFAULTS; }
 }
 export function saveSettings(s: Settings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }

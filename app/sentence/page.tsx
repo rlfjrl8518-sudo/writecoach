@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
-  loadDB, saveDB, saveDBLocal, loadSettings, groupByMonth,
+  loadDB, saveDB, saveDBLocal, loadSettings, aiReady, groupByMonth,
   mergeSentenceType, mergeSentenceExpressions,
   mergeSentenceRole, mergeSentenceExpressionType,
   type SentenceEntry, type SentenceAnalysis, type SentenceExamples, type SentenceType, type ImageEntry,
@@ -357,8 +357,7 @@ function SentencePageInner() {
 
   async function handleAnalyze() {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     if (!sentence.trim()) { setErr('문장을 입력해주세요.'); return; }
     setLoading(true); setErr(''); setResult(null); setResultEntry(null); setStreamLen(0);
     try {
@@ -389,8 +388,7 @@ function SentencePageInner() {
 
   async function handleGenerateExamples(entryId?: number) {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
 
     const targetEntry = entryId
       ? history.find(e => e.id === entryId)

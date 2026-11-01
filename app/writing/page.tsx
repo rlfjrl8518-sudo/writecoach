@@ -3,13 +3,13 @@ import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'rea
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import {
-  loadDB, saveDB, saveDBLocal, loadSettings, mergeExpressions, mergeWeaknesses, groupByMonth,
+  loadDB, saveDB, saveDBLocal, loadSettings, aiReady, mergeExpressions, mergeWeaknesses, groupByMonth,
   type WritingAnalysis, type WriteType, type WritingEntry, type ProofreadResult,
 } from '@/lib/db';
 import { analyzeWriting, evaluateAppeal, proofreadWriting, type AppealResult } from '@/lib/openai';
 import { pushData } from '@/lib/supabase';
-import { updateJourneyOnWrite, pushPendingCelebration, getScoreEmotion, getWrittenDays, getLevelInfo, toTurtleLevel } from '@/lib/journey';
-import TurtleSprite, { type TurtleLevel } from '@/components/TurtleSprite';
+import { updateJourneyOnWrite, getScoreEmotion } from '@/lib/journey';
+import { Speaker } from '@/components/pixel/Pixel';
 import { confirmDialog } from '@/components/ConfirmDialog';
 
 const TYPES: WriteType[] = ['묘사문', '설명문', '감상문', '의견문', '기사 리드', '카피라이팅', '에세이', '스토리텔링'];
@@ -29,7 +29,7 @@ const BREAKDOWN_KEYS: (keyof WritingAnalysis['score_breakdown'])[] = [
   '표현력', '전달력', '구체성', '논리성', '가독성',
 ];
 
-function StarLoader({ streamLen = 0, level = 1 }: { streamLen?: number; level?: TurtleLevel }) {
+function StarLoader({ streamLen = 0 }: { streamLen?: number }) {
   const [f, setF] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setF(n => (n + 1) % 3), 500);
@@ -37,7 +37,8 @@ function StarLoader({ streamLen = 0, level = 1 }: { streamLen?: number; level?: 
   }, []);
   return (
     <div className="star-loader">
-      <TurtleSprite level={level} emotion="thinking" size={72} />
+      <div className="anim-bob"><Speaker id="muk" emotion="think" size={72} /></div>
+      <span style={{ fontSize: 12, color: 'var(--dim-star)' }}>묵당 선생이 글을 읽고 있다…</span>
       <div className="pixel-font" style={{ fontSize: 16, color: 'var(--moon)', letterSpacing: 8 }}>
         {['★ ☆ ☆', '★ ★ ☆', '★ ★ ★'][f]}
       </div>
@@ -192,7 +193,7 @@ function ProofreadPanel({
   );
 }
 
-function AnalysisDetail({ a, compact = false, level = 1 }: { a: WritingAnalysis; compact?: boolean; level?: TurtleLevel }) {
+function AnalysisDetail({ a, compact = false }: { a: WritingAnalysis; compact?: boolean }) {
   const scoreEmotion = getScoreEmotion(a.score);
   return (
     <div className="animate-fade-in">
@@ -207,7 +208,7 @@ function AnalysisDetail({ a, compact = false, level = 1 }: { a: WritingAnalysis;
           <div className="pixel-font" style={{ fontSize: 6.5, color: 'var(--dim-star)', marginTop: 6 }}>총점 / 100</div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-          <TurtleSprite level={level} emotion={scoreEmotion.emotion} size={44} />
+          <Speaker id="muk" emotion={scoreEmotion.emotion} size={44} />
           <span style={{ fontSize: 11, color: 'var(--dim-star)', fontWeight: 600 }}>{scoreEmotion.message}</span>
         </div>
       </div>
@@ -354,7 +355,6 @@ function WritingPageInner() {
     );
   }, [history, historyQuery, historyTypeFilter]);
   const monthGroups = useMemo(() => groupByMonth(filteredHistory, e => e.date), [filteredHistory]);
-  const currentLevel = useMemo(() => toTurtleLevel(getLevelInfo(getWrittenDays(history)).level), [history]);
 
   function toggleMonth(key: string) {
     setOpenMonths(prev => {
@@ -384,16 +384,12 @@ function WritingPageInner() {
   }, []);
 
   function applyJourneyUpdate(db: ReturnType<typeof loadDB>) {
-    const result = updateJourneyOnWrite(db);
-    if (result.leveledUp) pushPendingCelebration({ type: 'level', level: result.newLevel });
-    if (result.newShellMilestone) pushPendingCelebration({ type: 'shell', milestone: result.newShellMilestone });
-    window.dispatchEvent(new CustomEvent('turtle-bounce'));
+    updateJourneyOnWrite(db);
   }
 
   async function handleAnalyze() {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     if (!text.trim()) { setErr('글을 작성해주세요.'); return; }
     setLoading(true); setErr(''); setResult(null); setStreamLen(0);
     try {
@@ -423,8 +419,7 @@ function WritingPageInner() {
 
   async function handleAppeal(resultToAppeal: WritingAnalysis, entryId?: number) {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     if (!appealText.trim()) { setErr('이의 신청 내용을 입력해주세요.'); return; }
     setAppealLoading(true); setErr(''); setAppealResult(null); setAppealStreamLen(0);
     try {
@@ -451,8 +446,7 @@ function WritingPageInner() {
 
   async function handleAnalyzeEntry(entry: WritingEntry) {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     setAnalyzingId(entry.id); setErr('');
     try {
       const res = await analyzeWriting(s, entry.type, entry.topic, entry.text);
@@ -476,8 +470,7 @@ function WritingPageInner() {
     analysis: WritingAnalysis, key: string, entryId: number | null,
   ) {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     setProofreadLoading(true); setProofreadResult(null); setProofreadStreamLen(0);
     setProofreadForKey(key); setProofreadTab('corrected');
     try {
@@ -489,7 +482,7 @@ function WritingPageInner() {
         const db = loadDB();
         const idx = db.writings.findIndex(w => w.id === entryId);
         if (idx !== -1) {
-          db.writings[idx] = { ...db.writings[idx], proofread: res };
+          db.writings[idx] = { ...db.writings[idx], proofread: res, proofreadAt: new Date().toISOString() };
           saveDB(db);
           setSaved(s => !s);
         }
@@ -589,7 +582,7 @@ function WritingPageInner() {
             )}
           </div>
 
-          {analysisOpen && loading && <StarLoader streamLen={streamLen} level={currentLevel} />}
+          {analysisOpen && loading && <StarLoader streamLen={streamLen} />}
 
           {analysisOpen && !loading && !result && (
             <div className="px-empty">
@@ -598,7 +591,7 @@ function WritingPageInner() {
             </div>
           )}
 
-          {analysisOpen && result && <AnalysisDetail a={result} level={currentLevel} />}
+          {analysisOpen && result && <AnalysisDetail a={result} />}
 
           {/* 이의 제기 */}
           {result && !loading && (
@@ -792,7 +785,7 @@ function WritingPageInner() {
                       return (
                         <>
                           <div className="px-divider" />
-                          <AnalysisDetail a={entry.analysis} compact={false} level={currentLevel} />
+                          <AnalysisDetail a={entry.analysis} compact={false} />
                           <div style={{ marginTop: 14, borderTop: '1px solid var(--card-border)', paddingTop: 14 }}>
                             <div className="pixel-font" style={{ fontSize: 7, color: 'var(--dim-star)', marginBottom: 10 }}>✦ 첨삭</div>
                             {!(isThis && proofreadLoading) && !display ? (

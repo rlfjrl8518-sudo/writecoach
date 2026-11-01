@@ -4,16 +4,16 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { loadDB } from '@/lib/db';
-import { getWrittenDays, getLevelInfo, getLevelProgress, toTurtleLevel } from '@/lib/journey';
-import TurtleSprite from '@/components/TurtleSprite';
+import { computeInk, levelInfo, currentStreak, getGame } from '@/lib/game';
+import { Speaker } from '@/components/pixel/Pixel';
 import { retrySync } from '@/components/CloudSync';
 import type { SyncStatus } from '@/components/CloudSync';
 
 const TABS = [
-  { href: '/',         icon: '⌂',  label: '홈',    matches: ['/'] },
+  { href: '/',         icon: '⌂',  label: '서재',  matches: ['/'] },
   { href: '/writing',  icon: '✏',  label: '글쓰기', matches: ['/writing', '/expressions'] },
   { href: '/sentence', icon: '文',  label: '수집',   matches: ['/sentence', '/copy'] },
-  { href: '/calendar', icon: '暦',  label: '달력',   matches: ['/calendar'] },
+  { href: '/story',    icon: '⚔',  label: '이야기', matches: ['/story', '/journey', '/calendar'] },
   { href: '/training', icon: '◎',  label: '훈련',   matches: ['/training'] },
   { href: '/books',    icon: '册',  label: '책',    matches: ['/books'] },
   { href: '/settings', icon: '⚙',  label: '설정',   matches: ['/settings'] },
@@ -98,16 +98,10 @@ function ThemeToggle() {
 
 function CoachChatButton() {
   const [open, setOpen] = useState(false);
-  const [turtleLevel, setTurtleLevel] = useState<ReturnType<typeof toTurtleLevel>>(1);
   useEffect(() => {
     const handler = (e: Event) => setOpen((e as CustomEvent<boolean>).detail);
     window.addEventListener('coach-chat-state', handler);
     return () => window.removeEventListener('coach-chat-state', handler);
-  }, []);
-  useEffect(() => {
-    // /journey·GamificationBar와 같은 레벨 계산 — 챗봇 버튼도 같은 거북이로
-    const db = loadDB();
-    setTurtleLevel(toTurtleLevel(getLevelInfo(getWrittenDays(db.writings)).level));
   }, []);
   return (
     <button
@@ -121,17 +115,17 @@ function CoachChatButton() {
         cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0,
       }}
     >
-      {/* 프로필 이미지 — /journey의 거북이와 같은 레벨 */}
+      {/* 묵당 선생 */}
       <div style={{
         width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', display: 'flex',
         alignItems: 'center', justifyContent: 'center',
         border: `2px solid ${open ? 'var(--accent)' : 'var(--card-border)'}`,
         transition: 'border-color 0.15s',
       }}>
-        <TurtleSprite level={turtleLevel} emotion="default" size={36} />
+        <Speaker id="muk" size={24} />
       </div>
       <span style={{ fontSize: 13, fontWeight: 600, color: open ? 'var(--accent)' : 'var(--dim-star)', transition: 'color 0.15s', fontFamily: 'Pretendard, sans-serif' }}>
-        코치
+        스승
       </span>
     </button>
   );
@@ -140,15 +134,14 @@ function CoachChatButton() {
 function GamificationBar() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [streak, setStreak] = useState(0);
-  const [days, setDays] = useState(0);
+  const [st, setSt] = useState({ streak: 0, level: 1, title: '견습 글꾼', color: '#8f8fb8', robe: '#5a5a8a', progress: 0, name: '' });
 
   useEffect(() => {
     setMounted(true);
     function refresh() {
       const db = loadDB();
-      setStreak(db.journey?.streak ?? 0);
-      setDays(getWrittenDays(db.writings));
+      const li = levelInfo(computeInk(db).total);
+      setSt({ streak: currentStreak(db), level: li.level, title: li.rank.title, color: li.rank.color, robe: li.rank.robe, progress: li.progress, name: getGame(db).name });
     }
     refresh();
     window.addEventListener('db-saved', refresh);
@@ -157,44 +150,15 @@ function GamificationBar() {
 
   if (!mounted) return null;
 
-  const level = getLevelInfo(days);
-  const progress = getLevelProgress(days);
-
   return (
-    <div
-      onClick={() => router.push('/journey')}
-      style={{
-        margin: '12px 0 4px',
-        padding: '10px 14px',
-        background: 'var(--bg-subtle)',
-        border: '1px solid var(--card-border)',
-        borderRadius: 12,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        cursor: 'pointer',
-      }}
-    >
-      <TurtleSprite level={toTurtleLevel(level.level)} emotion="default" size={32} />
+    <div onClick={() => router.push('/journey')} className="g-panel" style={{ margin: '12px 4px 8px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+      <Speaker id="me" size={32} robe={{ robe: st.robe, color: st.color }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', fontFamily: 'Pretendard, sans-serif' }}>
-            Lv.{level.level} {level.name}
-          </span>
-          {streak > 0 && (
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--moon)', fontFamily: 'Pretendard, sans-serif' }}>
-              🔥 {streak}일
-            </span>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 4 }}>
+          <span style={{ fontSize: 11, color: st.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Lv.{st.level} {st.title}</span>
+          {st.streak > 0 && <span style={{ fontSize: 10, color: 'var(--accent)' }}>◆{st.streak}</span>}
         </div>
-        <div style={{ height: 5, background: 'var(--secondary-soft)', borderRadius: 99, overflow: 'hidden' }}>
-          <div style={{
-            height: '100%', borderRadius: 99,
-            background: 'var(--secondary)',
-            width: `${progress}%`,
-            transition: 'width 0.4s ease',
-          }} />
-        </div>
+        <div className="g-meter">{Array.from({ length: 8 }, (_, i) => <i key={i} className={i < Math.round(st.progress * 8) ? 'on' : ''} style={{ '--c': st.color } as React.CSSProperties} />)}</div>
       </div>
     </div>
   );
@@ -229,7 +193,7 @@ export default function Navigation() {
       <div className="nav-top">
         <div>
           <Link href="/" className="nav-logo">✦ 글<span>습관</span></Link>
-          <div className="nav-logo-sub">AI 글쓰기 훈련</div>
+          <div className="nav-logo-sub">산마루 서재 수련기</div>
         </div>
         {/* 모바일 전용: 우측 액션 */}
         <div className="nav-top-actions">
@@ -239,7 +203,7 @@ export default function Navigation() {
         </div>
       </div>
 
-      {/* 거북이 레벨 / 스트릭 바 (사이드바 전용) */}
+      {/* 제자 등급 / 등불 바 (사이드바 전용) */}
       <div className="nav-gamification">
         <GamificationBar />
       </div>

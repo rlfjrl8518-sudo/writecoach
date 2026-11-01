@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import {
-  loadDB, saveDB, loadSettings, getLast30DaysScores, getTopEntries,
+  loadDB, saveDB, loadSettings, aiReady, getLast30DaysScores, getTopEntries,
   getTotalChars, getAvgScore, getMonthlyWritingStats,
   type DB, type WeaknessSynthesis, type StrengthSynthesis,
 } from '@/lib/db';
@@ -107,8 +107,7 @@ export default function ReportPage() {
 
   async function handleGenerate() {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     if (!db) return;
 
     const monthWritings = db.writings.filter(w => w.date.startsWith(month) && w.analysis);
@@ -211,8 +210,7 @@ export default function ReportPage() {
 
   async function handleSynthesizeWeaknesses() {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setWeakErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setWeakErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     setWeakLoading(true); setWeakErr('');
     try {
       const items = getTopEntries(liveWeaknesses, 15).map(([text, count]) => ({ text, count }));
@@ -229,8 +227,7 @@ export default function ReportPage() {
 
   async function handleSynthesizeStrengths() {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setStrErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setStrErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     setStrLoading(true); setStrErr('');
     try {
       const items = getTopEntries(liveStrengths, 15).map(([text, count]) => ({ text, count }));

@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { loadDB, saveDB, saveDBLocal, loadSettings, mergeCopyType, groupByMonth, type CopyEntry, type CopyAnalysis } from '@/lib/db';
+import { loadDB, saveDB, saveDBLocal, loadSettings, aiReady, mergeCopyType, groupByMonth, type CopyEntry, type CopyAnalysis } from '@/lib/db';
 import { confirmDialog } from '@/components/ConfirmDialog';
 import { pushData } from '@/lib/supabase';
 import { analyzeCopy } from '@/lib/openai';
@@ -180,8 +180,7 @@ function CopyPageInner() {
 
   async function handleAnalyze() {
     const s = loadSettings();
-    const hasKey = s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
-    if (!hasKey) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
+    if (!aiReady(s)) { setErr('설정 탭에서 API 키를 먼저 입력해주세요.'); return; }
     if (!copy.trim()) { setErr('카피를 입력해주세요.'); return; }
     setLoading(true); setErr(''); setResult(null); setStreamLen(0);
     try {
