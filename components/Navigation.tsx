@@ -4,19 +4,18 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { loadDB } from '@/lib/db';
-import { computeInk, levelInfo, currentStreak, getGame } from '@/lib/game';
+import { rankOf, currentStreak, getGame, pathView } from '@/lib/game';
 import { Speaker } from '@/components/pixel/Pixel';
 import { retrySync } from '@/components/CloudSync';
 import type { SyncStatus } from '@/components/CloudSync';
 
 const TABS = [
-  { href: '/',         icon: '⌂',  label: '서재',  matches: ['/'] },
-  { href: '/writing',  icon: '✏',  label: '글쓰기', matches: ['/writing', '/expressions'] },
-  { href: '/sentence', icon: '文',  label: '수집',   matches: ['/sentence', '/copy'] },
-  { href: '/story',    icon: '⚔',  label: '이야기', matches: ['/story', '/journey', '/calendar'] },
-  { href: '/training', icon: '◎',  label: '훈련',   matches: ['/training'] },
-  { href: '/books',    icon: '册',  label: '책',    matches: ['/books'] },
-  { href: '/settings', icon: '⚙',  label: '설정',   matches: ['/settings'] },
+  { href: '/',         icon: '⌂',  label: '서재', matches: ['/'] },
+  { href: '/practice', icon: '◎',  label: '수련', matches: ['/practice'] },
+  { href: '/writing',  icon: '✎',  label: '글방', matches: ['/writing'] },
+  { href: '/books',    icon: '冊',  label: '서고', matches: ['/books'] },
+  { href: '/journey',  icon: '印',  label: '기록', matches: ['/journey', '/report', '/calendar'] },
+  { href: '/settings', icon: '⚙',  label: '설정', matches: ['/settings'] },
 ];
 
 function isActive(tab: typeof TABS[0], path: string) {
@@ -135,14 +134,14 @@ function CoachChatButton() {
 function GamificationBar() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [st, setSt] = useState({ streak: 0, level: 1, title: '견습 글꾼', color: '#8f8fb8', robe: '#5a5a8a', progress: 0, name: '' });
+  const [st, setSt] = useState({ streak: 0, mastered: 0, title: '견습 제자', color: '#8f8fb8', robe: '#5a5a8a', name: '' });
 
   useEffect(() => {
     setMounted(true);
     function refresh() {
       const db = loadDB();
-      const li = levelInfo(computeInk(db).total);
-      setSt({ streak: currentStreak(db), level: li.level, title: li.rank.title, color: li.rank.color, robe: li.rank.robe, progress: li.progress, name: getGame(db).name });
+      const r = rankOf(db);
+      setSt({ streak: currentStreak(db), mastered: pathView(db).masteredCount, title: r.title, color: r.color, robe: r.robe, name: getGame(db).name });
     }
     refresh();
     window.addEventListener('db-saved', refresh);
@@ -156,10 +155,10 @@ function GamificationBar() {
       <Speaker id="me" size={32} robe={{ robe: st.robe, color: st.color }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 4 }}>
-          <span style={{ fontSize: 11, color: st.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Lv.{st.level} {st.title}</span>
+          <span style={{ fontSize: 11, color: st.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{st.title}</span>
           {st.streak > 0 && <span style={{ fontSize: 10, color: 'var(--accent)' }}>◆{st.streak}</span>}
         </div>
-        <div className="g-meter">{Array.from({ length: 8 }, (_, i) => <i key={i} className={i < Math.round(st.progress * 8) ? 'on' : ''} style={{ '--c': st.color } as React.CSSProperties} />)}</div>
+        <div style={{ display: 'flex', gap: 1 }} title={`백지첩 ${st.mastered}/24`}>{Array.from({ length: 24 }, (_, i) => <i key={i} style={{ flex: 1, height: 6, background: i < st.mastered ? st.color : 'var(--line-soft)' }} />)}</div>
       </div>
     </div>
   );
@@ -194,7 +193,7 @@ export default function Navigation() {
       <div className="nav-top">
         <div>
           <Link href="/" className="nav-logo">✦ 글<span>습관</span></Link>
-          <div className="nav-logo-sub">산마루 서재 수련기</div>
+          <div className="nav-logo-sub">백지첩 24수 · 묵당의 문장 수련</div>
         </div>
         {/* 모바일 전용: 우측 액션 */}
         <div className="nav-top-actions">

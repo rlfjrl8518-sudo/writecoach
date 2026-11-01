@@ -25,6 +25,8 @@ RUN addgroup -S nodejs -g 1001 && adduser -S nextjs -u 1001 -G nodejs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# 매시 푸시 크론 (Cloud Run Job writecoach-push: node scripts/push-cron.mjs) — standalone node_modules 를 그대로 쓴다
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/push-cron.mjs ./scripts/push-cron.mjs
 USER nextjs
 EXPOSE 8080
 CMD ["node", "server.js"]

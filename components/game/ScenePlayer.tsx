@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { loadDB, saveDB } from '@/lib/db';
-import { getGame, levelInfo, computeInk } from '@/lib/game';
-import { SPEAKERS, type Line, type SpeakerId } from '@/lib/story';
+import { getGame, rankOf } from '@/lib/game';
+import { SPEAKER_NAME, isBoss as isBossId, type Line, type SpeakerId } from '@/lib/curriculum';
 import { Speaker } from '@/components/pixel/Pixel';
 import type { Emotion } from '@/components/pixel/sprites';
 
@@ -59,7 +59,7 @@ export default function ScenePlayer() {
     if (!cur) return;
     const db = loadDB();
     setName(getGame(db).name);
-    const r = levelInfo(computeInk(db).total).rank;
+    const r = rankOf(db);
     setRobe({ robe: r.robe, color: r.color });
   }, [cur]);
 
@@ -105,9 +105,9 @@ export default function ScenePlayer() {
   }, [cur, advance, finish]);
 
   if (!cur || !line) return null;
-  const sp = SPEAKERS[line.who];
-  const speakerName = line.who === 'me' ? (name || '나') : sp.name;
-  const isBoss = !['narr', 'me', 'muk', 'yoon', 'chekhov', 'hemingway', 'woolf', 'yeonam', 'kimyujeong', 'orwell', 'yisang'].includes(line.who);
+  const speakerName = line.who === 'me' ? (name || '나') : SPEAKER_NAME[line.who];
+  const isBoss = isBossId(line.who);
+  const spColor = line.who === 'muk' ? 'var(--moon)' : isBoss ? 'var(--bad)' : 'var(--dim-star)';
 
   return (
     <div
@@ -130,7 +130,7 @@ export default function ScenePlayer() {
       <div className="g-panel hi" style={{ maxWidth: 720, width: '100%', margin: '0 auto 8px', minHeight: 140 }} onClick={e => { e.stopPropagation(); advance(); }}>
         <div className="g-dialog">
           <div style={{ flex: 1, minWidth: 0 }}>
-            {speakerName && <div className="who" style={{ color: line.who === 'me' ? robe.color : sp.color }}>{speakerName}</div>}
+            {speakerName && <div className="who" style={{ color: line.who === 'me' ? robe.color : spColor }}>{speakerName}</div>}
             <div className="txt" style={{ color: line.who === 'narr' ? 'var(--dim-star)' : 'var(--text)', fontStyle: line.who === 'narr' ? 'italic' : undefined }}>
               {full.slice(0, shown)}
             </div>

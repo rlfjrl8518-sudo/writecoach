@@ -170,18 +170,21 @@ export function mergeDBs(localIn: DB, remoteIn: DB): DB {
     };
   }
 
-  /** 게임 상태 — 더 나중 해(year)를 따르고, 본 장면·시련 기록은 합집합 */
+  /** 게임 상태 — 더 나중 회차를 따르고, 본 장면·시련 기록·주간 편지는 합집합 */
   function mergeGame(a?: GameState, b?: GameState): GameState {
     const x = { ...DEFAULT_GAME, ...(a ?? {}) }, y = { ...DEFAULT_GAME, ...(b ?? {}) };
-    const lead = x.year !== y.year ? (x.year > y.year ? x : y) : (x.yearStart >= y.yearStart ? x : y);
+    const lead = x.cycle !== y.cycle ? (x.cycle > y.cycle ? x : y) : (x.cycleStart >= y.cycleStart ? x : y);
     const trials = new Map<number, GameState['trials'][number]>();
-    [...y.trials, ...x.trials].forEach(t => trials.set(t.id, t));
+    [...(y.trials ?? []), ...(x.trials ?? [])].forEach(t => trials.set(t.id, t));
+    const letters = new Map<string, GameState['letters'][number]>();
+    [...(y.letters ?? []), ...(x.letters ?? [])].forEach(l => { const e = letters.get(l.week); if (!e || l.createdAt > e.createdAt) letters.set(l.week, l); });
     return {
       name: x.name || y.name,
-      year: lead.year,
-      yearStart: lead.yearStart,
-      seenScenes: Array.from(new Set([...x.seenScenes, ...y.seenScenes])),
+      cycle: lead.cycle,
+      cycleStart: lead.cycleStart,
+      seenScenes: Array.from(new Set([...(x.seenScenes ?? []), ...(y.seenScenes ?? [])])),
       trials: Array.from(trials.values()).sort((p, q) => p.id - q.id),
+      letters: Array.from(letters.values()).sort((p, q) => p.week.localeCompare(q.week)),
     };
   }
 

@@ -8,7 +8,8 @@ node_modules
 .env
 .env.local
 .env*.local
-scripts
+scripts/*
+!scripts/push-cron.mjs
 supabase-setup.sql
 public/sw.js
 public/sw.js.map

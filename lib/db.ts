@@ -69,8 +69,12 @@ export interface WritingEntry {
   proofread?: ProofreadResult;
   /** 첨삭 받은 시각 — 일일 숙제·장 조건 집계용 */
   proofreadAt?: string;
-  /** 시련(보스전)으로 쓴 글이면 장 id */
+  /** 시련(보스전)으로 쓴 글이면 'ch-<장 번호>' */
   trial?: string;
+  /** 오늘의 수련 ④ 짧은 글이면 그 수 번호(1~24) */
+  su?: number;
+  /** 사진 훈련 등에서 생성된 이미지(문집에 함께 싣는다) */
+  imageUrl?: string;
   createdAt: string;
 }
 

@@ -367,7 +367,7 @@ export default function BooksPage() {
               <input className="px-input" placeholder="예: 120쪽까지" value={progress} onChange={e => setProgress(e.target.value)} />
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label className="px-label">인상 깊은 구절 <span style={{ fontSize: 10, color: 'var(--dim-star)', fontWeight: 400 }}>(선택)</span></label>
+              <label className="px-label">인상 깊은 구절 <span style={{ fontSize: 10, color: 'var(--dim-star)', fontWeight: 400 }}>(선택 · 수련 워밍업의 &lsquo;필사 변주&rsquo; 재료가 돼요)</span></label>
               <textarea
                 className="px-textarea" rows={2}
                 placeholder="마음에 남은 문장을 옮겨 적어보세요..."

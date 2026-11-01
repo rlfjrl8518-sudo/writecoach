@@ -1,3 +1,4 @@
+import { getImage } from '@/lib/imageGen';
 import { NextRequest } from 'next/server';
 import { ThinkingLevel, type GenerateContentConfig, type Part } from '@google/genai';
 import { aiEnabled, gemini, DEFAULT_MODEL, ALLOWED_MODELS } from '@/lib/vertex';
@@ -68,6 +69,12 @@ function cleanSchema(node: unknown): unknown {
 
 async function imagePart(url: string): Promise<Part | null> {
   try {
+    // 앱이 생성해 GCS에 둔 훈련 이미지 — 직접 읽는다
+    const own = url.match(/^\/api\/image\/([a-f0-9]{24})$/);
+    if (own) {
+      const buf = await getImage(own[1]);
+      return buf ? { inlineData: { mimeType: 'image/webp', data: buf.toString('base64') } } : null;
+    }
     if (!/^https:\/\//i.test(url)) return null;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);

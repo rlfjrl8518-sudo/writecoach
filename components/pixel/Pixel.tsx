@@ -2,7 +2,7 @@
 import type { CSSProperties } from 'react';
 import type { SpriteDef, Emotion } from './sprites';
 import { speakerSprite, monster } from './sprites';
-import type { SpeakerId } from '@/lib/story';
+import type { SpeakerId } from '@/lib/curriculum';
 
 /** 격자 → SVG. 가로로 이어진 같은 색 칸은 하나의 rect로 합친다. */
 export function PixelArt({ sprite, size = 64, flip, className, style, title }: {

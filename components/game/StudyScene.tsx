@@ -1,7 +1,7 @@
 'use client';
 import type { ReactNode } from 'react';
 import { Speaker } from '@/components/pixel/Pixel';
-import type { SpeakerId } from '@/lib/story';
+import type { SpeakerId } from '@/lib/curriculum';
 
 /* 산마루 서재 내부 — 창(밤하늘·안개), 책장, 책상, 등불. 일러스트라 테마와 무관하게 고정 색. */
 const BOOK_COLORS = ['#a3203a', '#1f6fa8', '#3e8e41', '#c8961e', '#6b4a8a', '#8a5a3a', '#2a6a6a', '#b0562a'];

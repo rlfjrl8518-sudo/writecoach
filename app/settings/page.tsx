@@ -2,13 +2,15 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { loadSettings, saveSettings, loadDB, saveDB, saveDBLocal, loadGamification, saveGamification, GCP_MODELS, type Settings } from '@/lib/db';
+import { normalizeDB, loadSettings, saveSettings, loadDB, saveDB, saveDBLocal, loadGamification, saveGamification, GCP_MODELS, type Settings } from '@/lib/db';
 import {
   isSupabaseConfigured, getCurrentUser, signOut,
   onAuthChange, pushSettings,
 } from '@/lib/supabase';
+import { mergeDBs } from '@/lib/supabase';
 import { syncNow, replaceRemote, detectBackend, getSyncUser, type BackendName } from '@/lib/sync';
 import { confirmDialog } from '@/components/ConfirmDialog';
+import PushOptIn from '@/components/PushOptIn';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -111,10 +113,10 @@ export default function SettingsPage() {
       try {
         const data = JSON.parse(ev.target?.result as string);
         if (!data.writings) throw new Error('올바른 형식이 아니에요.');
-        if (!await confirmDialog(`${data.writings.length}편의 데이터를 가져올까요? 기존 데이터는 덮어써져요.`, { confirmLabel: '가져오기' })) return;
-        saveDB(data);
-        // 백업 가져오기는 '덮어쓰기'가 의도 — 클라우드도 이 내용으로 교체한다(합치면 지운 기록이 되살아남)
-        try { await replaceRemote(loadDB()); } catch { /* 오프라인이면 다음 동기화 때 합쳐진다 */ }
+        if (!await confirmDialog(`백업의 글 ${data.writings.length}편·책 ${(data.books ?? []).length}권을 지금 기록과 합칠까요? 지워지는 기록은 없어요. (같은 항목은 더 나중에 고친 쪽이 남아요)`, { confirmLabel: '합쳐서 가져오기' })) return;
+        // 복구·기기 이전용 — 덮어쓰지 않고 합친다. 여러 기기의 백업을 차례로 넣어도 모두 남는다.
+        saveDB(mergeDBs(loadDB(), normalizeDB(data)));
+        await syncNow().catch(() => {});
         alert('가져오기 완료!');
       } catch (err: unknown) {
         alert('오류: ' + (err instanceof Error ? err.message : String(err)));
@@ -435,6 +437,9 @@ export default function SettingsPage() {
             </div>
           )}
         </Section>
+
+        {/* 푸시 알림 — 묵당의 저녁 종 */}
+        <PushOptIn />
 
         <div className="px-divider" />
 

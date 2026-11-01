@@ -10,5 +10,7 @@ npm-debug.log*
 .env*.local
 Dockerfile
 .dockerignore
-scripts
+# scripts 는 빼되 푸시 크론만 이미지에 넣는다 (디렉터리째 제외하면 ! 예외가 안 먹으므로 scripts/*)
+scripts/*
+!scripts/push-cron.mjs
 supabase-setup.sql

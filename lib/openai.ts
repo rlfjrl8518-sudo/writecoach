@@ -949,3 +949,33 @@ changes는 3-5개. reason은 10자 이내 짧은 태그 (예: "클리셰 제거"
   const raw = await callAI(s, PROOFREAD_SYS, user, 3000, 0.4, true, onStream);
   return safeParseJSON<ProofreadResult>(raw);
 }
+
+/* ── 오늘의 수련 ② 워밍업 — 한 문장 고쳐 쓰기 짧은 피드백 ── */
+export interface WarmupFeedback { applied: boolean; feedback: string; better: string }
+export async function evaluateWarmup(
+  s: Settings, suTitle: string, technique: string, task: string, original: string, answer: string,
+): Promise<WarmupFeedback> {
+  const system = `당신은 글쓰기 수련 게임의 스승 "묵당 선생"이다. 제자가 오늘 배운 기법 「${suTitle}」을 한 문장 고쳐 쓰기에 적용했는지 짧고 정확하게 본다. 말투는 "~하게/~일세" 하게체, 2문장 이내. 칭찬은 근거가 있을 때만.`;
+  const user = `기법 설명: ${technique}\n과제: ${task}\n원문: ${original}\n제자의 답: ${answer}\n
+JSON으로만 답하라: {"applied": true/false (기법을 실제로 적용했는가), "feedback": "구체적인 한두 문장 — 어느 단어가 왜 좋아졌는지 또는 무엇이 아직 남았는지", "better": "같은 기법을 더 잘 적용한 예시 한 문장"}`;
+  const raw = await callAI(s, system, user, 600, 0.4, true);
+  const r = safeParseJSON<{ applied?: boolean | string; feedback?: string; better?: string }>(raw);
+  return { applied: r.applied === true || r.applied === 'true', feedback: r.feedback ?? '', better: r.better ?? '' };
+}
+
+/* ── 주간 편지 — 한 주의 글을 묵당 선생이 편지로 첨삭 ── */
+export async function writeWeeklyLetter(
+  s: Settings, name: string, weekLabel: string,
+  items: { title: string; type: string; text: string; score?: number; weak?: string[] }[],
+  streak: number, learned: string[],
+): Promise<string> {
+  const system = `당신은 글쓰기 수련 게임 "산마루 서재"의 스승 "묵당 선생"(노작가)이다. 매주 일요일 제자에게 손편지를 쓴다. 하게체("자네", "~하게", "~일세"). 따뜻하지만 정확하다.
+편지 구성(전체 12~18문장, 소제목·목록·마크다운 금지, 문단만):
+1) 이번 주 자네가 쓴 글에서 가장 좋았던 문장 하나를 그대로 인용하고 왜 좋은지.
+2) 반복되는 약점 하나를, 실제 문장을 인용해 짚고 고친 예를 보여 줌.
+3) 이번 주 익힌 기법과 연결해 다음 주에 시도할 구체적인 한 가지.
+4) 등불(연속 수련일)에 대한 한마디와 짧은 맺음. 끝에 "— 묵당" 서명.`;
+  const body = items.slice(0, 8).map((it, i) => `[${i + 1}] (${it.type}) ${it.title}${it.score != null ? ` · ${it.score}점` : ''}\n${it.text.slice(0, 700)}${it.weak?.length ? `\n지적된 약점: ${it.weak.slice(0, 2).join(' / ')}` : ''}`).join('\n\n');
+  const user = `제자 이름: ${name || '제자'}\n기간: ${weekLabel}\n현재 등불: ${streak}일 연속\n이번 주 익힌 기법: ${learned.join(', ') || '없음'}\n\n이번 주 글:\n${body}`;
+  return (await callAI(s, system, user, 1600, 0.6)).trim();
+}

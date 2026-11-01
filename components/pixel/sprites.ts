@@ -4,7 +4,7 @@
    - 요괴: 손으로 그린 틀 6종(도깨비·안개·뱀·유령·새·실타래)을 색만 바꿔 쓴다.
    격자 문자 → 색은 palette로 매핑, '.'은 투명.
 ═══════════════════════════════════════════════════════════════ */
-import type { SpeakerId } from '@/lib/story';
+import type { SpeakerId } from '@/lib/curriculum';
 
 export type Grid = string[];
 export type Palette = Record<string, string>;
@@ -94,18 +94,10 @@ export function person(p: PersonSpec, emotion: Emotion = 'default'): SpriteDef {
   };
 }
 
-const SKIN = '#f1c9a0', SKIN2 = '#e8b98d', PALE = '#f5d7c0';
+const SKIN = '#f1c9a0', SKIN2 = '#e8b98d';
 
 export const PEOPLE: Partial<Record<SpeakerId, PersonSpec>> = {
   muk: { skin: SKIN2, hair: '#e8e8e8', hairStyle: 'sides', glasses: 'round', beard: 'goatee', beardColor: '#e8e8e8', clothes: '#2a2f4a', collar: 'dopo', accent: '#c8961e' },
-  yoon: { skin: SKIN, hair: '#1a1a22', hairStyle: 'cap', clothes: '#1c1c2a', collar: 'uniform', accent: '#f7e26b' },
-  chekhov: { skin: PALE, hair: '#5a3a24', hairStyle: 'wavy', glasses: 'pince', beard: 'trim', clothes: '#3b3b4e', collar: 'suit', accent: '#5a2a2a' },
-  hemingway: { skin: '#e3a57a', hair: '#d8d0c0', hairStyle: 'short', beard: 'full', beardColor: '#e8e2d4', clothes: '#c9b28a', collar: 'sweater', accent: '#a8946c' },
-  woolf: { skin: PALE, hair: '#6b4a32', hairStyle: 'bun', clothes: '#4a3a5a', collar: 'dress' },
-  yeonam: { skin: SKIN2, hair: '#2a2a2a', hairStyle: 'gat', beard: 'full', beardColor: '#3a3a3a', clothes: '#e8e2d0', collar: 'hanbok', accent: '#8a2a2a' },
-  kimyujeong: { skin: SKIN, hair: '#1a1a22', hairStyle: 'short', clothes: '#d8cfb8', collar: 'hanbok' },
-  orwell: { skin: PALE, hair: '#3a2a1a', hairStyle: 'slick', beard: 'mustache', clothes: '#4a5248', collar: 'suit', accent: '#2a2a2a' },
-  yisang: { skin: PALE, hair: '#101018', hairStyle: 'slick', beard: 'mustache', clothes: '#2a2a3a', collar: 'suit', accent: '#9b2d3a' },
 };
 
 /** 제자(플레이어) — 등급에 따라 도포 색이 바뀐다 */

@@ -505,22 +505,11 @@ function WritingPageInner() {
 
   return (
     <div>
-      <div className="px-sec-title" style={{ marginBottom: 18 }}>✏ 글쓰기 연습</div>
-
-      {/* 서브 탭 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-        <button style={{
-          padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
-          border: '1.5px solid var(--accent)', background: 'var(--accent)', color: 'var(--on-accent)',
-          fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
-        }}>✏ 글쓰기</button>
-        <Link href="/expressions" style={{ textDecoration: 'none' }}>
-          <button style={{
-            padding: '9px 22px', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: 'pointer',
-            border: '1.5px solid var(--card-border)', background: 'transparent', color: 'var(--dim-star)',
-            fontFamily: 'Pretendard, sans-serif', transition: 'all 0.12s',
-          }}>辭 표현사전</button>
-        </Link>
+      <div className="px-sec-title" style={{ marginBottom: 12 }}>✎ 글방</div>
+      <div className="g-panel" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 18 }}>
+        <span style={{ fontSize: 13, flex: '1 1 240px' }}>자유롭게 쓰고 분석·첨삭을 받는 곳일세. 실력은 <b>수련</b>에서 기르고, 여기선 마음껏 쓰게.</span>
+        <Link href="/practice" className="g-btn sm primary">오늘의 수련 →</Link>
+        <Link href="/writing/book" className="g-btn sm">📖 나의 문집</Link>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, alignItems: 'start' }} className="grid-2">
