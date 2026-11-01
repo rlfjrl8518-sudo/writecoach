@@ -6,7 +6,7 @@ import {
   type ExpressionLabEntry, type ExpressionAnalysis, type DictResult,
   type ExpressionCategory,
 } from '@/lib/db';
-import { pushData } from '@/lib/supabase';
+import { requestSync } from '@/lib/sync';
 import { analyzeExpression, suggestExpressions, type ExpressionSuggestion } from '@/lib/openai';
 import { confirmDialog } from '@/components/ConfirmDialog';
 
@@ -238,7 +238,7 @@ export default function ExpressionsPage() {
     db._deletedIds = [...(db._deletedIds ?? []), id];
     saveDBLocal(db);
     setSaved(v => !v);
-    try { await pushData(db); } catch {}
+    requestSync(300);
   }
 
   function handleToggleFavorite(id: number, e: React.MouseEvent) {

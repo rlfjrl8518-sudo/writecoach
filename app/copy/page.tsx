@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { loadDB, saveDB, saveDBLocal, loadSettings, aiReady, mergeCopyType, groupByMonth, type CopyEntry, type CopyAnalysis } from '@/lib/db';
 import { confirmDialog } from '@/components/ConfirmDialog';
-import { pushData } from '@/lib/supabase';
+import { requestSync } from '@/lib/sync';
 import { analyzeCopy } from '@/lib/openai';
 
 const COPY_GUIDE = [
@@ -214,7 +214,7 @@ function CopyPageInner() {
     db._deletedIds = [...(db._deletedIds ?? []), id];
     saveDBLocal(db);
     setSaved(v => !v);
-    try { await pushData(db); } catch {}
+    requestSync(300);
   }
 
   function handleEditStart(entry: CopyEntry, e: React.MouseEvent) {

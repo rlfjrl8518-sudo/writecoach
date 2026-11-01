@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { User } from '@supabase/supabase-js';
 import type { DB, ExpressionRecord, Journey, Settings } from './db';
-import { DEFAULT_JOURNEY } from './db';
+import { DEFAULT_JOURNEY, normalizeDB } from './db';
 import { DEFAULT_GAME, type GameState } from './game';
 
 export type { User };
@@ -72,7 +72,34 @@ export async function pullSettings(): Promise<Settings | null> {
   return (s as Settings) ?? null;
 }
 
-/* ── Sync ── */
+/* ── 동기화 엔진(lib/sync.ts)용: 행 단위 읽기/쓰기 ──
+   user_data.data 안에 __settings가 함께 들어 있으므로 쓸 때 보존한다. */
+export async function pullRow(): Promise<{ data: DB | null; updatedAt: string } | null> {
+  if (!supabase) return null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data, error } = await supabase.from('user_data').select('data, updated_at').eq('user_id', user.id).single();
+  if (error?.code === 'PGRST116') return { data: null, updatedAt: '0' };
+  if (error) throw new Error(error.message);
+  const raw = (data?.data ?? null) as (DB & { __settings?: unknown }) | null;
+  if (raw) delete raw.__settings;
+  return { data: raw, updatedAt: String(data?.updated_at ?? '0') };
+}
+export async function pushRow(db: DB): Promise<string> {
+  if (!supabase) throw new Error('Supabase 미설정');
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('로그인 필요');
+  const { data: existing } = await supabase.from('user_data').select('data').eq('user_id', user.id).single();
+  const settings = (existing?.data as Record<string, unknown> | undefined)?.__settings;
+  const updatedAt = new Date().toISOString();
+  const payload = { ...(db as unknown as Record<string, unknown>), ...(settings ? { __settings: settings } : {}) };
+  const { error } = await supabase.from('user_data').upsert(
+    { user_id: user.id, data: payload, updated_at: updatedAt }, { onConflict: 'user_id' });
+  if (error) throw new Error(error.message);
+  return updatedAt;
+}
+
+/* ── Sync (legacy) ── */
 export async function pushData(db: DB): Promise<void> {
   if (!supabase) return;
   const { data: { user } } = await supabase.auth.getUser();
@@ -101,7 +128,9 @@ export async function pullData(): Promise<DB | null> {
 }
 
 /* ── Merge: 두 DB를 합침 (항목 ID별 union, 삭제 제외) ── */
-export function mergeDBs(local: DB, remote: DB): DB {
+export function mergeDBs(localIn: DB, remoteIn: DB): DB {
+  // 어느 쪽이든 빠진 필드가 있을 수 있다(옛 버전·부분 데이터) — 기본값으로 채운 뒤 합친다
+  const local = normalizeDB(localIn), remote = normalizeDB(remoteIn);
   // 양쪽 tombstone 합산
   const deletedIds = new Set([...(local._deletedIds ?? []), ...(remote._deletedIds ?? [])]);
 
@@ -113,6 +142,10 @@ export function mergeDBs(local: DB, remote: DB): DB {
       if (!existing) {
         map.set(item.id, item);
       } else {
+        // 수정 시각(_u)이 있으면 나중에 고친 쪽, 없으면(옛 데이터) 분석·평가가 있는 쪽
+        const iu = (item as { _u?: number })._u ?? 0;
+        const eu = (existing as { _u?: number })._u ?? 0;
+        if (iu || eu) { if (iu > eu) map.set(item.id, item); return; }
         const itemDone = !!(item as Record<string, unknown>)['analysis'] || !!(item as Record<string, unknown>)['evaluation'];
         const existDone = !!(existing as Record<string, unknown>)['analysis'] || !!(existing as Record<string, unknown>)['evaluation'];
         if (itemDone && !existDone) map.set(item.id, item);

@@ -4,7 +4,7 @@ import {
   loadDB, saveDB, saveDBLocal, groupByMonth, getBookNotes,
   type Book, type BookNote, type BookStatus,
 } from '@/lib/db';
-import { pushData } from '@/lib/supabase';
+import { requestSync } from '@/lib/sync';
 import { confirmDialog } from '@/components/ConfirmDialog';
 
 function todayStr() { return new Date().toISOString().split('T')[0]; }
@@ -228,7 +228,7 @@ export default function BooksPage() {
     saveDBLocal(db);
     setSelectedId(null);
     setSaved(s => !s);
-    try { await pushData(db); } catch {}
+    requestSync(300);
   }
 
   async function handleDeleteNote(noteId: number) {
@@ -238,7 +238,7 @@ export default function BooksPage() {
     db._deletedIds = [...(db._deletedIds ?? []), noteId];
     saveDBLocal(db);
     setSaved(s => !s);
-    try { await pushData(db); } catch {}
+    requestSync(300);
   }
 
   // ── 기록 타임라인 드래그 앤 드롭 재정렬 핸들러 ──

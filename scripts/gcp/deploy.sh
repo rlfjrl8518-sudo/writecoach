@@ -20,6 +20,7 @@ ACCOUNT="${ACCOUNT:-rlfjrl8518@gmail.com}"   # 이 PC의 gcloud 기본 계정은
 RUN_SA="${RUN_SA:-writecoach-run@${PROJECT}.iam.gserviceaccount.com}"
 GEMINI_MODEL="${GEMINI_MODEL:-gemini-3.8-flash}"
 GCLOUD="${GCLOUD:-gcloud}"
+SYNC_BUCKET="${SYNC_BUCKET:-write-coach-sync}"   # PC·모바일 동기화 저장소 (비공개, 버전 관리)
 
 cd "$(dirname "$0")/../.."
 G() { "$GCLOUD" --account="$ACCOUNT" --project="$PROJECT" "$@"; }
@@ -34,6 +35,10 @@ if [ "${SETUP:-0}" = "1" ]; then
   G projects add-iam-policy-binding "$PROJECT" \
     --member="serviceAccount:$RUN_SA" --role=roles/aiplatform.user --condition=None >/dev/null
   G services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com iap.googleapis.com aiplatform.googleapis.com
+  echo "▶ 동기화 버킷: gs://$SYNC_BUCKET"
+  G storage buckets describe "gs://$SYNC_BUCKET" >/dev/null 2>&1 ||     G storage buckets create "gs://$SYNC_BUCKET" --location="$REGION" --uniform-bucket-level-access --public-access-prevention
+  G storage buckets update "gs://$SYNC_BUCKET" --versioning >/dev/null
+  G storage buckets add-iam-policy-binding "gs://$SYNC_BUCKET"     --member="serviceAccount:$RUN_SA" --role=roles/storage.objectAdmin >/dev/null
 fi
 
 # 1) 빌드용 공개 값 (.env.production, 배포 후 삭제)
@@ -51,7 +56,7 @@ trap cleanup EXIT
 } > .env.production
 
 # 2) 런타임 환경 변수 (비어 있지 않은 것만, update 방식)
-ENV_VARS="GOOGLE_CLOUD_PROJECT=$PROJECT,GOOGLE_CLOUD_LOCATION=global,GEMINI_MODEL=$GEMINI_MODEL"
+ENV_VARS="GOOGLE_CLOUD_PROJECT=$PROJECT,GOOGLE_CLOUD_LOCATION=global,GEMINI_MODEL=$GEMINI_MODEL,SYNC_BUCKET=$SYNC_BUCKET"
 EXTRA=()
 # KORDIC_API_KEY: Secret Manager 에 kordic-api-key 가 있으면 그걸, 없으면 로컬 값(있을 때만) 사용
 if G secrets describe kordic-api-key >/dev/null 2>&1; then

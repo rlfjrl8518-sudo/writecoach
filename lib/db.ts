@@ -291,6 +291,10 @@ const EMPTY: DB = {
   structures: {}, senses: {}, sentenceStructures: {}, sentenceCopyStructures: {},
 };
 
+/** 빠진 필드를 기본값으로 채운다 — 옛 버전·다른 기기에서 온 데이터도 안전하게 */
+export function normalizeDB(raw: Partial<DB> | null | undefined): DB {
+  return { ...EMPTY, ...(raw ?? {}), journey: { ...DEFAULT_JOURNEY, ...(raw?.journey ?? {}) } };
+}
 export function loadDB(): DB {
   if (typeof window === 'undefined') return { ...EMPTY };
   try {
@@ -299,7 +303,27 @@ export function loadDB(): DB {
     return { ...EMPTY, ...(JSON.parse(raw) as Partial<DB>) };
   } catch { return { ...EMPTY }; }
 }
-export function saveDBLocal(db: DB) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+/* ── 항목별 수정 시각(_u) — 기기 간 동기화에서 '나중에 고친 쪽'을 고르는 기준 ──
+   저장 직전, 지금 저장돼 있는 판과 비교해 새로 생기거나 바뀐 항목에만 현재 시각을 찍는다. */
+const STAMPED_COLLECTIONS = ['writings', 'sentences', 'copies', 'missions', 'images', 'expressionEntries', 'books', 'bookNotes', 'drillLogs'] as const;
+const itemKey = (x: object) => JSON.stringify({ ...x, _u: undefined });
+function stampChanges(db: DB) {
+  let prev: Partial<DB> | null = null;
+  try { prev = JSON.parse(localStorage.getItem(DB_KEY) || 'null'); } catch { /* */ }
+  const now = Date.now();
+  for (const c of STAMPED_COLLECTIONS) {
+    const list = (db[c] ?? []) as unknown as ({ id: number; _u?: number })[];
+    const before = new Map(((prev?.[c] ?? []) as unknown as ({ id: number })[]).map(x => [x.id, itemKey(x)]));
+    for (const item of list) if (before.get(item.id) !== itemKey(item)) item._u = now;
+  }
+}
+/** 사용자가 바꾼 내용을 저장 (수정 시각을 찍는다). 동기화 이벤트는 내지 않는다. */
+export function saveDBLocal(db: DB) {
+  if (typeof window !== 'undefined') stampChanges(db);
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
+/** 동기화로 합쳐진 결과를 저장 — 수정 시각을 새로 찍지 않는다 (lib/sync.ts 전용) */
+export function saveDBMerged(db: DB) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
 export function saveDB(db: DB) {
   saveDBLocal(db);
   if (typeof window !== 'undefined') {

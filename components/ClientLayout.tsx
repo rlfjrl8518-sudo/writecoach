@@ -25,6 +25,14 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       return;
     }
 
+    // Cloud Run(IAP) 환경 — 구글 계정 자동 동기화가 되면 로그인 화면 없이 바로 시작(다른 기기 기록은 CloudSync가 받아 온다)
+    fetch('/api/sync', { cache: 'no-store', credentials: 'include' }).then(r => {
+      if (r.ok) { localStorage.setItem('wc_onboarded', 'true'); return; }
+      legacyOnboarding();
+    }).catch(legacyOnboarding);
+    return;
+
+    function legacyOnboarding() {
     if (isSupabaseConfigured) {
       getCurrentUser().then(user => {
         if (user) {
@@ -35,6 +43,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       });
     } else {
       router.replace('/login');
+    }
     }
   }, [router, pathname]);
 

@@ -7,7 +7,7 @@ import {
   type WritingAnalysis, type WriteType, type WritingEntry, type ProofreadResult,
 } from '@/lib/db';
 import { analyzeWriting, evaluateAppeal, proofreadWriting, type AppealResult } from '@/lib/openai';
-import { pushData } from '@/lib/supabase';
+import { requestSync } from '@/lib/sync';
 import { updateJourneyOnWrite, getScoreEmotion } from '@/lib/journey';
 import { Speaker } from '@/components/pixel/Pixel';
 import { confirmDialog } from '@/components/ConfirmDialog';
@@ -500,7 +500,7 @@ function WritingPageInner() {
     db._deletedIds = [...(db._deletedIds ?? []), id];
     saveDBLocal(db);
     setSaved(s => !s);
-    try { await pushData(db); } catch {}
+    requestSync(300);
   }
 
   return (

@@ -9,7 +9,7 @@ import {
   type SentenceEntry, type SentenceAnalysis, type SentenceExamples, type SentenceType, type ImageEntry,
 } from '@/lib/db';
 import { analyzeSentence, generateSentenceExamples } from '@/lib/openai';
-import { pushData } from '@/lib/supabase';
+import { requestSync } from '@/lib/sync';
 import { confirmDialog } from '@/components/ConfirmDialog';
 
 const SENTENCE_TYPES: SentenceType[] = ['기사 리드', '칼럼', '에세이', '소설', 'SNS 게시글', '기타'];
@@ -426,7 +426,7 @@ function SentencePageInner() {
     db._deletedIds = [...(db._deletedIds ?? []), id];
     saveDBLocal(db);
     setSaved(v => !v);
-    try { await pushData(db); } catch {}
+    requestSync(300);
   }
 
   function handleEditStart(entry: SentenceEntry, e: React.MouseEvent) {
@@ -497,7 +497,7 @@ function SentencePageInner() {
     db._deletedIds = [...(db._deletedIds ?? []), id];
     saveDBLocal(db);
     setSaved(v => !v);
-    try { await pushData(db); } catch {}
+    requestSync(300);
   }
 
   return (

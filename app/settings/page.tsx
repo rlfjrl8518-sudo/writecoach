@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { loadSettings, saveSettings, loadDB, saveDB, saveDBLocal, loadGamification, saveGamification, GCP_MODELS, type Settings } from '@/lib/db';
 import {
   isSupabaseConfigured, getCurrentUser, signOut,
-  onAuthChange, pushData, pullData, mergeDBs, pushSettings,
+  onAuthChange, pushSettings,
 } from '@/lib/supabase';
+import { syncNow, replaceRemote, detectBackend, getSyncUser, type BackendName } from '@/lib/sync';
 import { confirmDialog } from '@/components/ConfirmDialog';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -40,6 +41,8 @@ export default function SettingsPage() {
   const [userEmail,    setUserEmail]    = useState<string | null>(null);
   const [syncMsg,      setSyncMsg]      = useState('');
   const [syncLoading,  setSyncLoading]  = useState(false);
+  const [syncBackend,  setSyncBackend]  = useState<BackendName>(null);
+  const [lastSync,     setLastSync]     = useState('');
 
   useEffect(() => {
     const s = loadSettings();
@@ -51,6 +54,9 @@ export default function SettingsPage() {
     setGeminiModel(s.geminiModel || 'gemini-2.0-flash');
     setUnsplashAccessKey(s.unsplashAccessKey || '');
     setDailyGoal(loadGamification().dailyGoal);
+    detectBackend().then(b => { setSyncBackend(b); if (b === 'google') setUserEmail(getSyncUser()); });
+    const onStatus = (e: Event) => { if ((e as CustomEvent).detail === 'synced') setLastSync(new Date().toLocaleTimeString('ko-KR')); };
+    window.addEventListener('sync-status', onStatus);
 
     if (isSupabaseConfigured) {
       getCurrentUser().then(u => setUserEmail(u?.email ?? null));
@@ -67,7 +73,7 @@ export default function SettingsPage() {
     saveGamification({ dailyGoal: Math.max(50, Math.min(5000, dailyGoal)) });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
-    if (userEmail) pushSettings(s).catch(() => {});
+    if (userEmail && syncBackend === 'supabase') pushSettings(s).catch(() => {});
   }
 
   async function handleLogout() {
@@ -80,17 +86,8 @@ export default function SettingsPage() {
   async function handleManualSync() {
     setSyncLoading(true); setSyncMsg('');
     try {
-      const remote = await pullData();
-      const local  = loadDB();
-      if (remote) {
-        const merged = mergeDBs(local, remote);
-        saveDBLocal(merged);
-        await pushData(merged);
-        setSyncMsg('동기화 완료! 페이지를 새로고침하면 적용돼요.');
-      } else {
-        await pushData(local);
-        setSyncMsg('로컬 데이터를 클라우드에 올렸어요.');
-      }
+      await syncNow();
+      setSyncMsg('동기화 완료! 다른 기기의 기록까지 합쳐졌어요.');
     } catch (e: unknown) {
       setSyncMsg('오류: ' + (e instanceof Error ? e.message : String(e)));
     }
@@ -116,6 +113,8 @@ export default function SettingsPage() {
         if (!data.writings) throw new Error('올바른 형식이 아니에요.');
         if (!await confirmDialog(`${data.writings.length}편의 데이터를 가져올까요? 기존 데이터는 덮어써져요.`, { confirmLabel: '가져오기' })) return;
         saveDB(data);
+        // 백업 가져오기는 '덮어쓰기'가 의도 — 클라우드도 이 내용으로 교체한다(합치면 지운 기록이 되살아남)
+        try { await replaceRemote(loadDB()); } catch { /* 오프라인이면 다음 동기화 때 합쳐진다 */ }
         alert('가져오기 완료!');
       } catch (err: unknown) {
         alert('오류: ' + (err instanceof Error ? err.message : String(err)));
@@ -128,10 +127,8 @@ export default function SettingsPage() {
   async function handleClear() {
     if (!await confirmDialog('모든 데이터를 삭제할까요?\n글, 문장, 카피, 책 기록이 전부 영구 삭제돼요. 되돌릴 수 없어요.', { danger: true, confirmLabel: '전부 삭제' })) return;
     localStorage.removeItem('wc_v2_data');
-    // 클라우드 동기화 중이었다면 원격 데이터도 함께 비워야 다음 로그인 때 되살아나지 않는다
-    if (isSupabaseConfigured) {
-      try { await pushData(loadDB()); } catch {}
-    }
+    // 클라우드 원격도 빈 판으로 교체해야 다음 동기화 때 되살아나지 않는다
+    try { await replaceRemote(loadDB()); } catch {}
     alert('초기화 완료');
   }
 
@@ -367,7 +364,26 @@ export default function SettingsPage() {
 
         {/* 클라우드 동기화 */}
         <Section title="CLOUD SYNC">
-          {!isSupabaseConfigured ? (
+          {syncBackend === 'google' ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <span style={{ fontSize: 18, color: 'var(--accent)' }}>☁</span>
+                <div>
+                  <div style={{ fontSize: 13, color: 'var(--text)' }}>{userEmail ?? '구글 계정'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--good)', marginTop: 2 }}>
+                    구글 계정 자동 동기화 · PC·모바일 같은 계정이면 따로 로그인할 필요 없어요{lastSync ? ` · 마지막 ${lastSync}` : ''}
+                  </div>
+                </div>
+              </div>
+              <button className="px-btn-ghost" onClick={handleManualSync} disabled={syncLoading} style={{ opacity: syncLoading ? 0.6 : 1 }}>
+                {syncLoading ? '↻ 동기화 중...' : '↻ 지금 동기화'}
+              </button>
+              {syncMsg && <div style={{ fontSize: 11, marginTop: 8, color: syncMsg.startsWith('오류') ? 'var(--bad)' : 'var(--good)' }}>{syncMsg}</div>}
+              <div style={{ fontSize: 11, color: 'var(--dim-star)', marginTop: 10, lineHeight: 1.7 }}>
+                저장할 때·앱으로 돌아올 때·1분마다 자동으로 맞춰요. 두 기기에서 같은 글을 고치면 나중에 고친 쪽이 남아요.
+              </div>
+            </div>
+          ) : !isSupabaseConfigured ? (
             <div style={{ fontSize: 12, color: 'var(--dim-star)', lineHeight: 1.8 }}>
               이 기능은 현재 비활성화 상태예요.
             </div>

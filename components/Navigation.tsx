@@ -36,13 +36,14 @@ function SyncBadge() {
     return () => window.removeEventListener('sync-status', handler);
   }, []);
 
-  if (!mounted || !isSupabaseConfigured) return null;
+  if (!mounted || status === 'none') return null;
 
   const cfg: Record<SyncStatus, { icon: string; color: string; title: string }> = {
-    synced:  { icon: '☁', color: 'var(--accent)', title: '동기화됨 · 계정 설정'  },
+    synced:  { icon: '☁', color: 'var(--accent)', title: 'PC·모바일 동기화됨 · 설정'  },
     syncing: { icon: '↻', color: 'var(--moon)',   title: '동기화 중...'            },
     error:   { icon: '⟲', color: 'var(--bad)',    title: '동기화 오류 · 눌러서 재시도' },
-    offline: { icon: '☁', color: 'var(--card-border)', title: '로그인하고 동기화하기' },
+    offline: { icon: '☁', color: 'var(--card-border)', title: '동기화 꺼짐 · 오프라인이거나 로그인 전' },
+    none:    { icon: '☁', color: 'var(--card-border)', title: '' },
   };
   const { icon, color, title } = cfg[status];
 
@@ -51,7 +52,7 @@ function SyncBadge() {
       title={title}
       onClick={() => {
         if (status === 'error') { retrySync(); return; }
-        router.push(status === 'offline' ? '/login' : '/settings');
+        router.push(status === 'offline' && isSupabaseConfigured && navigator.onLine ? '/login' : '/settings');
       }}
       style={{
         width: 28, height: 28, flexShrink: 0,

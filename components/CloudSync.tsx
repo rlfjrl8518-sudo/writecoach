@@ -1,98 +1,81 @@
 'use client';
-import { useEffect } from 'react';
-import { supabase, isSupabaseConfigured, pushData, pullData, pullSettings, onAuthChange, mergeDBs } from '@/lib/supabase';
-import { loadDB, saveDBLocal, loadSettings, saveSettings } from '@/lib/db';
-import type { DB } from '@/lib/db';
+import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { onAuthChange, isSupabaseConfigured } from '@/lib/supabase';
+import { saveDB, loadDB } from '@/lib/db';
+import {
+  detectBackend, syncNow, requestSync, flushOnHide, importLegacySupabaseOnce, isApplyingRemote,
+  type SyncStatus,
+} from '@/lib/sync';
 
-export type SyncStatus = 'synced' | 'syncing' | 'error' | 'offline';
+export type { SyncStatus };
 
-export function setSyncStatus(status: SyncStatus) {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('sync-status', { detail: status }));
-  }
-}
+/** 동기화 오류 상태에서 사용자가 직접 재시도할 때 (Navigation의 동기화 아이콘) */
+export async function retrySync() { await syncNow(); }
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-async function doSync(db: DB) {
-  setSyncStatus('syncing');
-  try {
-    await pushData(db);
-    setSyncStatus('synced');
-  } catch {
-    setSyncStatus('error');
-  }
-}
-
-/** 동기화 오류 상태에서 사용자가 직접 재시도할 때 호출 (Navigation의 동기화 아이콘) */
-export async function retrySync() {
-  if (!isSupabaseConfigured || !supabase) return;
-  await doSync(loadDB());
-}
+// 이 화면들은 db-saved를 듣고 스스로 다시 그린다 — 새로고침 안내가 필요 없다
+const LIVE_PAGES = ['/', '/story', '/journey'];
 
 export default function CloudSync() {
+  const path = usePathname();
+  const [banner, setBanner] = useState(false);
+
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return;
+    const mountedAt = Date.now();
+    // 개발 모드 전용 테스트 훅 — E2E가 앱과 똑같은 저장 경로(수정 시각 기록 포함)를 쓰도록
+    if (process.env.NODE_ENV !== 'production') Object.assign(window, { __wc: { saveDB, loadDB } });
+    let interval: ReturnType<typeof setInterval> | null = null;
 
-    // 로그인/로그아웃 감지 → 로그인 시 데이터 풀
-    const unsub = onAuthChange(async (user) => {
-      if (!user) { setSyncStatus('offline'); return; }
-
-      setSyncStatus('syncing');
-      try {
-        const [remote, remoteSettings] = await Promise.all([pullData(), pullSettings()]);
-
-        // 클라우드 settings 적용 (API 키가 있을 때만 덮어씀)
-        if (remoteSettings && (remoteSettings.apiKey || remoteSettings.geminiApiKey)) {
-          const localSettings = loadSettings();
-          if (!localSettings.apiKey && !localSettings.geminiApiKey) {
-            saveSettings(remoteSettings);
-          }
-        }
-
-        const local = loadDB();
-
-        if (remote) {
-          const merged = mergeDBs(local, remote);
-          const localTotal  = local.writings.length  + local.sentences.length  + local.copies.length;
-          const mergedTotal = merged.writings.length + merged.sentences.length + merged.copies.length;
-
-          saveDBLocal(merged); // 로컬 업데이트 (sync 이벤트 없이)
-
-          // 원격보다 로컬에 더 많은 데이터가 있으면 올려 보냄
-          const remoteTotal = remote.writings.length + remote.sentences.length + remote.copies.length;
-          if (mergedTotal > remoteTotal) await pushData(merged);
-
-          // 새 데이터가 추가됐으면 페이지 새로고침
-          if (mergedTotal > localTotal) window.location.reload();
-        } else {
-          // 클라우드에 데이터 없음 → 로컬 데이터 올리기
-          await pushData(local);
-        }
-        setSyncStatus('synced');
-      } catch {
-        setSyncStatus('error');
+    async function start() {
+      const b = await detectBackend();
+      if (!b) {
+        window.dispatchEvent(new CustomEvent('sync-status', { detail: isSupabaseConfigured ? 'offline' : 'none' }));
+        return;
       }
-    });
+      if (b === 'google') await importLegacySupabaseOnce();
+      await syncNow();
+    }
+    start();
 
-    // 저장 이벤트 수신 → 디바운스 후 클라우드로 push
-    const handler = (e: Event) => {
-      const db = (e as CustomEvent<DB>).detail;
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => doSync(db), 1500);
+    const unsubAuth = onAuthChange(() => { start(); });
+
+    const onSaved = () => { if (!isApplyingRemote()) requestSync(); };
+    const onVisible = () => { if (document.visibilityState === 'visible') syncNow(); else flushOnHide(); };
+    const onOnline = () => syncNow();
+    const onHide = () => flushOnHide();
+    const onRemote = () => {
+      const typing = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName ?? '');
+      // 앱을 막 열었을 때 받아온 거라면 조용히 새로고침, 아니면 안내만
+      if (Date.now() - mountedAt < 5000 && !typing) { window.location.reload(); return; }
+      setBanner(true);
     };
-    window.addEventListener('db-saved', handler);
 
-    // 현재 로그인 상태 체크
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) setSyncStatus('offline');
-    });
+    window.addEventListener('db-saved', onSaved);
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('focus', onOnline);
+    window.addEventListener('pagehide', onHide);
+    window.addEventListener('db-remote-applied', onRemote);
+    interval = setInterval(() => { if (document.visibilityState === 'visible') syncNow(); }, 60_000);
 
     return () => {
-      unsub();
-      window.removeEventListener('db-saved', handler);
+      unsubAuth();
+      window.removeEventListener('db-saved', onSaved);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('focus', onOnline);
+      window.removeEventListener('pagehide', onHide);
+      window.removeEventListener('db-remote-applied', onRemote);
+      if (interval) clearInterval(interval);
     };
   }, []);
 
-  return null;
+  if (!banner || LIVE_PAGES.includes(path)) return null;
+  return (
+    <div className="g-panel hi anim-in" style={{ position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: 88, zIndex: 620, padding: '8px 12px', display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, maxWidth: 'calc(100vw - 32px)' }}>
+      <span>다른 기기의 기록을 반영했어요.</span>
+      <button className="g-btn sm primary" onClick={() => window.location.reload()}>새로고침</button>
+      <button className="g-btn sm" onClick={() => setBanner(false)}>닫기</button>
+    </div>
+  );
 }
