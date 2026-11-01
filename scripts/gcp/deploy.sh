@@ -31,7 +31,7 @@ envval() { [ -f .env.local ] && grep -E "^$1=" .env.local | tail -1 | cut -d= -f
 if [ "${SETUP:-0}" = "1" ]; then
   echo "▶ 최초 설정: 서비스 계정·권한"
   G iam service-accounts describe "$RUN_SA" >/dev/null 2>&1 || \
-    G iam service-accounts create "${RUN_SA%%@*}" --display-name="WriteCoach Cloud Run"
+    G iam service-accounts create "${RUN_SA%%@*}" --display-name=writecoach-cloud-run
   G projects add-iam-policy-binding "$PROJECT" \
     --member="serviceAccount:$RUN_SA" --role=roles/aiplatform.user --condition=None >/dev/null
   G services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com iap.googleapis.com aiplatform.googleapis.com
