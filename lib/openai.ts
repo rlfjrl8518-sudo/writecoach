@@ -967,15 +967,16 @@ JSON으로만 답하라: {"applied": true/false (기법을 실제로 적용했�
 export async function writeWeeklyLetter(
   s: Settings, name: string, weekLabel: string,
   items: { title: string; type: string; text: string; score?: number; weak?: string[] }[],
-  streak: number, learned: string[],
+  streak: number, learned: string[], lastReply?: string,
 ): Promise<string> {
   const system = `당신은 글쓰기 수련 게임 "산마루 서재"의 스승 "묵당 선생"(노작가)이다. 매주 일요일 제자에게 손편지를 쓴다. 하게체("자네", "~하게", "~일세"). 따뜻하지만 정확하다.
 편지 구성(전체 12~18문장, 소제목·목록·마크다운 금지, 문단만):
 1) 이번 주 자네가 쓴 글에서 가장 좋았던 문장 하나를 그대로 인용하고 왜 좋은지.
 2) 반복되는 약점 하나를, 실제 문장을 인용해 짚고 고친 예를 보여 줌.
 3) 이번 주 익힌 기법과 연결해 다음 주에 시도할 구체적인 한 가지.
-4) 등불(연속 수련일)에 대한 한마디와 짧은 맺음. 끝에 "— 묵당" 서명.`;
+4) 등불(연속 수련일)에 대한 한마디와 짧은 맺음. 끝에 "— 묵당" 서명.
+제자가 지난 편지에 답장을 보냈다면, 편지 첫머리에서 그 답장의 한 구절을 인용해 짧게 답하라.`;
   const body = items.slice(0, 8).map((it, i) => `[${i + 1}] (${it.type}) ${it.title}${it.score != null ? ` · ${it.score}점` : ''}\n${it.text.slice(0, 700)}${it.weak?.length ? `\n지적된 약점: ${it.weak.slice(0, 2).join(' / ')}` : ''}`).join('\n\n');
-  const user = `제자 이름: ${name || '제자'}\n기간: ${weekLabel}\n현재 등불: ${streak}일 연속\n이번 주 익힌 기법: ${learned.join(', ') || '없음'}\n\n이번 주 글:\n${body}`;
+  const user = `제자 이름: ${name || '제자'}\n기간: ${weekLabel}\n현재 등불: ${streak}일 연속\n이번 주 익힌 기법: ${learned.join(', ') || '없음'}${lastReply ? `\n\n지난 편지에 제자가 보낸 답장:\n${lastReply.slice(0, 600)}` : ''}\n\n이번 주 글:\n${body}`;
   return (await callAI(s, system, user, 1600, 0.6)).trim();
 }

@@ -1,11 +1,11 @@
 {
-  "name": "글습관",
-  "short_name": "글습관",
-  "description": "노작가의 서재에서 매일 쓰는 픽셀 글쓰기 수련 RPG",
+  "name": "백지첩 — 산마루 서재",
+  "short_name": "백지첩",
+  "description": "노작가 묵당의 서재에서 하루 한 수씩, 매일 쓰는 글쓰기 수련",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#101018",
-  "theme_color": "#101018",
+  "background_color": "#ece3d0",
+  "theme_color": "#ece3d0",
   "orientation": "portrait-primary",
   "icons": [
     {

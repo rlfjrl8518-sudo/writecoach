@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { loadSettings, aiReady } from '@/lib/db';
 import { evaluateDrill, type DrillEvaluation } from '@/lib/openai';
 import type { Su } from '@/lib/curriculum';
-import { Speaker } from '@/components/pixel/Pixel';
+import { Speaker } from '@/components/art/Art';
 import PunctBar from './PunctBar';
 
 /* ═══════════════════════════════════════════════════════════════

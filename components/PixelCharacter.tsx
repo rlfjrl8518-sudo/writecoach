@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from 'react';
 import { loadDB, loadSettings, aiReady } from '@/lib/db';
 import { chatWithCoach } from '@/lib/openai';
 import { isStreakBroken, getScoreEmotion } from '@/lib/journey';
-import { Speaker } from './pixel/Pixel';
-import type { Emotion } from './pixel/sprites';
+import { Speaker } from './art/Art';
+import type { Emotion } from './art/Art';
 
 const POS_KEY = 'wc_char_pos';
 const SIZE = 72;

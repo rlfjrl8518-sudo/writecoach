@@ -5,17 +5,17 @@ import { usePathname, useRouter } from 'next/navigation';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { loadDB } from '@/lib/db';
 import { rankOf, currentStreak, getGame, pathView } from '@/lib/game';
-import { Speaker } from '@/components/pixel/Pixel';
+import { Speaker } from '@/components/art/Art';
 import { retrySync } from '@/components/CloudSync';
 import type { SyncStatus } from '@/components/CloudSync';
 
 const TABS = [
-  { href: '/',         icon: '⌂',  label: '서재', matches: ['/'] },
-  { href: '/practice', icon: '◎',  label: '수련', matches: ['/practice'] },
-  { href: '/writing',  icon: '✎',  label: '글방', matches: ['/writing'] },
+  { href: '/',         icon: '堂',  label: '서재', matches: ['/'] },
+  { href: '/practice', icon: '修',  label: '수련', matches: ['/practice'] },
+  { href: '/writing',  icon: '文',  label: '글방', matches: ['/writing'] },
   { href: '/books',    icon: '冊',  label: '서고', matches: ['/books'] },
-  { href: '/journey',  icon: '印',  label: '기록', matches: ['/journey', '/report', '/calendar'] },
-  { href: '/settings', icon: '⚙',  label: '설정', matches: ['/settings'] },
+  { href: '/journey',  icon: '錄',  label: '기록', matches: ['/journey', '/report', '/calendar'] },
+  { href: '/settings', icon: '設',  label: '설정', matches: ['/settings'] },
 ];
 
 function isActive(tab: typeof TABS[0], path: string) {
@@ -122,7 +122,7 @@ function CoachChatButton() {
         border: `2px solid ${open ? 'var(--accent)' : 'var(--card-border)'}`,
         transition: 'border-color 0.15s',
       }}>
-        <Speaker id="muk" size={24} />
+        <Speaker id="muk" size={28} style={{ border: 'none' }} />
       </div>
       <span style={{ fontSize: 13, fontWeight: 600, color: open ? 'var(--accent)' : 'var(--dim-star)', transition: 'color 0.15s', fontFamily: 'Pretendard, sans-serif' }}>
         스승
@@ -151,14 +151,14 @@ function GamificationBar() {
   if (!mounted) return null;
 
   return (
-    <div onClick={() => router.push('/journey')} className="g-panel" style={{ margin: '12px 4px 8px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-      <Speaker id="me" size={32} robe={{ robe: st.robe, color: st.color }} />
+    <div onClick={() => router.push('/journey')} className="g-panel" style={{ margin: '12px 8px 8px', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+      <Speaker id="me" size={36} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4, gap: 4 }}>
-          <span style={{ fontSize: 11, color: st.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{st.title}</span>
-          {st.streak > 0 && <span style={{ fontSize: 10, color: 'var(--accent)' }}>◆{st.streak}</span>}
+          <span style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{st.title}</span>
+          {st.streak > 0 && <span style={{ fontSize: 11, color: 'var(--moon)', fontWeight: 600 }}>등불 {st.streak}</span>}
         </div>
-        <div style={{ display: 'flex', gap: 1 }} title={`백지첩 ${st.mastered}/24`}>{Array.from({ length: 24 }, (_, i) => <i key={i} style={{ flex: 1, height: 6, background: i < st.mastered ? st.color : 'var(--line-soft)' }} />)}</div>
+        <div className="px-bar-wrap" style={{ height: 5 }} title={`백지첩 ${st.mastered}/24`}><div style={{ width: `${st.mastered / 24 * 100}%`, height: '100%', background: 'var(--seal)', borderRadius: 999 }} /></div>
       </div>
     </div>
   );
@@ -192,8 +192,8 @@ export default function Navigation() {
       {/* 로고 영역 */}
       <div className="nav-top">
         <div>
-          <Link href="/" className="nav-logo">✦ 글<span>습관</span></Link>
-          <div className="nav-logo-sub">백지첩 24수 · 묵당의 문장 수련</div>
+          <Link href="/" className="nav-logo">백지<span>첩</span></Link>
+          <div className="nav-logo-sub">산마루 서재 · 묵당의 문장 수련</div>
         </div>
         {/* 모바일 전용: 우측 액션 */}
         <div className="nav-top-actions">

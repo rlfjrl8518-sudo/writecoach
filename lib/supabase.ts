@@ -177,9 +177,16 @@ export function mergeDBs(localIn: DB, remoteIn: DB): DB {
     const trials = new Map<number, GameState['trials'][number]>();
     [...(y.trials ?? []), ...(x.trials ?? [])].forEach(t => trials.set(t.id, t));
     const letters = new Map<string, GameState['letters'][number]>();
-    [...(y.letters ?? []), ...(x.letters ?? [])].forEach(l => { const e = letters.get(l.week); if (!e || l.createdAt > e.createdAt) letters.set(l.week, l); });
+    [...(y.letters ?? []), ...(x.letters ?? [])].forEach(l => {
+      const e = letters.get(l.week);
+      if (!e) { letters.set(l.week, l); return; }
+      const [nw, od] = l.createdAt > e.createdAt ? [l, e] : [e, l];
+      const reply = [nw.reply, od.reply].filter(Boolean).sort((p, q) => q!.at.localeCompare(p!.at))[0];
+      letters.set(l.week, { ...nw, reply });
+    });
     return {
       name: x.name || y.name,
+      look: x.look || y.look,
       cycle: lead.cycle,
       cycleStart: lead.cycleStart,
       seenScenes: Array.from(new Set([...(x.seenScenes ?? []), ...(y.seenScenes ?? [])])),

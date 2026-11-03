@@ -13,15 +13,17 @@
 
 export type Dim = '표현력' | '전달력' | '구체성' | '논리성' | '가독성';
 export type BossId = 'durumung' | 'ppeonhan' | 'heurisi' | 'neureoji' | 'eotbagi' | 'baekjigwi';
-export type SpeakerId = 'narr' | 'me' | 'muk' | BossId;
-export interface Line { who: SpeakerId; text: string }
+export type SpeakerId = 'narr' | 'me' | 'muk' | 'seoha' | BossId;
+export type Emotion = 'default' | 'happy' | 'sad' | 'angry' | 'think';
+/** emo: 표정, bg: 이 줄부터 바뀌는 배경(public/art/<bg>.webp) */
+export interface Line { who: SpeakerId; text: string; emo?: Emotion; bg?: string }
 
 export const SPEAKER_NAME: Record<SpeakerId, string> = {
-  narr: '', me: '나', muk: '묵당 선생',
+  narr: '', me: '나', muk: '묵당 선생', seoha: '서하',
   durumung: '추상 안개 두루뭉', ppeonhan: '상투 앵무 뻔한말', heurisi: '흐릿이',
   neureoji: '군더더기 뱀 늘어지', eotbagi: '꼬인 실타래 엇박이', baekjigwi: '백지귀(白紙鬼)',
 };
-export const isBoss = (id: SpeakerId) => !['narr', 'me', 'muk'].includes(id);
+export const isBoss = (id: SpeakerId) => !['narr', 'me', 'muk', 'seoha'].includes(id);
 
 /** 사진 훈련 채점 방식 — lib/openai.ts evaluateDrill에 넘기는 이름과 목적 */
 export interface Drill {
@@ -71,7 +73,7 @@ export interface Chapter {
 }
 
 /* 공통 이미지 지시 — 생성기는 한글을 깨뜨리므로 글자는 금지 */
-export const IMAGE_STYLE = 'Photorealistic documentary photograph, natural light, set in contemporary South Korea, 16:9 landscape. No visible text, letters, signs with writing, logos or watermarks. Not staged, not stock-photo smiling.';
+export const IMAGE_STYLE = 'Richly detailed hand-painted illustration in the style of a 2D animated feature film background: soft watercolor and gouache, natural light, set in contemporary South Korea, 16:9 landscape. Every object and person must be clearly readable and specific (countable items, legible gestures, visible textures), like a carefully observed real scene. No visible text, letters, signs with writing, logos or watermarks.';
 
 export const CHAPTERS: Chapter[] = [
   /* ─────────────── 1장 보는 눈 (구체성) ─────────────── */

@@ -1,5 +1,5 @@
 import type { DB, WritingEntry, Journey } from './db';
-import type { Emotion } from '@/components/pixel/sprites';
+import type { Emotion } from './curriculum';
 
 /* ═══════════════════════════════════════════════════════════════
    연속 기록(등불) — 글을 저장할 때 갱신한다.

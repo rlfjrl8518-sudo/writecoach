@@ -47,9 +47,11 @@ export interface TrialRecord {
   value: number;
   createdAt: string;
 }
-export interface WeeklyLetter { week: string; text: string; createdAt: string }
+export interface WeeklyLetter { week: string; text: string; createdAt: string; reply?: { text: string; at: string; writingId?: number } }
 export interface GameState {
   name: string;
+  /** 제자의 모습 (프롤로그에서 고른다) */
+  look?: 'a' | 'b';
   cycle: number;
   cycleStart: string;
   seenScenes: string[];
@@ -189,25 +191,35 @@ export function practiceDays(db: DB): Set<string> {
   (db.drillLogs ?? []).forEach(d => s.add(dayKey(d.createdAt)));
   return s;
 }
-export function currentStreak(db: DB): number {
+/* 먹 한 방울(쉼표) — 한 주에 3일 수련하면 한 방울(최대 2). 하루를 거르면 한 방울이 그날을
+   메워 등불이 이어진다. 전부 기록에서 계산하므로 동기화할 상태가 없다. */
+export interface StreakInfo { streak: number; best: number; drops: number; covered: string[] }
+const streakCache = new WeakMap<DB, StreakInfo>();
+export function streakInfo(db: DB): StreakInfo {
+  const hit = streakCache.get(db); if (hit) return hit;
   const days = practiceDays(db);
-  let k = todayKey();
-  if (!days.has(k)) k = addDays(k, -1);
-  let n = 0;
-  while (days.has(k)) { n++; k = addDays(k, -1); }
-  return n;
+  const sorted = Array.from(days).sort();
+  const today = todayKey();
+  const info: StreakInfo = { streak: 0, best: 0, drops: 0, covered: [] };
+  if (sorted.length) {
+    const weekHits = new Map<string, number>();
+    for (let k = sorted[0]; k <= today; k = addDays(k, 1)) {
+      if (days.has(k)) {
+        info.streak++;
+        const w = weekKey(k); const n = (weekHits.get(w) ?? 0) + 1; weekHits.set(w, n);
+        if (n === 3) info.drops = Math.min(2, info.drops + 1);
+      } else if (k !== today) {
+        if (info.streak > 0 && info.drops > 0) { info.drops--; info.covered.push(k); }
+        else info.streak = 0;
+      }
+      info.best = Math.max(info.best, info.streak);
+    }
+  }
+  streakCache.set(db, info);
+  return info;
 }
-export function bestStreak(db: DB): number {
-  const days = practiceDays(db);
-  let best = 0;
-  days.forEach(d => {
-    if (days.has(addDays(d, -1))) return;
-    let n = 1, cur = d;
-    while (days.has(addDays(cur, 1))) { cur = addDays(cur, 1); n++; }
-    best = Math.max(best, n);
-  });
-  return best;
-}
+export const currentStreak = (db: DB) => streakInfo(db).streak;
+export const bestStreak = (db: DB) => streakInfo(db).best;
 /** 0(맑음)~1(짙음) — 마지막 수련 이후 지난 날수 */
 export function fogLevel(db: DB): number {
   const days = Array.from(practiceDays(db)).sort();

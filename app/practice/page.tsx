@@ -5,8 +5,9 @@ import { loadDB, saveDB, loadSettings, aiReady, mergeExpressions, mergeWeaknesse
 import { analyzeWriting, evaluateWarmup, type WarmupFeedback } from '@/lib/openai';
 import { pathView, todayView, todayKey, dayKey, getGame, type Step } from '@/lib/game';
 import { CHAPTERS, ALL_SU, QUESTIONS, WORDS, EPILOGUE, chapterOf, type Su } from '@/lib/curriculum';
+import { currentTerm } from '@/lib/story';
 import { updateJourneyOnWrite } from '@/lib/journey';
-import { Speaker, Monster } from '@/components/pixel/Pixel';
+import { Speaker, Monster } from '@/components/art/Art';
 import DrillBox from '@/components/practice/DrillBox';
 import Missions from '@/components/practice/Missions';
 import PunctBar from '@/components/practice/PunctBar';
@@ -118,8 +119,11 @@ function Warmup({ su, db, onDone }: { su: Su; db: DB; onDone: () => void }) {
 
 /* ── ④ 짧은 글 ── */
 function ShortWrite({ su, imageUrl, onDone }: { su: Su; imageUrl?: string; onDone: () => void }) {
-  const [mode, setMode] = useState<'su' | 'q' | 'words'>('su');
+  const [gift] = useState(() => { try { return localStorage.getItem('wc_gift_word') || ''; } catch { return ''; } });
+  const term = currentTerm();
+  const [mode, setMode] = useState<'su' | 'q' | 'words' | 'term' | 'gift'>(gift ? 'gift' : 'su');
   const [roll, setRoll] = useState(0);
+  const past = useMemo(() => loadDB().writings.filter(w => w.su === su.n).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0], [su.n]);
   const seed = hash(todayKey()) + roll;
   const question = QUESTIONS[seed % QUESTIONS.length];
   const words = useMemo(() => {
@@ -128,7 +132,7 @@ function ShortWrite({ su, imageUrl, onDone }: { su: Su; imageUrl?: string; onDon
     for (let i = 0; i < 3; i++) { x = (Math.imul(x, 1103515245) + 12345) >>> 0; out.push(pool.splice(x % pool.length, 1)[0]); }
     return out;
   }, [seed]);
-  const topic = mode === 'su' ? su.write.prompt : mode === 'q' ? question : `글감 낱말: ${words.join(' · ')}`;
+  const topic = mode === 'su' ? su.write.prompt : mode === 'q' ? question : mode === 'term' ? `${term.name} — ${term.prompt}` : mode === 'gift' ? `먹물이 물어 온 낱말: ${gift}` : `글감 낱말: ${words.join(' · ')}`;
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [stream, setStream] = useState(0);
@@ -155,6 +159,7 @@ function ShortWrite({ su, imageUrl, onDone }: { su: Su; imageUrl?: string; onDon
       updateJourneyOnWrite(db);
       saveDB(db);
       setRes(a);
+      if (mode === 'gift') { try { localStorage.removeItem('wc_gift_word'); } catch { /* */ } }
       onDone();
     } catch (e) { setErr('분석 오류: ' + (e instanceof Error ? e.message : String(e))); }
     finally { setBusy(false); }
@@ -167,14 +172,23 @@ function ShortWrite({ su, imageUrl, onDone }: { su: Su; imageUrl?: string; onDon
           <button className={`g-btn sm ${mode === 'su' ? 'primary' : ''}`} onClick={() => setMode('su')}>오늘의 수 주제</button>
           <button className={`g-btn sm ${mode === 'q' ? 'primary' : ''}`} onClick={() => setMode('q')}>오늘의 질문</button>
           <button className={`g-btn sm ${mode === 'words' ? 'primary' : ''}`} onClick={() => setMode('words')}>글감 낱말 3개</button>
-          {mode !== 'su' && <button className="g-btn sm" onClick={() => setRoll(r => r + 1)}>↻</button>}
+          <button className={`g-btn sm ${mode === 'term' ? 'primary' : ''}`} onClick={() => setMode('term')}>절기 글감 · {term.name}</button>
+          {gift && <button className={`g-btn sm ${mode === 'gift' ? 'primary' : ''}`} onClick={() => setMode('gift')}>먹물의 선물 · {gift}</button>}
+          {(mode === 'q' || mode === 'words') && <button className="g-btn sm" onClick={() => setRoll(r => r + 1)}>↻</button>}
         </div>
       )}
       <div className="g-panel" style={{ fontFamily: 'var(--font-read)', fontSize: 15 }}>
         {topic}
         <div className="g-dim" style={{ fontSize: 11, marginTop: 4 }}>오늘의 수 「{su.title}」를 적용하게 — {su.write.check}</div>
       </div>
-      <textarea ref={ta} className="px-textarea" value={text} onChange={e => setText(e.target.value)} disabled={busy || !!res} style={{ minHeight: 200 }} placeholder="5~10분. 완벽하지 않아도 끝까지." />
+      {past && !res && (
+        <details className="g-panel" style={{ marginTop: 8, padding: '10px 14px' }}>
+          <summary style={{ cursor: 'pointer', fontSize: 13 }} className="g-dim">지난번 이 수에서 쓴 글 · {past.createdAt.slice(0, 10)}{past.analysis ? ` · 종합 ${past.analysis.score}` : ''}</summary>
+          <div className="t-read" style={{ fontSize: 14, lineHeight: 1.9, whiteSpace: 'pre-wrap', marginTop: 8 }}>{past.text}</div>
+          <div className="g-dim" style={{ fontSize: 12, marginTop: 6 }}>그때의 나보다 한 문장만 더 낫게 쓰면 되네.</div>
+        </details>
+      )}
+      <textarea ref={ta} className="px-textarea" value={text} onChange={e => setText(e.target.value)} disabled={busy || !!res} style={{ minHeight: 220, marginTop: 8, width: '100%' }} placeholder="5~10분. 완벽하지 않아도 끝까지." />
       {!res && <PunctBar target={ta} value={text} onChange={setText} />}
       {!res && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -236,15 +250,19 @@ export default function PracticePage() {
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', paddingBottom: 24 }}>
-      {/* 머리 */}
-      <div className="g-panel hi" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <Speaker id="muk" size={52} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="g-dim" style={{ fontSize: 11 }}>{pv.cycle > 1 ? `${pv.cycle}회차 · ` : ''}백지첩 {pv.masteredCount} / 24</div>
-          <div style={{ fontSize: 18 }}>{su ? `제${su.n}수 「${su.title}」` : pv.trialChapter ? `시련 · ${pv.trialChapter.ch.title}` : '백지첩을 모두 되살렸네'}</div>
-          {ch && <div className="g-dim" style={{ fontSize: 11 }}>{ch.n}장 {ch.title} · 기르는 힘: {ch.dim}{selected && !isCurrent ? ' · 복습' : ''}</div>}
+      {/* 머리: 지금 장의 그림 위에 오늘의 수 */}
+      <div className="g-stage practice-banner">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`/art/cg_ch${ch?.n ?? pv.trialChapter?.ch.n ?? 6}.webp`} alt="" className="stage-img" />
+        <div className="practice-banner-shade" />
+        <div className="practice-banner-text">
+          <Speaker id="muk" size={56} style={{ border: '2px solid rgba(251,247,236,0.8)' }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, opacity: 0.85 }}>{pv.cycle > 1 ? `${pv.cycle}회차 · ` : ''}백지첩 {pv.masteredCount} / 24{ch ? ` · ${ch.n}장 ${ch.title} · 기르는 힘 ${ch.dim}` : ''}{selected && !isCurrent ? ' · 복습' : ''}</div>
+            <div className="t-title" style={{ fontSize: 'clamp(20px, 3.4vw, 28px)', margin: '2px 0' }}>{su ? `제${su.n}수 「${su.title}」` : pv.trialChapter ? `시련 · ${pv.trialChapter.ch.title}` : '백지첩을 모두 되살렸네'}</div>
+          </div>
+          {tv.done && !selected && <span className="seal" style={{ fontSize: 12 }}>오늘 등불</span>}
         </div>
-        {tv.done && !selected && <span className="g-chip" style={{ color: 'var(--good)' }}>오늘 등불 ◆</span>}
       </div>
 
       {/* 시련 대기 */}
@@ -255,7 +273,7 @@ export default function PracticePage() {
             <div className="g-h" style={{ color: 'var(--bad)' }}>{pv.trialChapter.ch.n}장 시련</div>
             <div style={{ fontSize: 13, marginBottom: 6, fontFamily: 'var(--font-read)' }}>{pv.trialChapter.ch.title}의 네 수를 모두 익혔네. 이 장의 약점이 요괴가 되어 기다리고 있어.</div>
             <div className="g-dim" style={{ fontSize: 11, marginBottom: 6 }}>조건: {pv.trialChapter.rule.text}</div>
-            <Link href={`/practice/trial?ch=${pv.trialChapter.ch.n}`} className="g-btn danger">⚔ 시련에 들기</Link>
+            <Link href={`/practice/trial?ch=${pv.trialChapter.ch.n}`} className="g-btn danger">시련에 들기 →</Link>
           </div>
         </div>
       )}
@@ -264,7 +282,7 @@ export default function PracticePage() {
       {!su && pv.cycleDone && (
         <div className="g-panel hi" style={{ marginTop: 12, textAlign: 'center' }}>
           <div style={{ fontSize: 15, marginBottom: 8 }}>백지첩 스물네 장이 모두 돌아왔네.</div>
-          <button className="g-btn" onClick={() => playScene({ id: `c${pv.cycle}:epilogue`, title: '백지첩 · 끝', lines: EPILOGUE, replay: true })}>에필로그</button>
+          <button className="g-btn" onClick={() => playScene({ id: `c${pv.cycle}:epilogue`, title: '백지첩 · 끝', lines: EPILOGUE, bg: 'cg_epilogue', replay: true })}>에필로그</button>
           <button className="g-btn primary" onClick={startNextCycle}>{pv.cycle + 1}회차 시작 →</button>
         </div>
       )}
@@ -285,7 +303,7 @@ export default function PracticePage() {
               const done = k === 'teach' ? (steps.warmup || steps.drill || steps.write) : steps[k];
               return (
                 <button key={k} className={`g-btn sm ${shown === k ? 'primary' : ''}`} onClick={() => setOpen(k)} style={{ flex: '1 1 120px' }}>
-                  <span style={{ color: done && shown !== k ? 'var(--good)' : undefined }}>{done ? '■' : '□'}</span> {i + 1}. {STEP_LABEL[k]}
+                  <span style={{ color: done && shown !== k ? 'var(--good)' : undefined }}>{done ? '●' : '○'}</span> {i + 1}. {STEP_LABEL[k]}
                 </button>
               );
             })}
@@ -342,7 +360,7 @@ export default function PracticePage() {
                 return (
                   <button key={sp.su.n} className={`g-btn sm ${active ? 'primary' : ''}`} disabled={!unlocked} style={{ justifyContent: 'flex-start', margin: 2 }}
                     onClick={() => { setSelected(pv.current?.su.n === sp.su.n ? null : sp.su.n); setOpen('teach'); setNonce(n => n + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-                    <span style={{ color: sp.mastered && !active ? 'var(--good)' : undefined }}>{sp.mastered ? '■' : '□'}</span>
+                    <span style={{ color: sp.mastered && !active ? 'var(--good)' : undefined }}>{sp.mastered ? '●' : '○'}</span>
                     {sp.su.n}. {unlocked ? sp.su.title : '???'}
                   </button>
                 );

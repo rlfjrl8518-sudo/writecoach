@@ -134,7 +134,10 @@ export default function SettingsPage() {
     alert('초기화 완료');
   }
 
-  const db = typeof window !== 'undefined' ? loadDB() : null;
+  // 첫 렌더는 서버와 같게(0), 마운트 뒤 실제 값
+  const [dbReady, setDbReady] = useState(false);
+  useEffect(() => { setDbReady(true); }, []);
+  const db = dbReady ? loadDB() : null;
   const counts = {
     writings:  db?.writings.length ?? 0,
     sentences: db?.sentences.length ?? 0,

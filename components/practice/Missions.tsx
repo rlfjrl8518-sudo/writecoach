@@ -19,7 +19,7 @@ function MissionItem({ m, onSubmit, onDelete }: { m: Mission; onSubmit: (id: num
       <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
         <span className="g-chip" style={{ color: 'var(--secondary)', flexShrink: 0 }}>{TYPE_LABEL[m.type] ?? m.type}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13 }}>{m.completed ? '■ ' : ''}{m.title}</div>
+          <div style={{ fontSize: 13 }}>{m.completed ? '● ' : ''}{m.title}</div>
           <div className="g-dim" style={{ fontSize: 12, lineHeight: 1.7, marginTop: 4, fontFamily: 'var(--font-read)' }}>{m.description}</div>
         </div>
         <button className="g-btn sm" onClick={onDelete} aria-label="삭제">✕</button>

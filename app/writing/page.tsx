@@ -9,7 +9,7 @@ import {
 import { analyzeWriting, evaluateAppeal, proofreadWriting, type AppealResult } from '@/lib/openai';
 import { requestSync } from '@/lib/sync';
 import { updateJourneyOnWrite, getScoreEmotion } from '@/lib/journey';
-import { Speaker } from '@/components/pixel/Pixel';
+import { Speaker } from '@/components/art/Art';
 import { confirmDialog } from '@/components/ConfirmDialog';
 
 const TYPES: WriteType[] = ['묘사문', '설명문', '감상문', '의견문', '기사 리드', '카피라이팅', '에세이', '스토리텔링'];
