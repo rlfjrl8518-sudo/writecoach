@@ -5,7 +5,14 @@ const withPWA = require('next-pwa')({
   skipWaiting: true,
   // worker/index.js — 푸시 수신(push)·알림 클릭(notificationclick) 처리. sw.js 가 importScripts 한다.
   customWorkerDir: 'worker',
+  // 그림(public/art, 약 5.5MB)은 설치 때 한꺼번에 받지 않고 볼 때 캐시한다
+  publicExcludes: ['!noprecache/**/*', '!art/**/*'],
   runtimeCaching: [
+    {
+      urlPattern: /\/art\/.*\.webp$/i,
+      handler: 'CacheFirst',
+      options: { cacheName: 'art', expiration: { maxEntries: 120, maxAgeSeconds: 30 * 24 * 60 * 60 } },
+    },
     {
       urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/.*/i,
       handler: 'CacheFirst',

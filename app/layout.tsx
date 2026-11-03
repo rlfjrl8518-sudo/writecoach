@@ -27,7 +27,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="백지첩" />
-        <link rel="manifest" href="/manifest.json" />
+        {/* IAP 뒤에 있으므로 manifest도 로그인 쿠키를 실어 요청해야 '앱 설치'가 뜬다 */}
+        <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         {/* 다크 모드 플리커 방지: 첫 렌더 전에 data-theme 세팅 */}
         <script dangerouslySetInnerHTML={{ __html: `(function(){var s=localStorage.getItem('theme'),p=window.matchMedia('(prefers-color-scheme:dark)').matches;document.documentElement.setAttribute('data-theme',(s==='dark')?'dark':'light');})();` }} />
