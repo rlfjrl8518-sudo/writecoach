@@ -1,24 +1,32 @@
 {
-  "name": "글습관",
-  "short_name": "글습관",
-  "description": "AI 글쓰기 훈련 플랫폼",
+  "name": "백지첩 — 산마루 서재",
+  "short_name": "백지첩",
+  "description": "노작가 묵당의 서재에서 하루 한 수씩, 매일 쓰는 글쓰기 수련",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#7C3B49",
-  "theme_color": "#7C3B49",
+  "background_color": "#ece3d0",
+  "theme_color": "#ece3d0",
   "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "id": "/",
+  "scope": "/"
 }

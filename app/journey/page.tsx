@@ -1,178 +1,236 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { loadDB, type DB } from '@/lib/db';
-import {
-  LEVELS, REGIONS, SHELL_MILESTONES, STREAK_BADGES,
-  getWrittenDays, getWritingCount, getLevelInfo, getCurrentRegion, getUnlockedShells, toTurtleLevel,
-} from '@/lib/journey';
-import TurtleImage from '@/components/TurtleImage';
-import TurtleSprite from '@/components/TurtleSprite';
+import { loadDB, saveDB, loadSettings, aiReady, type DB, type WritingEntry } from '@/lib/db';
+import { pathView, getGame, rankOf, streakInfo, practiceDays, weekKey, todayKey, addDays, dayKey } from '@/lib/game';
+import { CHAPTERS, SPEAKER_NAME } from '@/lib/curriculum';
+import { MEMORIES, OBJECTS, studyObjects } from '@/lib/story';
+import { writeWeeklyLetter } from '@/lib/openai';
+import { Speaker, Monster, Art } from '@/components/art/Art';
+import { playScene } from '@/components/game/ScenePlayer';
+import ReportPage from '@/app/report/page';
+import CalendarPage from '@/app/calendar/page';
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="px-sec-title" style={{ marginBottom: 14 }}>{children}</div>;
+type Tab = 'map' | 'memories' | 'letters' | 'report' | 'calendar';
+const TABS: { k: Tab; label: string }[] = [
+  { k: 'map', label: '산마루 지도' }, { k: 'memories', label: '기억첩' }, { k: 'letters', label: '주간 편지' }, { k: 'report', label: '성장 리포트' }, { k: 'calendar', label: '달력' },
+];
+
+function weekLabel(w: string) { const e = addDays(w, 6); return `${w.slice(5).replace('-', '/')} ~ ${e.slice(5).replace('-', '/')}`; }
+
+/* ── 주간 편지 + 답장 ── */
+function Letters({ db, reload }: { db: DB; reload: () => void }) {
+  const g = getGame(db);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState('');
+  const [reply, setReply] = useState<Record<string, string>>({});
+  const thisWeek = weekKey(todayKey());
+  const weeks = [addDays(thisWeek, -7), thisWeek];
+  const writingsOf = (w: string) => db.writings.filter(x => weekKey((x.date || x.createdAt).slice(0, 10)) === w && !x.topic.startsWith('[답장]'));
+
+  async function request(w: string) {
+    const s = loadSettings();
+    if (!aiReady(s)) { setErr('설정에서 AI를 먼저 연결해 주세요.'); return; }
+    const ws = writingsOf(w);
+    if (!ws.length) { setErr('그 주에 쓴 글이 없네.'); return; }
+    setBusy(w); setErr('');
+    try {
+      const pv = pathView(db);
+      const learned = pv.chapters.flatMap(c => c.sus).filter(s => s.masteredAt && weekKey(dayKey(s.masteredAt)) === w).map(s => s.su.title);
+      const prevReply = [...g.letters].filter(l => l.week < w && l.reply).sort((a, b) => b.week.localeCompare(a.week))[0]?.reply?.text;
+      const text = await writeWeeklyLetter(s, g.name, weekLabel(w),
+        ws.map(x => ({ title: x.topic || x.type, type: x.type, text: x.text, score: x.analysis?.score, weak: x.analysis?.weaknesses })),
+        streakInfo(db).streak, learned, prevReply);
+      const fresh = loadDB();
+      const gg = getGame(fresh);
+      const old = gg.letters.find(l => l.week === w);
+      fresh.game = { ...gg, letters: [...gg.letters.filter(l => l.week !== w), { week: w, text, createdAt: new Date().toISOString(), reply: old?.reply }] };
+      saveDB(fresh); reload();
+    } catch (e) { setErr('오류: ' + (e instanceof Error ? e.message : String(e))); }
+    finally { setBusy(null); }
+  }
+
+  function sendReply(week: string) {
+    const text = (reply[week] ?? '').trim();
+    if (text.length < 30) { setErr('답장은 30자 이상 써 주게.'); return; }
+    const fresh = loadDB();
+    const gg = getGame(fresh);
+    const id = Date.now();
+    const entry: WritingEntry = { id, date: todayKey(), type: '에세이', topic: `[답장] 묵당 선생께 (${weekLabel(week)} 편지)`, text, status: '미분석', createdAt: new Date().toISOString() };
+    fresh.writings.push(entry);
+    fresh.game = { ...gg, letters: gg.letters.map(l => (l.week === week ? { ...l, reply: { text, at: new Date().toISOString(), writingId: id } } : l)) };
+    saveDB(fresh); setErr(''); reload();
+  }
+
+  const letters = [...g.letters].sort((a, b) => b.week.localeCompare(a.week));
+  return (
+    <div>
+      <div className="g-panel">
+        <div className="g-dialog"><Speaker id="muk" size={52} />
+          <div className="txt" style={{ fontSize: 15 }}>한 주가 끝나면 자네 글을 다 읽고 편지를 쓰겠네. 가장 좋았던 문장 하나, 반복되는 버릇 하나, 다음 주에 해 볼 것 하나. 답장을 주면 다음 편지에서 읽겠네.</div></div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 12 }}>
+          {weeks.map(w => {
+            const n = writingsOf(w).length;
+            const has = g.letters.some(l => l.week === w);
+            return (
+              <button key={w} className={`g-btn sm ${!has && n ? 'primary' : ''}`} disabled={!!busy || !n} onClick={() => request(w)}>
+                {busy === w ? '편지를 쓰는 중…' : `${w === thisWeek ? '이번 주(중간)' : '지난주'} 편지 ${has ? '다시 받기' : '받기'} · 글 ${n}편`}
+              </button>
+            );
+          })}
+        </div>
+        {err && <div style={{ color: 'var(--bad)', fontSize: 12.5, marginTop: 6 }}>{err}</div>}
+      </div>
+      {letters.map((l, i) => (
+        <div key={l.week} className="letter anim-in">
+          <div style={{ fontSize: 12, color: '#a8772c', marginBottom: 10, display: 'flex', justifyContent: 'space-between' }}><span>{weekLabel(l.week)}</span><span className="seal" style={{ fontSize: 12 }}>墨堂</span></div>
+          <div className="t-read" style={{ fontSize: 16, lineHeight: 2, whiteSpace: 'pre-wrap', wordBreak: 'keep-all' }}>{l.text}</div>
+          {l.reply ? (
+            <div className="letter-reply"><div style={{ fontSize: 12, color: '#7b6f60', marginBottom: 6 }}>나의 답장 · {l.reply.at.slice(0, 10)}</div><div className="t-read" style={{ whiteSpace: 'pre-wrap', fontSize: 15, lineHeight: 1.9 }}>{l.reply.text}</div></div>
+          ) : i === 0 && (
+            <div className="letter-reply">
+              <div style={{ fontSize: 12.5, color: '#7b6f60', marginBottom: 6 }}>답장 쓰기 — 이것도 오늘의 글로 남는다</div>
+              <textarea className="px-textarea" style={{ minHeight: 140, width: '100%', background: 'transparent' }} value={reply[l.week] ?? ''} onChange={e => setReply(r => ({ ...r, [l.week]: e.target.value }))} placeholder="선생님께," />
+              <button className="g-btn primary sm" onClick={() => sendReply(l.week)}>답장 보내기</button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
-export default function JourneyPage() {
-  const [db, setDb] = useState<DB | null>(null);
-  useEffect(() => { setDb(loadDB()); }, []);
-  if (!db) return null;
-
-  const days = getWrittenDays(db.writings);
-  const writingCount = getWritingCount(db);
-  const level = getLevelInfo(days);
-  const region = getCurrentRegion(days);
-  const unlockedShells = getUnlockedShells(writingCount);
-  const streak = db.journey?.streak ?? 0;
-  const maxStreak = db.journey?.maxStreak ?? 0;
-  const badges = db.journey?.badges ?? [];
-
+/* ── 산마루 지도: 6장이 산길의 여섯 구역 ── */
+const ZONES: [number, number][] = [[48, 86], [52, 71], [55, 57], [55, 45], [47, 34], [51, 16]];
+function MapView({ db }: { db: DB }) {
+  const g = getGame(db);
+  const pv = pathView(db);
+  const rank = rankOf(db);
+  const si = streakInfo(db);
+  const days = practiceDays(db).size;
+  const wins = g.trials.filter(t => t.passed);
+  const curIdx = Math.max(0, pv.chapters.findIndex(c => c.status === 'current' || c.status === 'trial'));
+  const here = pv.cycleDone ? 5 : curIdx;
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <Link href="/" style={{ textDecoration: 'none', fontSize: 12, color: 'var(--dim-star)' }}>← 홈으로</Link>
-
-      {/* 1. 현재 거북이 */}
-      <div style={{ textAlign: 'center', padding: '24px 0 32px' }}>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <TurtleSprite level={toTurtleLevel(level.level)} emotion="default" size={120} />
-        </div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', marginTop: 14, letterSpacing: '-0.02em' }}>
-          Lv.{level.level} {level.name}
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--dim-star)', marginTop: 4 }}>{level.quote}</div>
-        <div style={{ fontSize: 12, color: 'var(--dim-star)', marginTop: 10 }}>
-          누적 작성일 <strong style={{ color: 'var(--text)' }}>{days}일</strong> · 작성 글 <strong style={{ color: 'var(--text)' }}>{writingCount}편</strong>
-        </div>
-      </div>
-
-      {/* 2. 성장 단계 타임라인 */}
-      <SectionTitle>✦ 성장 단계</SectionTitle>
-      <div className="px-card" style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {LEVELS.map((l, i) => {
-            const done = days >= l.days && l.level !== level.level;
-            const current = l.level === level.level;
-            const locked = days < l.days;
+    <div className="map-wrap">
+      <div className="map-col">
+        <div className="map-img">
+          <Art id="map" className="stage-img" />
+          {pv.chapters.map((cv, i) => {
+            const [x, y] = ZONES[i];
             return (
-              <div key={l.level} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <TurtleSprite
-                  level={toTurtleLevel(l.level)}
-                  emotion="default"
-                  size={40}
-                  grayscale={locked}
-                  style={{ marginTop: -4 }}
-                />
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20 }}>
-                  <div style={{
-                    width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700,
-                    background: current ? 'var(--moon)' : done ? 'var(--secondary)' : 'var(--secondary-soft)',
-                    color: current || done ? 'var(--on-accent)' : 'var(--dim-star)',
-                  }}>
-                    {done ? '✓' : l.level === 1 ? '' : ''}
-                  </div>
-                  {i < LEVELS.length - 1 && (
-                    <div style={{ width: 2, flex: 1, minHeight: 22, background: days >= LEVELS[i + 1].days ? 'var(--secondary)' : 'var(--secondary-soft)' }} />
-                  )}
-                </div>
-                <div style={{ paddingBottom: 18, flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{
-                      fontSize: 13, fontWeight: 700,
-                      color: current ? 'var(--moon)' : locked ? 'var(--text-disabled)' : 'var(--text)',
-                    }}>
-                      Lv.{l.level} {l.name}
-                    </span>
-                    {locked && <span style={{ fontSize: 11, color: 'var(--text-disabled)' }}>· {l.days}일 필요</span>}
-                  </div>
-                  <div style={{ fontSize: 12, color: locked ? 'var(--text-disabled)' : 'var(--dim-star)', marginTop: 2 }}>
-                    {l.quote}
-                  </div>
-                </div>
+              <div key={cv.ch.n} className={`map-pin ${cv.status === 'done' ? 'done' : ''} ${cv.status === 'locked' ? 'locked' : ''}`} style={{ left: `${x}%`, top: `${y}%` }} title={`${cv.ch.n}장 ${cv.ch.title}`}>
+                <span>{cv.ch.n}</span>
               </div>
             );
           })}
+          <div className="map-me anim-float" style={{ left: `${ZONES[here][0] + 9}%`, top: `${ZONES[here][1] - 6}%` }}><Speaker id="me" size={46} /></div>
         </div>
       </div>
-
-      {/* 3. 등껍질 무늬 컬렉션 */}
-      <SectionTitle>✦ 등껍질 무늬 컬렉션</SectionTitle>
-      <div className="px-card" style={{ marginBottom: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {SHELL_MILESTONES.map(m => {
-            const unlocked = unlockedShells.includes(m);
-            return (
-              <div key={m} style={{ textAlign: 'center' }}>
-                <div style={{ filter: unlocked ? 'none' : 'grayscale(1) opacity(0.35)' }}>
-                  <TurtleImage src={`/turtle/shell-${m}.png`} fallback="✦" alt={`${m}편 무늬`} size={56} style={{ margin: '0 auto' }} />
-                </div>
-                <div style={{ fontSize: 11, color: unlocked ? 'var(--text)' : 'var(--text-disabled)', marginTop: 6, fontWeight: unlocked ? 700 : 400 }}>
-                  {m}편
-                </div>
-              </div>
-            );
-          })}
+      <div className="map-side">
+        <div className="g-panel hi" style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          <Speaker id="me" size={72} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="t-title" style={{ fontSize: 19 }}>{g.name || '이름 없는 제자'}</div>
+            <div style={{ margin: '6px 0 8px' }}><span className="seal" style={{ fontSize: 12 }}>{rank.title}</span></div>
+            <div className="g-dim" style={{ fontSize: 12.5, lineHeight: 1.8 }}>
+              백지첩 {pv.masteredCount}/24{pv.cycle > 1 ? ` (${pv.cycle}회차)` : ''} · 등불 {si.streak}일 · 최고 {si.best}일{si.drops ? ` · 먹 한 방울 ${si.drops}` : ''}<br />
+              수련한 날 {days}일 · 쓴 글 {db.writings.length}편 · 놓아 보낸 요괴 {wins.length}
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* 4. 연속 기록 배지 */}
-      <SectionTitle>✦ 연속 기록 배지</SectionTitle>
-      <div className="px-card" style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 12, color: 'var(--dim-star)', marginBottom: 12 }}>
-          현재 {streak}일 연속 · 최고 기록 {maxStreak}일
-        </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {STREAK_BADGES.map(b => {
-            const earned = badges.includes(`streak${b}`);
-            return (
-              <div key={b} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                padding: '10px 16px', borderRadius: 12,
-                background: earned ? 'var(--moon-dim)' : 'var(--bg-subtle)',
-                border: `1px solid ${earned ? 'var(--moon)' : 'var(--card-border)'}`,
-                minWidth: 64,
-              }}>
-                <span style={{ fontSize: 18 }}>{earned ? '🔥' : '🔒'}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: earned ? 'var(--moon)' : 'var(--text-disabled)' }}>{b}일</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 5. 여행 맵 */}
-      <SectionTitle>✦ 여행 맵</SectionTitle>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 40 }}>
-        {REGIONS.map(r => {
-          const unlocked = days >= r.minDays;
-          const current = r.name === region.name;
-          const rangeLabel = r.maxDays === Infinity ? `${r.minDays}일+` : `${r.minDays}~${r.maxDays}일`;
+        {CHAPTERS.map(ch => {
+          const cv = pv.chapters.find(c => c.ch.n === ch.n)!;
           return (
-            <div
-              key={r.name}
-              className="px-card"
-              style={{
-                padding: 16,
-                border: current ? '1.5px solid var(--moon)' : '1px solid var(--card-border)',
-                background: current ? 'var(--moon-dim)' : 'var(--bg-card)',
-                opacity: unlocked ? 1 : 0.6,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: current ? 'var(--moon)' : 'var(--text)' }}>
-                  {r.name}
-                </span>
-                {!unlocked && <span style={{ fontSize: 12, color: 'var(--text-disabled)' }}>🔒</span>}
+            <div key={ch.n} className="g-panel" style={{ marginTop: 10, opacity: cv.status === 'locked' ? 0.55 : 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <Monster id={ch.boss.id} size={40} style={{ opacity: cv.status === 'locked' ? 0.25 : cv.trialPassed ? 0.45 : 1, filter: cv.status === 'locked' ? 'grayscale(1) brightness(0.6)' : cv.trialPassed ? 'grayscale(0.8)' : undefined }} />
+                <div style={{ flex: 1 }}>
+                  <div className="t-title" style={{ fontSize: 15 }}>{ch.n}장 {ch.title} <span className="g-dim" style={{ fontSize: 12, fontWeight: 400 }}>· {ch.dim}</span></div>
+                  <div className="g-dim" style={{ fontSize: 12 }}>{cv.trialPassed ? `${SPEAKER_NAME[ch.boss.id]} — 놓아 보냄` : cv.status === 'locked' ? '아직 안개 속' : `${SPEAKER_NAME[ch.boss.id]}이(가) 기다린다`}</div>
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--dim-star)', marginBottom: 6 }}>{rangeLabel}</div>
-              <div style={{ fontSize: 12, color: unlocked ? 'var(--text)' : 'var(--text-disabled)', lineHeight: 1.6 }}>
-                {r.desc}
-              </div>
+              {cv.sus.map(sp => (
+                <div key={sp.su.n} style={{ display: 'flex', gap: 10, padding: '6px 0', borderTop: '1px dashed var(--line-soft)', opacity: sp.mastered ? 1 : 0.55 }}>
+                  <span style={{ width: 46, fontSize: 12, color: sp.mastered ? 'var(--seal)' : 'var(--text-disabled)', flexShrink: 0, fontWeight: 600 }}>제{sp.su.n}수</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5 }}>{sp.mastered || cv.status !== 'locked' ? sp.su.title : '???'}</div>
+                    {sp.mastered && <div className="t-read" style={{ fontSize: 13, color: 'var(--dim-star)' }}>「{sp.su.teach[0]}」</div>}
+                  </div>
+                </div>
+              ))}
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* ── 기억첩: 묵당의 기억 20편 + 서재의 물건 ── */
+function Memories({ db }: { db: DB }) {
+  const days = practiceDays(db).size;
+  const objs = studyObjects(days);
+  return (
+    <div>
+      <div className="g-panel" style={{ marginBottom: 12 }}>
+        <div className="g-dialog"><Speaker id="muk" emotion="think" size={52} />
+          <div className="txt" style={{ fontSize: 15 }}>자주 오는 사람에게만 꺼내는 이야기가 있지. 수련한 날이 쌓일 때마다 하나씩 들려주겠네. (지금 {days}일)</div></div>
+      </div>
+      <div className="mem-grid">
+        {MEMORIES.map(m => {
+          const open = m.day <= days;
+          return (
+            <button key={m.id} className={`mem-card ${open ? '' : 'locked'}`} disabled={!open}
+              onClick={() => playScene({ id: `mem:${m.id}`, title: `묵당의 기억 · ${m.title}`, lines: m.lines, bg: m.bg, replay: true })}>
+              <div className="mem-thumb">{open && m.bg ? <Art id={m.bg} className="stage-img" /> : open && m.obj ? <Art id={`obj_${m.obj}`} style={{ height: '78%', margin: 'auto', display: 'block', paddingTop: '6%' }} /> : <span>{open ? '墨' : '?'}</span>}</div>
+              <div style={{ padding: '8px 10px 10px', textAlign: 'left' }}>
+                <div style={{ fontSize: 11.5, color: 'var(--dim-star)' }}>{m.day}일째</div>
+                <div className="t-title" style={{ fontSize: 14 }}>{open ? m.title : '아직 열리지 않은 기억'}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="g-h" style={{ marginTop: 22 }}>서재의 물건 · {objs.length}/{Object.keys(OBJECTS).length}</div>
+      <div className="obj-grid">
+        {Object.values(OBJECTS).map(o => {
+          const have = objs.some(x => x.id === o.id);
+          return (
+            <div key={o.id} className={`g-panel obj-card ${have ? '' : 'locked'}`}>
+              <Art id={`obj_${o.id}`} style={{ width: 72, height: 72, objectFit: 'contain', filter: have ? undefined : 'grayscale(1) brightness(0.3) opacity(0.35)' }} />
+              <div><div className="t-title" style={{ fontSize: 14 }}>{have ? o.name : '???'}</div><div className="g-dim t-read" style={{ fontSize: 12.5, lineHeight: 1.6 }}>{have ? o.note : '기억이 열리면 서재에 놓인다.'}</div></div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default function RecordPage() {
+  const [db, setDb] = useState<DB | null>(null);
+  const [tab, setTab] = useState<Tab>('map');
+  const reload = () => setDb(loadDB());
+  useEffect(() => {
+    reload();
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t && TABS.some(x => x.k === t)) setTab(t as Tab);
+    window.addEventListener('db-saved', reload);
+    return () => window.removeEventListener('db-saved', reload);
+  }, []);
+  if (!db) return null;
+  return (
+    <div style={{ maxWidth: 980, margin: '0 auto', paddingBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
+        {TABS.map(t => <button key={t.k} className={`g-btn sm ${tab === t.k ? 'primary' : ''}`} onClick={() => setTab(t.k)}>{t.label}</button>)}
+        <Link href="/writing/book" className="g-btn sm" style={{ marginLeft: 'auto' }}>나의 문집 →</Link>
+      </div>
+      {tab === 'map' && <MapView db={db} />}
+      {tab === 'memories' && <Memories db={db} />}
+      {tab === 'letters' && <Letters db={db} reload={reload} />}
+      {tab === 'report' && <ReportPage />}
+      {tab === 'calendar' && <CalendarPage />}
     </div>
   );
 }

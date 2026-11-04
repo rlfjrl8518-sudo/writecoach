@@ -2,12 +2,15 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { loadSettings, saveSettings, loadDB, saveDB, saveDBLocal, loadGamification, saveGamification } from '@/lib/db';
+import { normalizeDB, loadSettings, saveSettings, loadDB, saveDB, saveDBLocal, loadGamification, saveGamification, GCP_MODELS, type Settings } from '@/lib/db';
 import {
   isSupabaseConfigured, getCurrentUser, signOut,
-  onAuthChange, pushData, pullData, mergeDBs, pushSettings,
+  onAuthChange, pushSettings,
 } from '@/lib/supabase';
+import { mergeDBs } from '@/lib/supabase';
+import { syncNow, replaceRemote, detectBackend, getSyncUser, type BackendName } from '@/lib/sync';
 import { confirmDialog } from '@/components/ConfirmDialog';
+import PushOptIn from '@/components/PushOptIn';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -21,7 +24,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function SettingsPage() {
-  const [provider,      setProvider]      = useState<'openai' | 'gemini'>('openai');
+  const [provider,      setProvider]      = useState<Settings['provider']>('gcp');
+  const [gcpModel,      setGcpModel]      = useState<string>('gemini-3.8-flash');
   const [apiKey,        setApiKey]        = useState('');
   const [model,         setModel]         = useState('gpt-4o');
   const [showKey,       setShowKey]       = useState(false);
@@ -39,16 +43,22 @@ export default function SettingsPage() {
   const [userEmail,    setUserEmail]    = useState<string | null>(null);
   const [syncMsg,      setSyncMsg]      = useState('');
   const [syncLoading,  setSyncLoading]  = useState(false);
+  const [syncBackend,  setSyncBackend]  = useState<BackendName>(null);
+  const [lastSync,     setLastSync]     = useState('');
 
   useEffect(() => {
     const s = loadSettings();
-    setProvider(s.provider || 'openai');
+    setProvider(s.provider || 'gcp');
+    setGcpModel(s.gcpModel || 'gemini-3.8-flash');
     setApiKey(s.apiKey || '');
     setModel(s.model || 'gpt-4o');
     setGeminiApiKey(s.geminiApiKey || '');
     setGeminiModel(s.geminiModel || 'gemini-2.0-flash');
     setUnsplashAccessKey(s.unsplashAccessKey || '');
     setDailyGoal(loadGamification().dailyGoal);
+    detectBackend().then(b => { setSyncBackend(b); if (b === 'google') setUserEmail(getSyncUser()); });
+    const onStatus = (e: Event) => { if ((e as CustomEvent).detail === 'synced') setLastSync(new Date().toLocaleTimeString('ko-KR')); };
+    window.addEventListener('sync-status', onStatus);
 
     if (isSupabaseConfigured) {
       getCurrentUser().then(u => setUserEmail(u?.email ?? null));
@@ -57,12 +67,15 @@ export default function SettingsPage() {
   }, []);
 
   function handleSave() {
-    const s = { provider, apiKey: apiKey.trim(), model, geminiApiKey: geminiApiKey.trim(), geminiModel, unsplashAccessKey: unsplashAccessKey.trim() };
+    const s: Settings = {
+      ...loadSettings(),
+      provider, gcpModel, apiKey: apiKey.trim(), model, geminiApiKey: geminiApiKey.trim(), geminiModel, unsplashAccessKey: unsplashAccessKey.trim(),
+    };
     saveSettings(s);
     saveGamification({ dailyGoal: Math.max(50, Math.min(5000, dailyGoal)) });
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
-    if (userEmail) pushSettings(s).catch(() => {});
+    if (userEmail && syncBackend === 'supabase') pushSettings(s).catch(() => {});
   }
 
   async function handleLogout() {
@@ -75,17 +88,8 @@ export default function SettingsPage() {
   async function handleManualSync() {
     setSyncLoading(true); setSyncMsg('');
     try {
-      const remote = await pullData();
-      const local  = loadDB();
-      if (remote) {
-        const merged = mergeDBs(local, remote);
-        saveDBLocal(merged);
-        await pushData(merged);
-        setSyncMsg('동기화 완료! 페이지를 새로고침하면 적용돼요.');
-      } else {
-        await pushData(local);
-        setSyncMsg('로컬 데이터를 클라우드에 올렸어요.');
-      }
+      await syncNow();
+      setSyncMsg('동기화 완료! 다른 기기의 기록까지 합쳐졌어요.');
     } catch (e: unknown) {
       setSyncMsg('오류: ' + (e instanceof Error ? e.message : String(e)));
     }
@@ -109,8 +113,10 @@ export default function SettingsPage() {
       try {
         const data = JSON.parse(ev.target?.result as string);
         if (!data.writings) throw new Error('올바른 형식이 아니에요.');
-        if (!await confirmDialog(`${data.writings.length}편의 데이터를 가져올까요? 기존 데이터는 덮어써져요.`, { confirmLabel: '가져오기' })) return;
-        saveDB(data);
+        if (!await confirmDialog(`백업의 글 ${data.writings.length}편·책 ${(data.books ?? []).length}권을 지금 기록과 합칠까요? 지워지는 기록은 없어요. (같은 항목은 더 나중에 고친 쪽이 남아요)`, { confirmLabel: '합쳐서 가져오기' })) return;
+        // 복구·기기 이전용 — 덮어쓰지 않고 합친다. 여러 기기의 백업을 차례로 넣어도 모두 남는다.
+        saveDB(mergeDBs(loadDB(), normalizeDB(data)));
+        await syncNow().catch(() => {});
         alert('가져오기 완료!');
       } catch (err: unknown) {
         alert('오류: ' + (err instanceof Error ? err.message : String(err)));
@@ -123,14 +129,15 @@ export default function SettingsPage() {
   async function handleClear() {
     if (!await confirmDialog('모든 데이터를 삭제할까요?\n글, 문장, 카피, 책 기록이 전부 영구 삭제돼요. 되돌릴 수 없어요.', { danger: true, confirmLabel: '전부 삭제' })) return;
     localStorage.removeItem('wc_v2_data');
-    // 클라우드 동기화 중이었다면 원격 데이터도 함께 비워야 다음 로그인 때 되살아나지 않는다
-    if (isSupabaseConfigured) {
-      try { await pushData(loadDB()); } catch {}
-    }
+    // 클라우드 원격도 빈 판으로 교체해야 다음 동기화 때 되살아나지 않는다
+    try { await replaceRemote(loadDB()); } catch {}
     alert('초기화 완료');
   }
 
-  const db = typeof window !== 'undefined' ? loadDB() : null;
+  // 첫 렌더는 서버와 같게(0), 마운트 뒤 실제 값
+  const [dbReady, setDbReady] = useState(false);
+  useEffect(() => { setDbReady(true); }, []);
+  const db = dbReady ? loadDB() : null;
   const counts = {
     writings:  db?.writings.length ?? 0,
     sentences: db?.sentences.length ?? 0,
@@ -184,7 +191,22 @@ export default function SettingsPage() {
       <div className="px-card">
         {/* AI 서비스 */}
         <Section title="AI 서비스">
-          {/* 제공업체 선택 카드 */}
+          {/* 기본: 서버 GCP Vertex AI (키 불필요) */}
+          <button
+            onClick={() => setProvider('gcp')}
+            style={{
+              width: '100%', padding: '14px 16px', textAlign: 'left', cursor: 'pointer', marginBottom: 14,
+              background: provider === 'gcp' ? 'var(--accent-dim)' : 'var(--bg-subtle)',
+              border: `1.5px solid ${provider === 'gcp' ? 'var(--accent)' : 'var(--card-border)'}`,
+              borderRadius: 12, transition: 'all 0.12s',
+            }}
+          >
+            <div style={{ fontSize: 12, fontWeight: 700, color: provider === 'gcp' ? 'var(--accent)' : 'var(--text)', marginBottom: 3, fontFamily: 'Pretendard, sans-serif', letterSpacing: '-0.01em' }}>GCP Vertex AI (기본, 키 불필요)</div>
+            <div style={{ fontSize: 11, color: 'var(--dim-star)', fontFamily: 'Pretendard, sans-serif' }}>서버에서 Gemini 3.x로 바로 분석해요</div>
+          </button>
+
+          {/* 선택: 개인 API 키 (BYOK) */}
+          <div style={{ fontSize: 11, color: 'var(--dim-star)', marginBottom: 8, fontFamily: 'Pretendard, sans-serif' }}>또는 내 API 키 사용 (선택)</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
             {([
               { id: 'openai', name: 'OpenAI', sub: 'GPT-4o · GPT-4o mini', color: '#10a37f' },
@@ -206,6 +228,18 @@ export default function SettingsPage() {
             ))}
           </div>
 
+          {provider === 'gcp' ? (
+            <div>
+              <label className="px-label">모델</label>
+              <select className="px-select" value={gcpModel} onChange={e => setGcpModel(e.target.value)}>
+                {GCP_MODELS.map(m => (
+                  <option key={m} value={m}>
+                    {m}{m === 'gemini-3.8-flash' ? ' — 기본 (추천)' : m === 'gemini-3.1-pro-preview' ? ' — 고성능 · 느림' : m === 'gemini-3.1-flash-lite' ? ' — 가장 빠름' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (<>
           {/* API 키 입력 */}
           <div style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -256,6 +290,7 @@ export default function SettingsPage() {
               </select>
             )}
           </div>
+          </>)}
         </Section>
 
         <div className="px-divider" />
@@ -334,7 +369,26 @@ export default function SettingsPage() {
 
         {/* 클라우드 동기화 */}
         <Section title="CLOUD SYNC">
-          {!isSupabaseConfigured ? (
+          {syncBackend === 'google' ? (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <span style={{ fontSize: 18, color: 'var(--accent)' }}>☁</span>
+                <div>
+                  <div style={{ fontSize: 13, color: 'var(--text)' }}>{userEmail ?? '구글 계정'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--good)', marginTop: 2 }}>
+                    구글 계정 자동 동기화 · PC·모바일 같은 계정이면 따로 로그인할 필요 없어요{lastSync ? ` · 마지막 ${lastSync}` : ''}
+                  </div>
+                </div>
+              </div>
+              <button className="px-btn-ghost" onClick={handleManualSync} disabled={syncLoading} style={{ opacity: syncLoading ? 0.6 : 1 }}>
+                {syncLoading ? '↻ 동기화 중...' : '↻ 지금 동기화'}
+              </button>
+              {syncMsg && <div style={{ fontSize: 11, marginTop: 8, color: syncMsg.startsWith('오류') ? 'var(--bad)' : 'var(--good)' }}>{syncMsg}</div>}
+              <div style={{ fontSize: 11, color: 'var(--dim-star)', marginTop: 10, lineHeight: 1.7 }}>
+                저장할 때·앱으로 돌아올 때·1분마다 자동으로 맞춰요. 두 기기에서 같은 글을 고치면 나중에 고친 쪽이 남아요.
+              </div>
+            </div>
+          ) : !isSupabaseConfigured ? (
             <div style={{ fontSize: 12, color: 'var(--dim-star)', lineHeight: 1.8 }}>
               이 기능은 현재 비활성화 상태예요.
             </div>
@@ -386,6 +440,9 @@ export default function SettingsPage() {
             </div>
           )}
         </Section>
+
+        {/* 푸시 알림 — 묵당의 저녁 종 */}
+        <PushOptIn />
 
         <div className="px-divider" />
 
