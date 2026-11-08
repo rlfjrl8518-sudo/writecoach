@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-/** POST {su, variant} → {url} — 그 수의 사진 훈련용 이미지를 (없으면 생성해) 돌려준다 */
+/** POST {su, variant} → {url} — 그 수의 사진 글감 이미지를 (없으면 생성해) 돌려준다 */
 export async function POST(req: NextRequest) {
   if (!imageEnabled()) return Response.json({ error: 'IMAGE_OFF' }, { status: 503 });
   let body: { su?: number; variant?: number };

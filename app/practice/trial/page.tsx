@@ -69,12 +69,12 @@ export default function TrialPage() {
       { who: 'narr', text: `백지첩 ${ch.n}장 「${ch.title}」의 마지막 장 위로, 하얀 기척이 일어난다.` },
       ...(g.cycle > 1 ? [{ who: 'narr' as const, text: `${g.cycle}회차. 한 번 놓아 보냈던 ${SPEAKER_NAME[ch.boss.id]}이(가) 더 짙은 모습으로 돌아왔다. 기준도 한 칸 높아졌다.` }] : []),
       { who: ch.boss.id, text: ch.boss.taunt[0] },
-      { who: 'muk', text: `${ch.dim === '종합' ? '배운 걸 전부' : `이번 장에서 기른 ${ch.dim}`}으로 베게. 주제는 정해져 있네.` },
+      { who: 'muk', text: `${ch.dim === '종합' ? '배운 걸 전부' : `이번 장에서 기른 ${ch.dim}`}으로 베게. 주제는 정해져 있다.` },
     ] });
   }, [db, ch]);
 
   if (!db) return null;
-  if (!ch) return <div style={{ maxWidth: 640, margin: '0 auto' }}><Link href="/practice" className="g-btn sm">← 수련</Link><div className="g-panel">시련을 찾을 수 없네.</div></div>;
+  if (!ch) return <div style={{ maxWidth: 640, margin: '0 auto' }}><Link href="/practice" className="g-btn sm">← 수련</Link><div className="g-panel">시련을 찾을 수 없군.</div></div>;
 
   const g = getGame(db);
   const cv = pathView(db).chapters.find(c => c.ch.n === ch.n)!;
@@ -175,7 +175,7 @@ export default function TrialPage() {
         <div className="g-h" style={{ color: 'var(--bad)' }}>{ch.n}장 「{ch.title}」 시련</div>
         <div style={{ fontSize: 15, fontFamily: 'var(--font-read)', marginBottom: 6 }}>주제: {ch.boss.prompt}</div>
         <div className="g-dim" style={{ fontSize: 12 }}>격파 조건: {rule.text} · 권장 유형 {ch.boss.type}{g.cycle > 1 ? ` · ${g.cycle}회차` : ''}</div>
-        {cv.trialPassed && phase !== 'won' && <div style={{ color: 'var(--good)', fontSize: 12, marginTop: 6 }}>이미 격파한 시련이네. 다시 써서 기록을 남길 수는 있어.</div>}
+        {cv.trialPassed && phase !== 'won' && <div style={{ color: 'var(--good)', fontSize: 12, marginTop: 6 }}>이미 격파한 시련이다. 다시 써서 기록을 남길 수는 있어.</div>}
         {locked && <div style={{ color: 'var(--bad)', fontSize: 12, marginTop: 6 }}>이 장의 네 수를 먼저 익히게.</div>}
       </div>
 

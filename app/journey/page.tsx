@@ -32,7 +32,7 @@ function Letters({ db, reload }: { db: DB; reload: () => void }) {
     const s = loadSettings();
     if (!aiReady(s)) { setErr('설정에서 AI를 먼저 연결해 주세요.'); return; }
     const ws = writingsOf(w);
-    if (!ws.length) { setErr('그 주에 쓴 글이 없네.'); return; }
+    if (!ws.length) { setErr('그 주에 쓴 글이 없군.'); return; }
     setBusy(w); setErr('');
     try {
       const pv = pathView(db);
@@ -67,7 +67,7 @@ function Letters({ db, reload }: { db: DB; reload: () => void }) {
     <div>
       <div className="g-panel">
         <div className="g-dialog"><Speaker id="muk" size={52} />
-          <div className="txt" style={{ fontSize: 15 }}>한 주가 끝나면 자네 글을 다 읽고 편지를 쓰겠네. 가장 좋았던 문장 하나, 반복되는 버릇 하나, 다음 주에 해 볼 것 하나. 답장을 주면 다음 편지에서 읽겠네.</div></div>
+          <div className="txt" style={{ fontSize: 15 }}>한 주가 끝나면 자네 글을 다 읽고 편지를 쓰지. 가장 좋았던 문장 하나, 반복되는 버릇 하나, 다음 주에 해 볼 것 하나. 답장을 주면 다음 편지에서 읽겠다.</div></div>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 12 }}>
           {weeks.map(w => {
             const n = writingsOf(w).length;
@@ -175,7 +175,7 @@ function Memories({ db }: { db: DB }) {
     <div>
       <div className="g-panel" style={{ marginBottom: 12 }}>
         <div className="g-dialog"><Speaker id="muk" emotion="think" size={52} />
-          <div className="txt" style={{ fontSize: 15 }}>자주 오는 사람에게만 꺼내는 이야기가 있지. 수련한 날이 쌓일 때마다 하나씩 들려주겠네. (지금 {days}일)</div></div>
+          <div className="txt" style={{ fontSize: 15 }}>자주 오는 사람에게만 꺼내는 이야기가 있지. 수련한 날이 쌓일 때마다 하나씩 들려주지. (지금 {days}일)</div></div>
       </div>
       <div className="mem-grid">
         {MEMORIES.map(m => {

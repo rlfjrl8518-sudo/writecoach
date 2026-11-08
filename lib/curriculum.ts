@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   『백지첩』 24수 — 글습관의 단 하나의 학습 축
+   『백지첩』 24수 — 백지첩의 단 하나의 학습 축
    ───────────────────────────────────────────────────────────────
    컨셉
    - 노작가 묵당(墨堂, 가상 인물)은 평생 모은 문장 기법 24가지를 『백지첩』에 적었다.
@@ -7,8 +7,17 @@
    - 제자는 하루 한 수씩 배운다. 한 수를 익히면 백지첩 한 장이 되살아난다.
    - 장(章)마다 AI 채점 항목 하나를 집중해서 기른다. 장의 끝에서 그 약점이 요괴로
      나타나고(시련), 그 항목 점수로 판정한다.
-   - 24수를 마치면 '심화 회차' — 같은 24수를 더 높은 기준으로 다시 돈다.
-   하루의 수련 = ① 가르침 → ② 워밍업(고쳐 쓰기) → ③ 사진 훈련 → ④ 짧은 글.
+
+   하루의 수련 (실제 작문력이 느는 순서)
+   ① 배우기   — 흔한 오해를 바로잡는 진단 한 줄 → 원리 → 3단계 방법 → 전/후 예시
+   ② 고쳐 쓰기 — 내가 예전에 쓴 글에서 이 수가 고칠 문장을 찾아 고친다(없으면 제시 문장).
+                 또는 서고의 좋은 문장을 '왜 좋은지 한 줄 → 구조를 빌려 내 문장'으로 필사 분석.
+   ③ 한 편 쓰기 — 점검 질문 세 개를 품고 짧은 글 한 편.
+   ④ 퇴고     — 받은 지적을 보고 직접 고치고, 고친 이유를 한 줄 남긴다(교정 노트).
+   ②③④를 모두 하면 그 수를 익힌다.
+
+   설계 원칙: 남의 문장을 많이 보는 것보다 내 문장을 정확히 고치는 횟수가 실력을 만든다.
+   그래서 연습 재료는 될 수 있으면 '내 글'이고, 매 수의 끝은 '퇴고'다.
 ═══════════════════════════════════════════════════════════════ */
 
 export type Dim = '표현력' | '전달력' | '구체성' | '논리성' | '가독성';
@@ -25,30 +34,24 @@ export const SPEAKER_NAME: Record<SpeakerId, string> = {
 };
 export const isBoss = (id: SpeakerId) => !['narr', 'me', 'muk', 'seoha'].includes(id);
 
-/** 사진 훈련 채점 방식 — lib/openai.ts evaluateDrill에 넘기는 이름과 목적 */
-export interface Drill {
-  name: string;
-  purpose: string;
-  instruction: string;
-  /** 사진 없이 문장을 고쳐 쓰는 훈련이면 scene에 원문 */
-  scene?: string;
-  /** 이미지 생성 지시(영어) — 이 훈련에 필요한 요소가 반드시 보이도록 */
-  image?: string;
-  constraints?: string[];
-}
-
 export interface Su {
   n: number;              // 1~24
   title: string;
-  /** 묵당의 가르침 — 기법을 구체적으로 */
+  /** 진단 — "글이 ○○한 건 △△ 때문이 아니다"처럼 흔한 오해를 바로잡는 한 줄 */
+  diagnose: string;
+  /** 묵당의 가르침 — 원리 */
   teach: string[];
-  /** 예시: 고치기 전 → 고친 뒤 */
-  example: { before: string; after: string };
-  /** 워밍업: 고쳐 쓸 문장들 (하나를 골라 준다) */
-  warmup: { task: string; items: string[] };
-  drill: Drill;
-  /** 짧은 글 — 오늘의 수를 적용 */
-  write: { prompt: string; type: string; min: number; check: string };
+  /** 3단계 방법 — 짧은 명령형 */
+  steps: string[];
+  /** 예시: 고치기 전 → 고친 뒤, 왜 나아졌나 */
+  example: { before: string; after: string; why: string };
+  /** ② 고쳐 쓰기 — 내 글에서 고칠 문장을 찾는 신호(정규식). 'first'/'last'는 글의 첫·끝 문장 */
+  find?: string;
+  fix: { task: string; items: string[] };
+  /** ③ 한 편 쓰기 — 점검 질문 3개는 퇴고 때 다시 쓴다 */
+  write: { prompt: string; type: string; min: number; checks: string[] };
+  /** 사진 글감(선택) — 이미지 생성 지시(영어). 이 수의 기법을 쓰기 좋은 장면 */
+  photo?: string;
 }
 
 export interface Chapter {
@@ -75,291 +78,358 @@ export interface Chapter {
 /* 공통 이미지 지시 — 생성기는 한글을 깨뜨리므로 글자는 금지 */
 export const IMAGE_STYLE = 'Richly detailed hand-painted illustration in the style of a 2D animated feature film background: soft watercolor and gouache, natural light, set in contemporary South Korea, 16:9 landscape. Every object and person must be clearly readable and specific (countable items, legible gestures, visible textures), like a carefully observed real scene. No visible text, letters, signs with writing, logos or watermarks.';
 
+/** 감정 단어 — 여러 수에서 '내 글에서 찾기'에 쓴다 */
+const EMO = '슬펐|슬프다|기뻤|행복했|행복하다|외로웠|외롭다|우울했|그리웠|그립다|화가 났|불안했|설렜|속상했|서운했|허전했|쓸쓸했|막막했|답답했';
+
 export const CHAPTERS: Chapter[] = [
   /* ─────────────── 1장 보는 눈 (구체성) ─────────────── */
   {
     n: 1, title: '보는 눈', dim: '구체성',
     intro: [
-      { who: 'muk', text: '백지첩 첫 장은 "보는 눈"일세. 잘 쓰는 사람은 먼저 잘 보는 사람이야.' },
-      { who: 'muk', text: '"아름답다", "평화롭다" 같은 말은 본 게 아니라 느낀 걸세. 이번 장에선 본 것만 쓰는 법을 익히네.' },
+      { who: 'muk', text: '백지첩 첫 장은 "보는 눈"이다. 잘 쓰는 사람은 먼저 잘 보는 사람이지.' },
+      { who: 'muk', text: '글감이 없다는 사람은 대개 경험이 모자란 게 아니라 본 것을 흘려보낸 거다. 이번 장에선 본 것을 붙잡아 문장에 못 박는 법을 익히게.' },
     ],
     sus: [
       {
         n: 1, title: '사실과 해석 가르기',
-        teach: ['눈에 보이는 것(사실)과 내 머릿속의 판단(해석)을 갈라 보게.', '"피곤해 보였다"는 해석, "눈 밑이 거뭇하고 하품을 두 번 했다"는 사실일세.', '사실을 쌓으면 해석은 독자가 알아서 하네.'],
-        example: { before: '카페는 분위기가 좋았다.', after: '창가 자리마다 노트북이 열려 있었고, 커피 머신이 3분마다 우유를 데웠다.' },
-        warmup: { task: '해석을 지우고, 그렇게 판단하게 만든 사실로 바꿔 쓰게.', items: ['그는 화가 나 보였다.', '거리는 활기찼다.', '방이 지저분했다.', '아이는 신이 났다.'] },
-        drill: { name: '관찰 훈련', purpose: '사실과 해석을 구분하는 능력', instruction: '사진을 보고 보이는 사실만 5개 쓰게. 해석·감정·추측은 금지.', constraints: ['보인다', '것 같다', '해 보인다', '느껴진다', '아름답', '평화롭'], image: 'A busy everyday scene dense with concrete, countable, observable details: several people from behind or at a distance doing different things, objects on tables, weather cues, shadows. A corner of a traditional market or a neighborhood street.' },
-        write: { prompt: '오늘 지나친 장소 한 곳을, 판단하는 말 없이 사실 5가지로', type: '묘사문', min: 150, check: '해석어(좋았다·멋졌다·~해 보였다) 없이 사실로만 썼는가' },
+        diagnose: '글이 흐릿한 건 표현력이 모자라서가 아니다. 본 것 대신 판단을 적었기 때문이다.',
+        teach: ['"피곤해 보였다"는 해석이고, "눈 밑이 거뭇했고 하품을 두 번 했다"는 사실이다.', '사실을 쌓으면 판단은 독자가 대신 한다. 그때 독자는 그 자리에 서 있게 되지.'],
+        steps: ['문장에서 판단하는 말(좋았다·멋졌다·~해 보였다)에 밑줄을 긋는다', '그렇게 판단하게 만든 장면을 떠올린다', '판단을 지우고 그 장면의 사실 두세 개로 바꾼다'],
+        example: { before: '카페는 분위기가 좋았다.', after: '창가 자리마다 노트북이 열려 있었고, 커피 머신이 3분마다 우유를 데웠다.', why: '"좋았다"를 지우고 그렇게 느끼게 한 사실을 놓자, 독자가 직접 분위기를 판단한다.' },
+        find: '보였다|것 같았|좋았다|좋은|멋진|멋졌다|예쁜|아름다|평화로|따뜻한|느껴졌|분위기|인상적',
+        fix: { task: '판단하는 말을 지우고, 그렇게 판단하게 만든 사실로 바꿔 쓰게.', items: ['그는 화가 나 보였다.', '거리는 활기찼다.', '방이 지저분했다.', '아이는 신이 났다.'] },
+        write: { prompt: '오늘 지나친 장소 한 곳을, 판단하는 말 없이 사실로만', type: '묘사문', min: 150, checks: ['좋았다·멋졌다·~해 보였다 같은 판단어가 남아 있지 않은가', '독자가 그 장소를 그릴 수 있는 사실이 다섯 개 이상인가', '사실의 순서가 시선이 움직이는 순서를 따르는가'] },
+        photo: 'A busy everyday scene dense with concrete, countable, observable details: several people from behind or at a distance doing different things, objects on tables, weather cues, shadows. A corner of a traditional market or a neighborhood street.',
       },
       {
         n: 2, title: '숫자와 이름',
-        teach: ['"많은 사람", "오래된 건물"은 흐릿하네.', '숫자를 세고 이름을 불러 주게. "열두 명", "1974년에 지은 연립".', '이름 하나가 장면을 그 자리에 못 박네.'],
-        example: { before: '많은 사람이 오래 기다렸다.', after: '마흔 명 남짓이 우산을 쓴 채 40분을 서 있었다.' },
-        warmup: { task: '흐릿한 말을 숫자나 고유한 이름으로 바꿔 쓰게.', items: ['꽤 비싼 음식을 먹었다.', '오래된 책이 많았다.', '어떤 노래가 흘러나왔다.', '한참 걸었다.'] },
-        drill: { name: '관찰 훈련', purpose: '수량과 이름으로 구체화하는 능력', instruction: '사진 속 장면을 3문장으로 쓰게. 문장마다 숫자나 구체적인 이름(사물·장소의 종류)을 하나 이상 넣게.', constraints: ['많은', '여러', '몇몇', '다양한'], image: 'A scene with clearly countable items and identifiable specific objects: a bakery display, bus stop with a few people, bicycles lined up, specific food items or tools.' },
-        write: { prompt: '최근에 먹은 한 끼를 숫자와 이름으로', type: '묘사문', min: 150, check: '숫자·고유한 이름이 문장마다 있는가' },
+        diagnose: '문장이 밋밋한 건 단어가 평범해서가 아니다. "많은·오래·어떤"처럼 뭉뚱그린 말이 장면을 지웠기 때문이다.',
+        teach: ['"오래전 어딘가"를 "3년 전 한강"으로 바꾸면, 같은 문장이 독자 머릿속에 그림을 그린다.', '숫자를 세고 이름을 불러 주게. 꽃이 아니라 수선화, 음식이 아니라 시래깃국. 이름 하나가 장면을 그 자리에 못 박는다.'],
+        steps: ['막연한 말(많은·여러·오래·한참·어떤·얼마 전)을 찾는다', '셀 수 있으면 숫자로, 부를 수 있으면 이름으로 바꾼다', '시간어도 바꾼다 — "오래전"을 "스물셋 때"로'],
+        example: { before: '오래전 그 사람과 어딘가를 걸었다.', after: '3년 전 그 사람과 망원 한강공원을 걸었다.', why: '숫자와 고유명사가 들어가자 흐릿한 회상이 날짜와 장소가 있는 장면이 됐다.' },
+        find: '많은|여러|몇몇|다양한|오래|한참|어떤|꽤|얼마 전|어딘가|누군가',
+        fix: { task: '흐릿한 말을 숫자나 고유한 이름으로 바꿔 쓰게.', items: ['꽤 비싼 음식을 먹었다.', '오래된 책이 많았다.', '어떤 노래가 흘러나왔다.', '얼마 전 친구를 만났다.'] },
+        write: { prompt: '최근에 먹은 한 끼를 숫자와 이름으로', type: '묘사문', min: 150, checks: ['문장마다 숫자나 구체적인 이름이 있는가', '"많은·여러·오래" 같은 말이 남아 있지 않은가', '숫자가 장식이 아니라 장면을 선명하게 만드는가'] },
+        photo: 'A scene with clearly countable items and identifiable specific objects: a bakery display, bus stop with a few people, bicycles lined up, specific food items or tools.',
       },
       {
-        n: 3, title: '오감 중 둘',
-        teach: ['우리는 눈으로만 쓰는 버릇이 있네.', '소리, 냄새, 촉감을 하나만 더해도 독자는 그 자리에 서 있게 되지.', '시각 말고 감각 둘을 넣는 연습일세.'],
-        example: { before: '비 오는 골목을 걸었다.', after: '빗물이 홈통을 두드렸고, 젖은 시멘트 냄새가 신발 밑창까지 올라왔다.' },
-        warmup: { task: '시각 말고 다른 감각 하나를 더해 고쳐 쓰게.', items: ['아침 지하철은 붐볐다.', '부엌에서 찌개가 끓었다.', '바닷가에 앉아 있었다.'] },
-        drill: { name: '관찰 훈련', purpose: '시각 외 감각으로 장면을 살리는 능력', instruction: '사진 속 장소에 서 있다고 생각하고, 시각을 뺀 감각(소리·냄새·촉감·맛) 두 가지 이상으로 3-4문장을 쓰게.', image: 'A sensory-rich place where sounds, smells and textures are implied: a steaming street food stall at night, a rainy alley with puddles, a bakery kitchen, a laundromat.' },
-        write: { prompt: '지금 내가 있는 곳을 소리와 냄새로', type: '묘사문', min: 150, check: '시각 외 감각이 둘 이상인가' },
+        n: 3, title: '감각 하나 더',
+        diagnose: '장면이 납작한 건 묘사가 짧아서가 아니다. 눈으로만 썼기 때문이다.',
+        teach: ['우리는 눈으로만 쓰는 버릇이 있다. 소리, 냄새, 온도, 촉감 하나만 더해도 독자는 그 자리에 선다.', '기억은 특히 냄새와 온도로 열린다. 5년 전 사진을 보면 그날 무슨 냄새가 났는지부터 떠올려 보게.'],
+        steps: ['장면을 떠올리고 시각을 잠시 끈다', '그때 들린 것, 맡은 것, 피부에 닿은 것을 하나씩 적는다', '그중 가장 그 장면에만 있을 감각 하나를 문장에 넣는다'],
+        example: { before: '비 오는 골목을 걸었다.', after: '빗물이 홈통을 두드렸고, 젖은 시멘트 냄새가 신발 밑창까지 올라왔다.', why: '소리와 냄새가 들어가자 독자가 골목을 "보는" 대신 "걷게" 됐다.' },
+        find: '풍경|모습|보았다|봤다|보였다|걸었다',
+        fix: { task: '시각 말고 다른 감각 하나를 더해 고쳐 쓰게.', items: ['아침 지하철은 붐볐다.', '부엌에서 찌개가 끓었다.', '바닷가에 앉아 있었다.'] },
+        write: { prompt: '지금 내가 있는 곳을 소리와 냄새와 온도로', type: '묘사문', min: 150, checks: ['시각이 아닌 감각이 둘 이상인가', '그 감각이 다른 장소에선 나지 않을 만큼 구체적인가', '감각을 나열만 하지 않고 장면 속에 녹였는가'] },
+        photo: 'A sensory-rich place where sounds, smells and textures are implied: a steaming street food stall at night, a rainy alley with puddles, a bakery kitchen, a laundromat.',
       },
       {
-        n: 4, title: '클로즈업',
-        teach: ['풍경 전체를 쓰려 하지 말게. 카메라를 한 물건에 바짝 대게.', '닳은 모서리, 손때, 긁힌 자국 — 작은 디테일 하나가 사람의 시간을 말해 주네.'],
-        example: { before: '할머니 방에는 오래된 물건이 많았다.', after: '자개장 손잡이 하나만 유난히 반들거렸다. 사십 년 동안 매일 아침 열린 칸이었다.' },
-        warmup: { task: '전체 묘사를, 하나의 디테일에 바짝 다가간 문장으로 바꾸게.', items: ['아버지의 차는 낡았다.', '교실은 오래되었다.', '그녀의 방은 정리되어 있었다.'] },
-        drill: { name: '관찰 훈련', purpose: '한 디테일로 이야기를 담는 능력', instruction: '사진에서 물건 하나만 골라, 그 물건의 닳은 흔적이나 세부를 2-3문장으로 클로즈업하게. 그 흔적이 말해 주는 시간을 마지막 문장에 담게.', image: 'A close-up still life of a well-used everyday object showing wear and history: worn leather work gloves, a chipped enamel mug, an old wooden cutting board, scuffed school shoes.' },
-        write: { prompt: '내가 가장 오래 쓴 물건 하나를 클로즈업으로', type: '묘사문', min: 180, check: '전체가 아니라 한 디테일에 집중했는가' },
+        n: 4, title: '한 장면으로 좁히기',
+        diagnose: '글이 지루한 건 내용이 없어서가 아니다. 하루 전체를 다 쓰려 했기 때문이다.',
+        teach: ['아침부터 밤까지 다 쓰면 요약이 된다. 가장 오래 남은 십 초를 골라 세 시간처럼 쓰게.', '카메라를 한 물건에 바짝 대도 좋다. 닳은 모서리, 손때 하나가 사람의 시간을 말해 준다.'],
+        steps: ['쓰려는 일에서 지금도 떠오르는 순간 하나를 고른다', '그 순간의 사물·몸짓·말 중 가장 구체적인 것에 다가간다', '앞뒤 사건은 한 줄로 줄이거나 지운다'],
+        example: { before: '할머니 집에 가서 밥을 먹고 이야기를 나누고 사진을 보다가 저녁에 돌아왔다.', after: '할머니는 내 밥그릇에만 누룽지를 한 숟갈 더 얹었다. 사십 년 동안 그렇게 해 온 손이었다.', why: '하루를 나열하는 대신 한 장면에 머물자, 그 집의 시간이 숟갈 하나에 담겼다.' },
+        find: '그리고|그 후|그다음|하루|아침에|저녁에',
+        fix: { task: '여러 일을 나열한 문장을, 한 순간에 바짝 다가간 문장으로 바꾸게.', items: ['아버지의 차는 낡았다.', '주말에 친구와 밥을 먹고 카페에 갔다가 영화를 봤다.', '교실은 오래되었다.'] },
+        write: { prompt: '최근 일 중 가장 오래 남은 십 초를, 그 십 초에만 머물러', type: '묘사문', min: 180, checks: ['하루 전체가 아니라 한 순간에 머물렀는가', '그 순간을 붙잡는 사물이나 몸짓이 하나 있는가', '앞뒤 설명이 장면을 덮지 않는가'] },
+        photo: 'A close-up still life of a well-used everyday object showing wear and history: worn leather work gloves, a chipped enamel mug, an old wooden cutting board, scuffed school shoes.',
       },
     ],
     boss: {
       id: 'durumung', prompt: '최근에 머문 장소 한 곳 — "아름답다/좋았다/특별했다" 없이 보여 주기', type: '묘사문', minChars: 400, dimMin: 6,
       taunt: ['그냥 "좋았다"고 써~', '다들 비슷하게 느꼈을 거야~', '뭉뚱그리면 편하잖아~'],
       lose: '뭉게뭉게… 아직 잘 안 보이는걸?',
-      win: [{ who: 'durumung', text: '윤곽이… 너무 선명해… 숨을 데가 없어…' }, { who: 'muk', text: '백지첩 첫 장이 돌아왔네. 이제 자네 글에선 독자가 냄새를 맡을 수 있어.' }],
+      win: [{ who: 'durumung', text: '윤곽이… 너무 선명해… 숨을 데가 없어…' }, { who: 'muk', text: '백지첩 첫 장이 돌아왔다. 이제 자네 글에선 독자가 냄새를 맡을 수 있어.' }],
     },
   },
 
-  /* ─────────────── 2장 보여주기 (표현력) ─────────────── */
+  /* ─────────────── 2장 감정을 장면으로 (전달력) ─────────────── */
   {
-    n: 2, title: '보여주기', dim: '표현력',
+    n: 2, title: '감정을 장면으로', dim: '전달력',
     intro: [
-      { who: 'muk', text: '둘째 장은 "보여주기"일세. 감정을 이름으로 부르지 않고 장면으로 건네는 법이야.' },
-      { who: 'muk', text: '"슬펐다"고 쓰면 독자는 고개만 끄덕이네. 식은 밥그릇을 보여 주면 독자가 슬퍼하지.' },
+      { who: 'muk', text: '둘째 장은 "감정을 장면으로"다. 감정을 이름으로 부르지 않고 독자 손에 쥐여 주는 법이지.' },
+      { who: 'muk', text: '"슬펐다"고 쓰면 독자는 고개만 끄덕인다. 식은 밥그릇을 보여 주면 독자가 대신 슬퍼하지.' },
     ],
     sus: [
       {
-        n: 5, title: '감정의 이름 지우기',
-        teach: ['감정 단어(슬프다·기쁘다·불안하다)를 지우게.', '그 자리를, 그 감정일 때 눈에 띄는 장면으로 채우게.'],
-        example: { before: '나는 너무 긴장됐다.', after: '면접실 문 앞에서 이력서 모서리를 세 번째로 접었다 폈다.' },
-        warmup: { task: '감정 단어를 지우고 장면으로 보여 주게.', items: ['나는 몹시 외로웠다.', '그는 정말 행복했다.', '엄마는 걱정이 많았다.', '나는 화가 났다.'] },
-        drill: { name: '보여주기 훈련', purpose: '감정을 직접 말하지 않고 장면으로 전달하는 능력', instruction: '사진 속 장면을 활용해 "외롭다/쓸쓸하다/혼자/고독" 없이 외로움이 느껴지도록 2-4문장으로 쓰게.', constraints: ['외롭다', '외로움', '쓸쓸하다', '혼자', '고독'], image: 'A scene that evokes loneliness purely through environment and composition, no visible faces or tears: a single lit window in a dark apartment block, one bowl and one spoon on a table, an empty playground swing at dusk.' },
-        write: { prompt: '최근 크게 느낀 감정 하나 — 그 감정의 이름을 쓰지 말고', type: '감상문', min: 180, check: '감정 단어 없이 장면·행동으로 전했는가' },
+        n: 5, title: '감정 단어 대신 물증',
+        diagnose: '감정이 안 전해지는 건 감정이 작아서가 아니다. 감정의 이름만 적고 증거를 안 남겼기 때문이다.',
+        teach: ['"행복했다"는 요약이다. 그 순간 보고 듣고 손이 한 일 — 그게 물증이다.', '에세이는 다 장면으로 쓰는 글이 아니다. 글의 심장 두세 곳만 물증으로 보여 주고, 나머지는 담백하게 말해도 된다.'],
+        steps: ['초고에서 감정 단어에 밑줄을 긋는다', '그 순간 보고 듣고 행동한 흔적을 모두 떠올린다', '가장 구체적인 물증 하나만 골라 감정 단어 자리에 놓는다'],
+        example: { before: '그 사람이 보고 싶었다. 그리움은 사라지지 않았다.', after: '저장해 둔 그 번호를 이번에도 지우지 못했다.', why: '"보고 싶다"를 지우고 지우지 못한 번호 하나를 놓자, 그리움이 증거가 됐다.' },
+        find: EMO,
+        fix: { task: '감정 단어를 지우고, 그 감정의 물증 하나로 보여 주게.', items: ['나는 몹시 외로웠다.', '그는 정말 행복했다.', '엄마는 걱정이 많았다.', '시험이 끝나서 홀가분했다.'] },
+        write: { prompt: '최근 크게 느낀 감정 하나 — 그 감정의 이름을 쓰지 말고', type: '감상문', min: 180, checks: ['감정 단어 없이 감정이 전해지는가', '물증이 그 사람·그 순간에만 있을 만큼 구체적인가', '모든 문장을 장면으로 만들지 않고, 핵심 두세 곳에만 썼는가'] },
+        photo: 'A scene that evokes loneliness purely through environment and composition, no visible faces or tears: a single lit window in a dark apartment block, one bowl and one spoon on a table, an empty playground swing at dusk.',
       },
       {
         n: 6, title: '몸이 먼저 말한다',
-        teach: ['사람의 마음은 몸이 먼저 드러내네. 손, 발끝, 목소리, 숨.', '감정을 행동 하나로 번역하게. "떨렸다" 대신 "컵을 두 손으로 쥐었다".'],
-        example: { before: '그는 당황했다.', after: '그는 대답 대신 이미 닫힌 노트북을 다시 열었다.' },
-        warmup: { task: '감정을 그 사람의 몸짓 하나로 번역하게.', items: ['아이는 부끄러웠다.', '그녀는 실망했다.', '친구는 미안해했다.'] },
-        drill: { name: '보여주기 훈련', purpose: '행동과 몸짓으로 감정을 전하는 능력', instruction: '사진 속 인물(또는 인물이 있었을 법한 흔적)의 몸짓을 근거로, 감정 단어 없이 그 사람의 마음을 2-4문장으로 보여 주게.', constraints: ['슬프다', '기쁘다', '불안하다', '화나다', '긴장'], image: 'A person seen from behind or from the side, face not clearly visible, with expressive body language: hunched shoulders at a bus stop in rain, hands gripping a paper cup, someone pausing at a door with a hand on the handle.' },
-        write: { prompt: '누군가를 기다렸던 순간 — 내 몸이 한 일로만', type: '스토리텔링', min: 180, check: '감정을 몸짓·행동으로 번역했는가' },
+        diagnose: '긴장이나 당황이 밋밋하게 읽히는 건 묘사가 약해서가 아니다. 마음만 쓰고 몸을 안 썼기 때문이다.',
+        teach: ['마음은 몸이 먼저 드러낸다. 목이 메고, 입이 얼고, 같은 서류를 세 번 접는다.', '감정을 그 감정이 시킨 행동 하나로 번역하게. "떨렸다" 대신 "컵을 두 손으로 쥐었다".'],
+        steps: ['그 감정일 때 몸 어디가 먼저 반응했는지 떠올린다', '감정이 나에게 시킨 행동을 찾는다', '감정 단어를 지우고 몸의 반응이나 행동 하나로 쓴다'],
+        example: { before: '말을 하려니 너무 긴장되고 무서웠다.', after: '말을 꺼내려 했지만 입이 얼어 열리지 않았다.', why: '"긴장·무서움"을 몸의 반응으로 옮기자 독자의 입도 같이 굳는다.' },
+        find: '긴장|당황|부끄러|미안|실망|두려|무서|떨렸',
+        fix: { task: '감정을 그 사람의 몸짓이나 행동 하나로 번역하게.', items: ['아이는 부끄러웠다.', '그녀는 실망했다.', '친구는 미안해했다.', '나는 너무 긴장했다.'] },
+        write: { prompt: '누군가를 기다렸던 순간 — 내 몸이 한 일로만', type: '스토리텔링', min: 180, checks: ['감정을 몸의 반응이나 행동으로 옮겼는가', '행동이 흔한 것(눈물·한숨)에 머물지 않았는가', '마음을 설명하는 문장이 다시 붙어 있지 않은가'] },
+        photo: 'A person seen from behind or from the side, face not clearly visible, with expressive body language: hunched shoulders at a bus stop in rain, hands gripping a paper cup, someone pausing at a door with a hand on the handle.',
       },
       {
-        n: 7, title: '사물에 기대기',
-        teach: ['감정을 사물에 맡기게. 시든 화분, 두 개 놓인 칫솔, 꺼지지 않은 현관 센서등.', '사물은 거짓말을 안 하네. 그래서 독자가 믿지.'],
-        example: { before: '이별 후 공허했다.', after: '칫솔꽂이에 칫솔이 하나만 남자 컵이 자꾸 기울었다.' },
-        warmup: { task: '감정을 사물 하나에 맡겨 다시 쓰게.', items: ['이사 가는 날 섭섭했다.', '시험에 떨어져 우울했다.', '오랜만에 고향에 가니 그리웠다.'] },
-        drill: { name: '보여주기 훈련', purpose: '사물로 감정을 대신 전하는 능력', instruction: '사진 속 사물 하나를 골라, 그 사물만으로 "그리움"이 느껴지도록 2-3문장을 쓰게.', constraints: ['그립다', '그리움', '보고싶다', '보고 싶다', '추억'], image: 'A quiet still life where objects suggest absence and longing: a pair of old slippers by a door, an unopened letter on a wooden desk, a faded family photo frame turned slightly, a coat still hanging on a hook.' },
-        write: { prompt: '지금 곁에 없는 사람을, 그가 남긴 물건 하나로', type: '에세이', min: 200, check: '감정을 사물 하나가 대신 말하게 했는가' },
+        n: 7, title: '사물과 공간에 맡기기',
+        diagnose: '그리움이 신파처럼 읽히는 건 감정이 과해서가 아니다. 감정을 맡아 줄 사물을 안 찾았기 때문이다.',
+        teach: ['감정을 사물에 맡기게. 하나만 남은 칫솔, 꺼지지 않는 현관 센서등. 사물은 거짓말을 안 하니까 독자가 믿는다.', '사람이 떠난 자리, 망가진 공간도 좋다. 마음이 하나의 집이라면 지금 어디가 고장 났는지 물어보게.'],
+        steps: ['그 감정과 닮은 사물이나 공간을 하나 찾는다', '그 사물의 상태(남음·빔·고장·흔적)를 구체적으로 본다', '감정은 말하지 않고 사물의 상태만 쓴다'],
+        example: { before: '이별 후 너무 공허했다.', after: '칫솔꽂이에 칫솔이 하나만 남자 컵이 자꾸 한쪽으로 기울었다.', why: '공허를 말하지 않고 기우는 컵 하나에 맡기자 빈자리가 보였다.' },
+        find: '그리웠|그립다|보고 싶|허전|공허|쓸쓸|추억',
+        fix: { task: '감정을 사물이나 공간 하나에 맡겨 다시 쓰게.', items: ['이사 가는 날 섭섭했다.', '시험에 떨어져 우울했다.', '오랜만에 고향에 가니 그리웠다.'] },
+        write: { prompt: '지금 곁에 없는 사람을, 그 사람이 남긴 물건이나 자리 하나로', type: '에세이', min: 200, checks: ['감정을 사물·공간 하나가 대신 말하는가', '사물의 상태가 구체적인가(남음·빔·고장·흔적)', '마지막에 감정을 다시 설명하지 않았는가'] },
+        photo: 'A quiet still life where objects suggest absence and longing: a pair of old slippers by a door, an unopened letter on a wooden desk, a faded family photo frame turned slightly, a coat still hanging on a hook.',
       },
       {
-        n: 8, title: '비유 하나',
-        teach: ['비유는 독자가 이미 아는 것으로 모르는 것을 보여 주는 다리일세.', '흔한 비유(별처럼 빛나는) 말고, 자네 생활에서 건진 비유 하나면 충분하네. 많이 쓰면 흐려져.'],
-        example: { before: '월요일 아침은 힘들었다.', after: '월요일 아침은 충전기를 꽂아 두지 않은 휴대폰 같았다. 켜지긴 하는데 15%였다.' },
-        warmup: { task: '상투적인 비유를, 생활에서 건진 새 비유로 바꾸게.', items: ['시간이 화살처럼 지나갔다.', '그녀의 눈은 별처럼 빛났다.', '마음이 얼음처럼 차가웠다.'] },
-        drill: { name: '보여주기 훈련', purpose: '신선한 비유로 대상을 새롭게 보이게 하는 능력', instruction: '사진 속 대상 하나를 골라, 흔하지 않은 비유 하나로 2문장을 쓰게. "~처럼/~같이"가 들어간 문장은 하나만.', image: 'An ordinary but visually interesting subject that invites metaphor: tangled power lines over an alley, a stack of plastic chairs, a crowded escalator from above, steam rising from a manhole at dawn.' },
-        write: { prompt: '요즘의 나를, 내 생활에서 건진 비유 하나로', type: '에세이', min: 200, check: '흔하지 않은 비유를 하나만 정확히 썼는가' },
-      },
-    ],
-    boss: {
-      id: 'ppeonhan', prompt: '봄(또는 지금 계절)을 "따스한 햇살/설렘/소중한 추억" 없이', type: '묘사문', minChars: 400, dimMin: 6,
-      taunt: ['눈부신 햇살! 깍!', '소중한 추억! 깍!', '행복한 하루! 깍깍!'],
-      lose: '깍깍! 그 말 어디서 들어 봤는데~',
-      win: [{ who: 'ppeonhan', text: '깍…? 그 말은… 흉내 낼 수가 없어…' }, { who: 'muk', text: '둘째 장이 돌아왔군. 이제 자네 문장엔 자네 생활 냄새가 나.' }],
-    },
-  },
-
-  /* ─────────────── 3장 동사의 힘 (전달력) ─────────────── */
-  {
-    n: 3, title: '동사의 힘', dim: '전달력',
-    intro: [
-      { who: 'muk', text: '셋째 장은 "동사"일세. 문장의 엔진은 형용사가 아니라 동사야.' },
-      { who: 'muk', text: '누가 무엇을 했는지 동사가 또렷하면, 독자는 한 번에 알아듣네.' },
-    ],
-    sus: [
-      {
-        n: 9, title: '죽은 동사 묻기',
-        teach: ['"이다·있다·하다·되다"는 아무 일도 안 하는 동사일세.', '"공원에 사람들이 있었다"를 "공원 벤치마다 사람들이 등을 기댔다"로. 동사가 일을 하게 하게.'],
-        example: { before: '책상 위에 컵이 있었다.', after: '식은 컵이 책상 모서리에 아슬아슬하게 걸터앉았다.' },
-        warmup: { task: '"있다/하다/되다"를 구체적인 동사로 바꾸게.', items: ['길에 낙엽이 많이 있었다.', '그는 운동을 했다.', '하늘이 어두워지게 되었다.', '창밖에 비가 있었다.'] },
-        drill: { name: '동사의 힘 훈련', purpose: '구체적인 동사로 장면을 생생하게 만드는 능력', instruction: '사진 속 장면을 2-3문장으로 쓰게. "이다/있다/하다/되다"와 그 활용형은 금지 — 더 구체적인 동사로.', constraints: ['이다', '있다', '없다', '하다', '되다', '이었다', '있었다', '했다', '됐다'], image: 'A lively scene with many simultaneous actions to describe with verbs: a busy street market with people carrying, pouring, haggling; a construction site; a kitchen during dinner rush.' },
-        write: { prompt: '오늘 아침 출근(등교) 길을 "있다/하다/되다" 없이', type: '묘사문', min: 180, check: '죽은 동사를 피하고 구체적 동사를 썼는가' },
-      },
-      {
-        n: 10, title: '능동으로 책임 묻기',
-        teach: ['"실수가 있었다", "조치될 예정이다" — 수동태 뒤에는 행위자가 숨네.', '누가 무엇을 했는지 주어를 세우게. 글이 단단해지고 믿음이 생기네.'],
-        example: { before: '보고서 제출이 늦어지게 되었습니다.', after: '제가 자료 확인을 미뤄 보고서를 이틀 늦게 냈습니다.' },
-        warmup: { task: '숨은 행위자를 찾아 능동태로 다시 쓰게.', items: ['그 과정에서 실수가 있었다.', '해당 건은 확인 후 조치될 예정입니다.', '이번 분기 예산이 초과 집행되었다.', '공지가 늦게 전달되었습니다.'] },
-        drill: { name: '동사의 힘 훈련', purpose: '수동태 뒤에 숨은 행위자를 드러내는 능력', instruction: '아래 문장의 숨은 행위자를 밝혀, 누가 무엇을 했고 무엇을 하겠다는지 능동태로 다시 쓰게.', scene: '"고객님께 불편을 드려 죄송합니다. 해당 건은 내부 확인 후 순차적으로 조치될 예정입니다."' },
-        write: { prompt: '최근 내가 한 실수 하나를, 주어를 숨기지 않고', type: '에세이', min: 180, check: '주어(행위자)가 분명한 능동문으로 썼는가' },
-      },
-      {
-        n: 11, title: '동사로 속도 조절',
-        teach: ['동사는 읽는 속도를 정하네.', '"머물다·스미다·번지다"는 느리게, "튀다·꽂히다·내달리다"는 빠르게.', '같은 장면도 동사만 바꾸면 다른 시간이 흐르지.'],
-        example: { before: '그는 버스를 향해 갔다.', after: '그는 신호가 바뀌자마자 횡단보도를 내달려 닫히는 문틈에 어깨를 꽂았다.' },
-        warmup: { task: '같은 장면을 느린 동사 한 문장, 빠른 동사 한 문장으로 쓰게.', items: ['고양이가 담장 위를 지나갔다.', '아침 햇빛이 방에 들어왔다.', '아이들이 운동장에 나갔다.'] },
-        drill: { name: '동사의 힘 훈련', purpose: '동사로 읽기 속도를 조율하는 능력', instruction: '사진 속 장면을 두 버전으로 — (1) 느릿한 동사로 2문장, (2) 빠른 동사로 2문장. 같은 장면, 다른 속도.', image: 'A scene combining stillness and motion: a crosswalk at rush hour with a blurred cyclist and a still elderly person waiting, or rain hitting a window while a bus passes.' },
-        write: { prompt: '하루 중 가장 빨랐던 1분과 가장 느렸던 1분', type: '스토리텔링', min: 200, check: '동사 선택으로 속도 차이를 만들었는가' },
-      },
-      {
-        n: 12, title: '사물에 동작을',
-        teach: ['움직이지 않는 것에 동작 동사를 주면 장면이 숨을 쉬네.', '"전선이 골목을 가로질렀다", "그림자가 계단을 한 칸씩 내려왔다". 과장 말고, 정확하게.'],
-        example: { before: '창문에 햇빛이 비쳤다.', after: '햇빛이 블라인드 틈을 비집고 들어와 책상 위에 줄을 그었다.' },
-        warmup: { task: '정지한 사물에 정확한 동작 동사를 주어 다시 쓰게.', items: ['방에 시계가 걸려 있었다.', '골목에 가로등이 서 있었다.', '탁자 위에 편지가 놓여 있었다.'] },
-        drill: { name: '동사의 힘 훈련', purpose: '정지한 사물을 동작 동사로 살리는 능력', instruction: '사진 속 움직이지 않는 사물 2-3개를 골라, 각각을 정확한 동작 동사로 살려 내는 문장을 쓰게.', image: 'A still interior or alley full of static objects with strong light and shadow: sunlight through blinds onto a desk, wires and pipes along an old building wall, a staircase with long shadows.' },
-        write: { prompt: '내 방(또는 책상)의 아침 풍경 — 사물들이 움직이듯', type: '묘사문', min: 180, check: '사물에 동작 동사를 정확하게 주었는가' },
+        n: 8, title: '온도 낮추기',
+        diagnose: '감성 글이 오글거리는 건 감성이 넘쳐서가 아니다. 표현의 정밀도가 감정의 크기를 못 따라가서다.',
+        teach: ['100도의 감정을 100도로 쓰면 독자는 한 발 물러선다. 한 단계 낮춰 담담하게 쓰면 독자가 다가온다.', '"말로 표현할 수 없는", "가슴이 먹먹했다", "~것 같다"는 닳은 말이다. 장면으로, 몸으로, 확신으로 바꾸게.', '문장에서 "나"를 빼고 대상으로 시선을 옮기면 감정이 오히려 선명해진다.'],
+        steps: ['과장(너무·정말·평생·영원히)과 닳은 표현을 찾는다', '감정을 한 단계 낮춘 담담한 문장으로 바꾼다', '"나"로 시작하는 문장 하나를 대상·사물이 주어인 문장으로 바꾼다'],
+        example: { before: '이 순간이 너무 소중해서 눈물이 날 것 같았다. 평생 잊지 못할 순간이다.', after: '이런 날이 또 올까. 잠깐 그런 생각을 했다.', why: '온도를 낮추자 감정을 강요하지 않게 되고, 독자가 스스로 그 소중함을 채운다.' },
+        find: '너무|정말|말로 표현할 수 없|먹먹|눈물이 핑|것 같다|것 같았|소중한|평생|영원히',
+        fix: { task: '과장과 닳은 표현을 걷어내고, 한 단계 낮은 온도로 다시 쓰게.', items: ['그날의 노을은 말로 표현할 수 없을 만큼 아름다웠다.', '오랜만에 친구를 만나 가슴이 먹먹했다.', '오늘도 함께해서 너무 행복했다. 내 사랑은 더 커졌다.'] },
+        write: { prompt: '최근 가장 크게 웃었거나 울컥했던 일 — 온도를 한 단계 낮춰서', type: '에세이', min: 200, checks: ['과장과 닳은 표현(말로 표현할 수 없는·먹먹·~것 같다)이 없는가', '감정을 강요하지 않고 독자가 채울 틈이 있는가', '"나" 대신 대상이 주어인 문장이 있는가'] },
+        photo: 'An emotionally charged but understated moment, faces not visible: two cups left on a table by a window at dusk, a small birthday cake with one candle on a desk at night, a train platform after a farewell.',
       },
     ],
     boss: {
-      id: 'heurisi', prompt: '누군가에게 길을 설명하거나 일을 부탁했던 장면 — 누가, 무엇을, 왜가 또렷하게', type: '스토리텔링', minChars: 450, dimMin: 6,
-      taunt: ['그래서 누가 한 거야?', '무슨 일이 있었던 거지?', '음… 졸려…'],
-      lose: '흐릿… 아직 잘 모르겠는데…',
-      win: [{ who: 'heurisi', text: '아… 다 보여… 눈부셔…' }, { who: 'muk', text: '셋째 장이 돌아왔네. 자네 문장엔 이제 엔진이 달렸어.' }],
+      id: 'heurisi', prompt: '누군가에게 끝내 하지 못한 말 — 그 말을 하지 않고 전하기', type: '에세이', minChars: 450, dimMin: 6,
+      taunt: ['그래서 어떤 마음이었는데?', '그냥 "슬펐다"고 하면 되잖아…', '음… 하나도 안 느껴져…'],
+      lose: '흐릿… 아직 마음이 안 보여…',
+      win: [{ who: 'heurisi', text: '아… 말 안 했는데… 다 들려…' }, { who: 'muk', text: '둘째 장이 돌아왔다. 이제 자네는 감정을 말하지 않고 건넨다.' }],
     },
   },
 
-  /* ─────────────── 4장 덜어내기 (가독성) ─────────────── */
+  /* ─────────────── 3장 단단한 문장 (가독성) ─────────────── */
   {
-    n: 4, title: '덜어내기', dim: '가독성',
+    n: 3, title: '단단한 문장', dim: '가독성',
     intro: [
-      { who: 'muk', text: '넷째 장은 "덜어내기"일세. 이 장이 제일 아프네. 공들여 쓴 걸 지워야 하거든.' },
-      { who: 'muk', text: '빼도 뜻이 같으면 빼게. 남은 문장이 훨씬 멀리 가네.' },
+      { who: 'muk', text: '셋째 장은 "단단한 문장"이다. 이 장이 제일 아프다. 공들여 쓴 걸 지워야 하거든.' },
+      { who: 'muk', text: '퇴고는 더하는 일이 아니라 덜어내는 일이다. 빼도 뜻이 같으면 빼게. 남은 문장이 훨씬 멀리 간다.' },
     ],
     sus: [
       {
-        n: 13, title: '한 문장 한 생각',
-        teach: ['한 문장에 생각을 둘 이상 싣지 말게.', '"~하고, ~해서, ~했는데"로 이어진 문장은 마침표로 끊게.'],
-        example: { before: '어제 친구를 만났는데 오랜만이라 반가웠고 같이 밥을 먹으면서 이야기를 했는데 시간이 금방 갔다.', after: '어제 친구를 만났다. 일 년 만이었다. 국밥 두 그릇이 식는 동안 이야기가 끊기지 않았다.' },
-        warmup: { task: '긴 문장을 한 문장 한 생각으로 끊어 다시 쓰게.', items: ['회의가 길어져서 점심을 못 먹었는데 오후에 또 회의가 있어서 결국 저녁에 몰아서 먹었고 속이 안 좋았다.', '주말에 집 정리를 하려고 했는데 막상 시작하니 버릴 게 많아서 고민하다가 결국 반만 했다.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '한 문장에 한 생각만 담는 능력', instruction: '사진 속 장면을 5문장으로 쓰게. 한 문장에 생각 하나, 문장마다 15어절을 넘기지 말게.', image: 'A simple scene with a clear sequence of small events: a person at a crosswalk then a bus arriving, a cat approaching a bowl, a vendor setting up a stall in the morning.' },
-        write: { prompt: '어제 하루를 한 문장 한 생각으로 7문장', type: '설명문', min: 150, check: '연결어미로 늘어진 문장 없이 끊어 썼는가' },
+        n: 9, title: '한 문장 한 생각',
+        diagnose: '글이 안 읽히는 건 내용이 나빠서가 아니다. 한 문장에 생각을 여럿 실었기 때문이다.',
+        teach: ['"~했는데 ~해서 ~했고"로 이어진 문장은 독자의 숨을 막는다. 생각 하나에 마침표 하나.', '주어와 서술어 사이가 멀면 독자는 길을 잃는다. 둘 사이에 말이 길게 끼어들었다면 문장을 나누게.'],
+        steps: ['접속어미(~는데, ~고, ~서, ~며)마다 표시한다', '표시한 자리에서 마침표로 끊는다', '주어와 서술어가 멀면 꾸미는 말을 따로 한 문장으로 뺀다'],
+        example: { before: '오늘은 날씨도 좋고 기분도 좋아서 오랜만에 산책을 나갔는데 생각보다 많이 걸었고 꽤 피곤했다.', after: '오늘 산책을 나갔다. 생각보다 많이 걸었다. 꽤 피곤했다.', why: '생각마다 끊자 읽는 호흡이 생기고, 마지막 "피곤했다"에 힘이 실렸다.' },
+        find: '[^.!?\\n]{70,}',
+        fix: { task: '긴 문장을 한 문장 한 생각으로 끊어 다시 쓰게.', items: ['회의가 길어져서 점심을 못 먹었는데 오후에 또 회의가 있어서 결국 저녁에 몰아서 먹었고 속이 안 좋았다.', '주말에 집 정리를 하려고 했는데 막상 시작하니 버릴 게 많아서 고민하다가 결국 반만 했다.'] },
+        write: { prompt: '어제 하루 중 한 장면을, 한 문장 한 생각으로 일곱 문장', type: '설명문', min: 150, checks: ['연결어미로 늘어진 문장이 없는가', '주어와 서술어 사이가 가까운가', '문장을 끊은 뒤에도 흐름이 자연스러운가'] },
+        photo: 'A simple scene with a clear sequence of small events: a person at a crosswalk then a bus arriving, a cat approaching a bowl, a vendor setting up a stall in the morning.',
       },
       {
-        n: 14, title: '수식어 덜기',
-        teach: ['"정말, 너무, 매우, 굉장히"는 힘을 빼는 말일세.', '형용사 두 개를 겹치지 말고, 하나를 정확하게.'],
-        example: { before: '정말 너무 아름답고 멋진 풍경이었다.', after: '능선이 세 겹으로 포개진 풍경이었다.' },
-        warmup: { task: '강조 부사와 겹친 수식어를 덜어내고 정확한 말 하나로 바꾸게.', items: ['정말 너무 맛있고 훌륭한 음식이었다.', '굉장히 크고 넓은 강당이었다.', '매우 친절하고 상냥한 직원이었다.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '수식어 없이 정확한 말로 쓰는 능력', instruction: '사진을 3문장으로 쓰게. "정말·너무·매우·굉장히·아주"는 금지, 형용사는 문장마다 하나까지.', constraints: ['정말', '너무', '매우', '굉장히', '아주', '엄청'], image: 'A visually striking but simple landscape or cityscape: mountain ridges in layers at dawn, a long bridge in fog, a field of reeds by a river.' },
-        write: { prompt: '최근 본 가장 인상적인 장면을 수식어 없이', type: '묘사문', min: 150, check: '강조 부사·겹친 형용사를 덜어냈는가' },
+        n: 10, title: '수식어 덜기',
+        diagnose: '문장이 가벼운 건 단어가 약해서가 아니다. "정말·너무·매우"가 힘을 빼고 있기 때문이다.',
+        teach: ['강조 부사는 붙일수록 감정을 가볍게 만든다. "정말 너무 슬펐다"보다 "슬펐다"가 무겁다.', '꾸미는 말이 꾸밈받는 말보다 길면 독자는 무엇을 꾸미는지 놓친다. 형용사는 하나를 정확하게.'],
+        steps: ['정말·너무·매우·굉장히·아주를 모두 찾아 지운다', '형용사가 둘 이상 겹치면 가장 정확한 하나만 남긴다', '수식어가 길면 따로 한 문장으로 뺀다'],
+        example: { before: '그날은 정말 너무나 슬펐다. 너무 많이 울어서 눈이 너무 부어 버렸다.', after: '그날은 슬펐다. 많이 울었고, 눈이 부었다.', why: '"너무"를 걷어 내자 담담해졌고, 담담해서 더 아프게 읽힌다.' },
+        find: '정말|너무|매우|굉장히|아주|엄청|진짜',
+        fix: { task: '강조 부사와 겹친 수식어를 덜어 내고 정확한 말 하나로 바꾸게.', items: ['정말 너무 맛있고 훌륭한 음식이었다.', '굉장히 크고 넓은 강당이었다.', '매우 친절하고 상냥한 직원이었다.'] },
+        write: { prompt: '최근 본 가장 인상적인 장면을 수식어 없이', type: '묘사문', min: 150, checks: ['강조 부사가 하나도 없는가', '형용사가 겹치지 않고 정확한 하나인가', '수식어를 빼도 장면이 선명한가'] },
+        photo: 'A visually striking but simple landscape or cityscape: mountain ridges in layers at dawn, a long bridge in fog, a field of reeds by a river.',
       },
       {
-        n: 15, title: '"것·수·있다" 줄이기',
-        teach: ['"~하는 것은 ~할 수 있다는 것이다" 같은 문장은 같은 자리를 맴도네.', '"것", "수 있다", "~에 대해"를 줄이면 문장이 곧게 서네.'],
-        example: { before: '중요한 것은 꾸준히 할 수 있는 것이라고 생각할 수 있다.', after: '꾸준함이 중요하다.' },
-        warmup: { task: '"것/수 있다/~에 대해"를 줄여 곧게 다시 쓰게.', items: ['우리가 알아야 하는 것은 변화가 있을 수 있다는 것이다.', '이 문제에 대해 생각해 볼 수 있는 것은 많다.', '운동을 하는 것은 건강에 도움이 될 수 있는 것이다.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '군더더기 표현 없이 곧게 쓰는 능력', instruction: '아래 문장을 뜻은 그대로 두고 절반 길이로 줄이게.', scene: '"이번 프로젝트를 진행하는 것에 있어서 가장 중요하다고 할 수 있는 것은 팀원들 간의 원활한 소통이 이루어질 수 있도록 하는 것이라고 생각되어집니다."' },
-        write: { prompt: '내가 요즘 중요하게 여기는 것 하나 — "것·수 있다" 없이', type: '의견문', min: 180, check: '"것/수 있다/~에 대해/되어지다"를 줄였는가' },
+        n: 11, title: '주어 세우기',
+        diagnose: '문장이 흐릿한 건 말을 돌려서가 아니다. "~되었다·~것이다" 뒤로 행동한 사람이 숨었기 때문이다.',
+        teach: ['"실수가 있었다", "조치될 예정이다" — 피동 뒤에는 행위자가 숨는다. 누가 했는지 세우면 문장이 단단해지고 믿음이 생긴다.', '모든 피동이 나쁜 건 아니다. 행위자가 중요하지 않거나, 무력함을 보여 줄 때는 일부러 남긴다. 지울 건 습관적인 피동이다.', '"~하는 것은 ~할 수 있다는 것이다"처럼 같은 자리를 맴도는 말도 함께 걷어 내게.'],
+        steps: ['~되었다·~어졌다·~게 되었다·~것이다·~수 있다를 표시한다', '문장마다 "이걸 한 사람은 누구인가?"를 묻는다', '답이 있으면 주어로 세우고, 없거나 중요하지 않으면 그대로 둔다'],
+        example: { before: '보고서 제출이 늦어지게 되었습니다.', after: '제가 자료 확인을 미뤄 보고서를 이틀 늦게 냈습니다.', why: '숨은 행위자를 세우자 책임이 분명해지고, 사과가 사과로 읽힌다.' },
+        find: '되었다|됐다|되어지|어졌다|여졌다|게 되었|게 됐|수 있는 것|것이다|느껴졌',
+        fix: { task: '숨은 행위자를 찾아 주어로 세워 다시 쓰게. 일부러 남길 피동이면 그 이유를 한 줄로.', items: ['그 과정에서 실수가 있었다.', '해당 건은 확인 후 조치될 예정입니다.', '중요한 것은 꾸준히 할 수 있는 것이라고 생각될 수 있다.'] },
+        write: { prompt: '최근 내가 한 실수 하나를, 주어를 숨기지 않고', type: '에세이', min: 180, checks: ['행동한 사람이 주어로 서 있는가', '남긴 피동이 있다면 이유가 있는가', '"것·수 있다"로 맴도는 문장이 없는가'] },
       },
       {
-        n: 16, title: '문장의 리듬',
-        teach: ['짧은 문장만 이어지면 숨이 차고, 긴 문장만 이어지면 지치네.', '긴 문장 둘 뒤에 짧은 문장 하나. 그 짧은 문장에 힘을 싣게.'],
-        example: { before: '나는 문을 열었다. 방은 조용했다. 아무도 없었다. 불을 켰다.', after: '퇴근길 내내 고민한 말을 되뇌며 현관문을 열었는데, 거실엔 냉장고 소리만 낮게 깔려 있었다. 아무도 없었다.' },
-        warmup: { task: '단조로운 문장 길이를 긴 문장과 짧은 문장이 섞이게 다시 쓰게.', items: ['비가 왔다. 우산이 없었다. 뛰었다. 젖었다.', '나는 아침에 일어나서 씻고 옷을 입고 밥을 먹고 가방을 챙겨서 집을 나섰다.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '문장 길이로 리듬과 강조를 만드는 능력', instruction: '사진 속 장면을 4-5문장으로 쓰게. 긴 문장과 짧은 문장을 섞고, 마지막은 5어절 이하의 짧은 문장으로 끝내 힘을 주게.', image: 'A scene with a quiet moment of tension or arrival: an empty train platform as the last train pulls in, a front door slightly open with light inside, a person standing at the edge of a pier.' },
-        write: { prompt: '기다리던 소식을 받은 순간을, 리듬을 살려', type: '스토리텔링', min: 200, check: '긴 문장과 짧은 문장을 섞어 강조를 만들었는가' },
+        n: 12, title: '긴 문장, 짧은 문장',
+        diagnose: '글이 단조로운 건 어휘가 적어서가 아니다. 문장 길이와 끝맺음이 똑같이 반복되기 때문이다.',
+        teach: ['단문과 장문에 우열은 없다. 상황을 펼칠 땐 장문으로 데려가고, 감정의 정점에선 단문으로 멈춘다.', '"~했다. ~했다. ~했다."처럼 같은 어미가 세 번 넘게 이어지면 독자 귀에 박자가 들린다. 끝맺음을 흩어 놓게.'],
+        steps: ['문장마다 길이를 보고, 같은 어미가 이어지는 곳을 찾는다', '장면을 펼치는 곳은 길게 잇고, 힘줄 곳은 짧게 끊는다', '가장 중요한 문장을 짧은 문장으로 만들어 끝 가까이 둔다'],
+        example: { before: '나는 문을 열었다. 방은 조용했다. 아무도 없었다. 불을 켰다.', after: '퇴근길 내내 고민한 말을 되뇌며 현관문을 열었는데, 거실엔 냉장고 소리만 낮게 깔려 있었다. 아무도 없었다.', why: '장문으로 데려가다 단문으로 멈추자, "아무도 없었다"가 무겁게 떨어진다.' },
+        find: '했다\\. [^.]{1,25}했다\\. [^.]{1,25}했다\\.',
+        fix: { task: '단조로운 문장 길이를, 긴 문장과 짧은 문장이 섞이게 다시 쓰게.', items: ['비가 왔다. 우산이 없었다. 뛰었다. 젖었다.', '나는 아침에 일어나서 씻고 옷을 입고 밥을 먹고 가방을 챙겨서 집을 나섰다.'] },
+        write: { prompt: '기다리던 소식을 받은 순간을, 리듬을 살려', type: '스토리텔링', min: 200, checks: ['긴 문장과 짧은 문장이 섞여 있는가', '가장 중요한 문장이 짧게 서 있는가', '같은 어미가 세 번 넘게 이어지지 않는가'] },
+        photo: 'A scene with a quiet moment of tension or arrival: an empty train platform as the last train pulls in, a front door slightly open with light inside, a person standing at the edge of a pier.',
       },
     ],
     boss: {
       id: 'neureoji', prompt: '올해 버린 것 하나 (물건이든 습관이든)', type: '에세이', minChars: 250, maxChars: 600, dimMin: 6,
       taunt: ['조금만 더 설명하자~', '혹시 모르니 한 번 더 말하자~', '"것 같다"를 붙이면 안전해~'],
       lose: '스르륵… 아직 꼬리가 길어~',
-      win: [{ who: 'neureoji', text: '꼬리가… 없…' }, { who: 'muk', text: '넷째 장이 돌아왔네. 덜어낸 자리에서 문장이 숨을 쉬지.' }],
+      win: [{ who: 'neureoji', text: '꼬리가… 없…' }, { who: 'muk', text: '셋째 장이 돌아왔다. 덜어 낸 자리에서 문장이 숨을 쉬지.' }],
     },
   },
 
-  /* ─────────────── 5장 흐름 (논리성) ─────────────── */
+  /* ─────────────── 4장 낯설게 (표현력) ─────────────── */
   {
-    n: 5, title: '흐름', dim: '논리성',
+    n: 4, title: '낯설게', dim: '표현력',
     intro: [
-      { who: 'muk', text: '다섯째 장은 "흐름"일세. 문장 하나하나가 좋아도 순서가 엉키면 독자는 길을 잃네.' },
-      { who: 'muk', text: '첫 문장이 붙잡고, 가운데가 받치고, 끝이 닫아야 하네.' },
+      { who: 'muk', text: '넷째 장은 "낯설게"다. 문장이 아름다운 건 예쁜 단어 때문이 아니라 낯선 조합 때문이지.' },
+      { who: 'muk', text: '독자가 다음 단어를 미리 알면 문장을 건너뛴다. 이번 장에선 독자를 멈춰 세우는 법을 익히게.' },
     ],
     sus: [
       {
-        n: 17, title: '첫 문장으로 붙잡기',
-        teach: ['첫 문장은 독자에게 거는 내기일세.', '배경 설명("요즘 많은 사람들이")으로 시작하지 말고, 장면·질문·의외의 사실로 바로 들어가게.'],
-        example: { before: '요즘 많은 사람들이 운동을 한다. 나도 운동을 시작했다.', after: '스쿼트 열 개에 무릎이 먼저 항복했다.' },
-        warmup: { task: '배경 설명으로 시작하는 첫 문장을, 장면이나 질문으로 바로 들어가게 바꾸게.', items: ['현대 사회에서 스마트폰은 필수품이 되었다.', '여행은 누구에게나 설레는 일이다.', '나는 어릴 때부터 책을 좋아했다.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '첫 문장으로 독자를 붙잡는 능력', instruction: '사진을 보고, 이 장면으로 시작하는 이야기의 첫 문장을 서로 다른 방식(장면·질문·의외의 사실)으로 3개 쓰게.', image: 'An intriguing everyday scene that begs a story: a single red umbrella left on a subway seat, a moving truck half-unloaded at night, a child alone at a ticket gate.' },
-        write: { prompt: '최근 생긴 작은 사건 하나를, 첫 문장에 공들여', type: '스토리텔링', min: 200, check: '첫 문장이 배경 설명 없이 바로 붙잡는가' },
+        n: 13, title: '내 생활에서 건진 비유',
+        diagnose: '비유가 뻔한 건 상상력이 없어서가 아니다. 남이 쓰던 재료를 빌려 왔기 때문이다.',
+        teach: ['"별처럼 빛나는", "화살처럼 지나간" — 어디서 본 비유면 버리게.', '비유는 예쁘게가 아니라 정확하게. 겉모습이 아니라 작동하는 원리가 닮은 것을 자네 직업, 취미, 동네에서 찾게.'],
+        steps: ['표현하고 싶은 감정이나 상황을 한 줄로 정한다', '내 일상에서 같은 원리로 움직이는 것을 찾는다', '둘을 연결해 한 문장으로 쓰고, 비유는 한 단락에 하나만'],
+        example: { before: '월요일 아침은 힘들었다.', after: '월요일 아침은 밤새 충전기에 안 꽂아 둔 휴대폰 같았다. 켜지긴 하는데 15%였다.', why: '흔한 비유 대신 생활에서 건진 재료를 쓰자, 지친 정도가 숫자까지 정확해졌다.' },
+        find: '처럼|같은|같이|듯이',
+        fix: { task: '상투적인 비유를, 내 생활에서 건진 정확한 비유로 바꾸게.', items: ['시간이 화살처럼 지나갔다.', '그녀의 눈은 별처럼 빛났다.', '마음이 얼음처럼 차가웠다.'] },
+        write: { prompt: '요즘의 나를, 내 생활에서 건진 비유 하나로', type: '에세이', min: 200, checks: ['비유가 어디서 본 것이 아닌가', '겉모습이 아니라 작동 원리가 닮았는가', '비유가 하나뿐이고 글 전체를 받치는가'] },
+        photo: 'An ordinary but visually interesting subject that invites metaphor: tangled power lines over an alley, a stack of plastic chairs, a crowded escalator from above, steam rising from a manhole at dawn.',
       },
       {
-        n: 18, title: '주장과 근거',
-        teach: ['주장은 한 문장으로 세우고, 근거는 두 개로 받치게.', '근거는 "다들 그렇다"가 아니라 사례·숫자·경험이어야 하네.'],
-        example: { before: '아침 운동은 좋다. 건강에 좋기 때문이다.', after: '아침 운동을 권한다. 석 달째 6시에 걷자 오후 3시의 졸음이 사라졌고, 일정이 꼬여도 운동만은 빠지지 않았다.' },
-        warmup: { task: '막연한 근거를 사례나 숫자로 바꿔 주장을 받치게.', items: ['독서는 중요하다. 왜냐하면 도움이 되기 때문이다.', '재택근무가 낫다. 편하니까.', '일찍 자야 한다. 건강에 좋다.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '주장을 근거로 받치는 능력', instruction: '사진 속 상황에 대한 내 주장 한 문장을 세우고, 사진에서 찾은 근거 두 가지로 받치게 (총 3-4문장).', image: 'A scene that invites an opinion with visible evidence: overflowing recycling bins in an apartment complex, a crowded bike lane next to empty car lanes, people all looking at phones in a waiting room.' },
-        write: { prompt: '내가 남에게 권하고 싶은 습관 하나 — 주장 1, 근거 2', type: '의견문', min: 250, check: '주장이 한 문장이고 근거가 구체적 사례·숫자인가' },
+        n: 14, title: '낯선 조합과 모순',
+        diagnose: '복잡한 마음이 납작하게 써지는 건 단어를 몰라서가 아니다. 한 가지 감정으로 정리하려 했기 때문이다.',
+        teach: ['슬픈 날에 꼭 비가 와야 하나? 햇빛이 너무 맑아서 슬픈 날이 더 선명하다. 예상과 반대되는 이미지를 붙여 보게.', '사랑하는데 도망치고 싶은 마음, 둘 다 진짜다. 반대되는 감정이나 행동을 지우지 말고 한 문장에 같이 두게. "따뜻한 슬픔"처럼.'],
+        steps: ['문장에서 가장 예측하기 쉬운 결합(차가운 겨울·어두운 슬픔)을 찾는다', '감정과 어긋나는 이미지나 반대 단어를 붙여 본다', '서로 반대인 두 마음이 있다면 정리하지 말고 나란히 놓는다'],
+        example: { before: '하늘은 흐리고 비가 내려서 그날은 슬픈 날이었다.', after: '이상하게 햇빛이 너무 맑아서, 그날은 더 슬픈 날이었다.', why: '뻔한 어두운 배경 대신 맑은 햇빛을 대비시키자 슬픔이 더 날카로워졌다.' },
+        find: EMO,
+        fix: { task: '예측 가능한 결합을 비틀거나, 반대되는 감정을 함께 두어 다시 쓰게.', items: ['차가운 겨울바람이 불었다. 따뜻한 코코아가 생각났다.', '그 사람이 떠나서 슬펐다.', '합격 소식을 듣고 기뻤다.'] },
+        write: { prompt: '좋으면서 싫었던 일, 혹은 기쁘면서 서운했던 일', type: '에세이', min: 200, checks: ['반대되는 두 마음이 함께 있는가', '예측하기 쉬운 결합을 한 번 이상 비틀었는가', '낯섦이 억지가 아니라 실제 느낌에서 나왔는가'] },
       },
       {
-        n: 19, title: '연결어 없이 잇기',
-        teach: ['"그리고, 그래서, 하지만"을 줄줄이 달면 흐름이 오히려 끊기네.', '앞 문장의 끝 단어를 다음 문장이 받아 이어 가게. 생각의 순서가 곧 접속사일세.'],
-        example: { before: '비가 왔다. 그래서 우산을 샀다. 그런데 우산이 비쌌다. 그래도 샀다.', after: '비가 쏟아졌다. 편의점 우산은 만 이천 원. 비싸다는 생각보다 젖은 셔츠가 먼저였다.' },
-        warmup: { task: '접속사를 빼고 문장끼리 자연스럽게 이어지도록 다시 쓰게.', items: ['나는 피곤했다. 그래서 일찍 잤다. 그런데 잠이 안 왔다. 그래서 책을 읽었다.', '회의를 했다. 그리고 결론이 났다. 하지만 아무도 만족하지 않았다.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '접속사 없이 흐름을 잇는 능력', instruction: '사진 속 장면에서 일어난 일을 4문장으로 쓰게. "그리고·그래서·하지만·그런데·그러나"는 금지.', constraints: ['그리고', '그래서', '하지만', '그런데', '그러나', '그러므로'], image: 'A scene implying a small chain of cause and effect: a spilled coffee cup and wet papers, a flat bicycle tire and a person walking the bike, a fallen umbrella in the wind.' },
-        write: { prompt: '작은 일이 꼬리를 물고 커졌던 하루', type: '스토리텔링', min: 200, check: '접속사에 기대지 않고 흐름을 이었는가' },
+        n: 15, title: '다시 정의하기',
+        diagnose: '문장에 개성이 없는 건 새 단어를 몰라서가 아니다. 익숙한 단어를 남들이 쓰는 뜻 그대로 썼기 때문이다.',
+        teach: ['"운명", "꾸준함", "어른" — 누구나 아는 말을 자네 경험으로 다시 정의하면 그 문장은 자네만 쓸 수 있다.', '통념을 한 번 의심하게. "성실함은 좋다"가 정말 늘 그런가? 그 이면에서 글감이 나온다.'],
+        steps: ['글에서 큰 말(행복·사랑·어른·꾸준함)을 하나 고른다', '"내게 ○○란"으로 시작해 내 경험의 장면으로 정의한다', '흔한 뜻을 한 번 부정한 뒤 내 뜻을 놓는다'],
+        example: { before: '어른이 된다는 건 책임감이 생기는 것이다.', after: '어른이 된다는 건 아파도 출근 문자를 먼저 쓰는 일이었다.', why: '사전식 정의 대신 내 생활의 한 장면으로 정의하자, 같은 단어가 내 말이 됐다.' },
+        find: '이란|란 |이라는 것은|중요하다|소중하다|행복이|사랑이',
+        fix: { task: '익숙한 큰 말을, 내 경험의 장면으로 다시 정의하게.', items: ['행복은 가까이에 있다.', '꾸준함이 가장 중요하다.', '친구란 힘들 때 곁에 있어 주는 사람이다.'] },
+        write: { prompt: '"내게 ○○란" — 누구나 아는 단어 하나를 나만의 뜻으로', type: '에세이', min: 220, checks: ['사전식 정의가 아니라 장면으로 정의했는가', '흔한 뜻을 한 번 의심하거나 뒤집었는가', '그 정의를 남이 똑같이 쓸 수 없는가'] },
       },
       {
-        n: 20, title: '끝맺음',
-        teach: ['끝은 요약이 아니라 여운일세. "결국 소중한 하루였다"로 닫지 말게.', '처음 장면으로 돌아가거나, 작은 행동 하나로 끝내게.'],
-        example: { before: '이렇게 해서 나는 많은 것을 깨달았고 소중한 경험이 되었다.', after: '돌아오는 길, 편의점에서 우산을 하나 더 샀다. 내일은 그 애 몫이었다.' },
-        warmup: { task: '교훈으로 닫는 마지막 문장을, 장면이나 행동으로 바꾸게.', items: ['결국 가족이 가장 소중하다는 것을 깨달았다.', '이번 여행은 잊지 못할 추억이 되었다.', '앞으로 더 열심히 살아야겠다고 다짐했다.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '여운 있는 끝맺음을 만드는 능력', instruction: '사진 속 장면이 어떤 이야기의 마지막이라고 생각하고, 마지막 두 문장을 쓰게. 교훈·요약 금지, 장면이나 행동으로 끝내게.', constraints: ['깨달았다', '소중한', '추억', '다짐했다', '결국'], image: 'A quiet closing scene: lights turning off in a small shop at night, two cups left on a table after guests left, a train disappearing into the distance at dusk.' },
-        write: { prompt: '최근 끝난 무언가(만남·일·계절)를, 여운이 남게', type: '에세이', min: 220, check: '교훈·요약 없이 장면·행동으로 끝냈는가' },
+        n: 16, title: '자리 바꿔 보기',
+        diagnose: '평범한 일상이 평범하게 써지는 건 일상이 평범해서가 아니다. 늘 같은 자리에서 봤기 때문이다.',
+        teach: ['관찰자인 나에서 벗어나 그 자리에 있던 사물의 입장, 십 년 뒤의 나, 상대의 자리에서 다시 보게.', '시점은 내용이 아니라 독자와의 거리를 바꾼다. "나"는 함께 느끼게, "당신"은 독자를 주인공으로, "그"는 한 발 물러서 지켜보게 한다.'],
+        steps: ['쓰려는 장면 하나를 정한다', '사물·상대·다른 시간 중 한 자리를 골라 그 눈으로 다시 본다', '필요하면 인칭을 바꿔(나→그, 나→당신) 거리를 조절한다'],
+        example: { before: '나는 오늘도 그 카페에 앉았다. 이 자리에 앉은 게 벌써 3년째다.', after: '그는 오늘도 그 카페에 앉아 있었다. 커피는 이미 식어 있었다. 그가 언제부터 여기 오기 시작했는지 아무도 묻지 않았다.', why: '3인칭으로 물러서자 감정을 말하지 않아도 외로움이 거리감으로 전해진다.' },
+        find: '^나는|나는 |내가 ',
+        fix: { task: '같은 장면을 다른 자리(사물·상대·십 년 뒤) 또는 다른 인칭으로 다시 쓰게.', items: ['나는 퇴근길에 편의점에 들렀다.', '나는 오랜만에 부모님께 전화를 걸었다.', '나는 이사 가는 날 빈방을 바라봤다.'] },
+        write: { prompt: '오늘 있었던 일 하나를, 그 자리에 있던 사물의 눈으로', type: '스토리텔링', min: 200, checks: ['관찰하는 자리가 분명히 바뀌었는가', '그 자리에서만 보이는 것이 있는가', '인칭과 거리가 끝까지 흔들리지 않는가'] },
+        photo: 'An open-ended everyday scene that different viewpoints would read differently: a coat rack by a cafe door with one coat left, an umbrella stand on a rainy day, a park bench seen from behind with two people far apart.',
       },
     ],
     boss: {
-      id: 'eotbagi', prompt: '"매일 쓰는 것"은 정말 실력을 늘리는가 — 찬반 중 하나를 골라 논증', type: '의견문', minChars: 500, dimMin: 6,
-      taunt: ['그러니까 아무튼~', '왜냐하면 그냥~', '결론은 나중에~'],
-      lose: '엉킨다 엉킨다~',
-      win: [{ who: 'eotbagi', text: '풀렸… 다…' }, { who: 'muk', text: '다섯째 장이 돌아왔네. 자네 글은 이제 길을 잃지 않아.' }],
+      id: 'ppeonhan', prompt: '봄(또는 지금 계절)을 "따스한 햇살/설렘/소중한 추억" 없이', type: '묘사문', minChars: 400, dimMin: 6,
+      taunt: ['눈부신 햇살! 깍!', '소중한 추억! 깍!', '행복한 하루! 깍깍!'],
+      lose: '깍깍! 그 말 어디서 들어 봤는데~',
+      win: [{ who: 'ppeonhan', text: '깍…? 그 말은… 흉내 낼 수가 없어…' }, { who: 'muk', text: '넷째 장이 돌아왔군. 이제 자네 문장엔 자네 생활 냄새가 난다.' }],
     },
   },
 
-  /* ─────────────── 6장 한 줄 (종합) ─────────────── */
+  /* ─────────────── 5장 글의 길 (논리성) ─────────────── */
   {
-    n: 6, title: '한 줄', dim: '종합',
+    n: 5, title: '글의 길', dim: '논리성',
     intro: [
-      { who: 'muk', text: '마지막 장은 "한 줄"일세. 지금까지 배운 걸 한 줄에, 한 편에 모으는 법이야.' },
-      { who: 'muk', text: '그리고 이 장 끝에는 내 30년을 붙잡았던 놈이 기다리고 있네.' },
+      { who: 'muk', text: '다섯째 장은 "글의 길"이다. 글이 어색한 건 문장력보다 순서 탓인 경우가 많지.' },
+      { who: 'muk', text: '첫 문장이 붙잡고, 가운데가 받치고, 끝이 닫지 않고 남긴다. 그 길을 익히게.' },
     ],
     sus: [
       {
-        n: 21, title: '한 줄로 압축',
-        teach: ['쓰기 전에 "그래서 하고 싶은 말이 뭔가"를 한 줄로 적어 보게.', '한 줄로 안 되면 아직 생각이 덜 익은 걸세.'],
-        example: { before: '요즘 일도 많고 사람도 많이 만나고 정신이 없어서 나를 돌볼 시간이 없다는 생각이 들었다.', after: '바쁜 날일수록 나만 일정표에 없다.' },
-        warmup: { task: '긴 생각을 20자 안팎의 한 줄로 압축하게.', items: ['어릴 때는 몰랐는데 커 보니 부모님이 얼마나 고생하셨는지 알게 되었다.', '좋아하는 일을 직업으로 삼으면 좋아하던 마음이 줄어드는 것 같다.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '평범한 장면에서 의미를 발견해 한 줄로 압축하는 능력', instruction: '사진 속 장면에 담긴 이야기를 한 줄 카피로 압축하게. 설명하지 말고, 여운이 남게 (20자 안팎).', image: 'An everyday moment with a hidden story: an old man feeding pigeons alone, a convenience store worker at 3am, a child holding a parent’s finger at a crowded crossing.' },
-        write: { prompt: '요즘 내 생활을 한 줄로 쓰고, 그 한 줄을 풀어 한 단락', type: '에세이', min: 200, check: '핵심이 한 줄로 서 있고 단락이 그 한 줄을 받치는가' },
+        n: 17, title: '첫 문장',
+        diagnose: '첫 줄이 안 써지는 건 재능이 없어서가 아니다. 첫 문장을 인사나 배경 설명으로 쓰려 했기 때문이다.',
+        teach: ['첫 문장은 독자에게 거는 첫 손길이다. "오늘은 ~이야기를 해 보려 합니다"로 시작하면 독자는 거기서 떠난다.', '장면 한가운데로 던지거나, 구체적인 숫자로 멈춰 세우거나, 당연한 생각을 뒤집거나, 부끄러운 고백으로 시작하게.'],
+        steps: ['지금 첫 문장이 배경 설명·인사·주제 소개인지 본다', '장면·숫자·역설·고백 중 하나를 고른다', '그 방식으로 첫 문장을 다시 쓰고, 원래 첫 문장은 지운다'],
+        example: { before: '오늘은 오랜만에 친구를 만났던 이야기를 해 보려 합니다.', after: '3년 만에 마주친 그 친구는 나를 보자마자 울었다.', why: '배경 설명 대신 사건 한가운데로 들어가자, 독자가 "왜?"를 품고 다음 줄로 간다.' },
+        find: 'first',
+        fix: { task: '배경 설명으로 시작하는 첫 문장을, 장면·숫자·역설·고백 중 하나로 바꾸게.', items: ['현대 사회에서 스마트폰은 필수품이 되었다.', '여행은 누구에게나 설레는 일이다.', '나는 어릴 때부터 책을 좋아했다.'] },
+        write: { prompt: '최근 생긴 작은 사건 하나를, 첫 문장에 공들여', type: '스토리텔링', min: 200, checks: ['첫 문장이 배경 설명·인사가 아닌가', '첫 문장이 다음 문장을 궁금하게 만드는가', '첫 문장이 약속한 것을 글이 지키는가'] },
+        photo: 'An intriguing everyday scene that begs a story: a single red umbrella left on a subway seat, a moving truck half-unloaded at night, a child alone at a ticket gate.',
       },
       {
-        n: 22, title: '제목 짓기',
-        teach: ['제목은 글의 첫 문장보다 먼저 읽히네.', '주제를 요약하지 말고(「나의 여름」), 글 속의 구체적인 사물이나 한 구절에서 따오게(「식은 보리차」).'],
-        example: { before: '「할머니와의 추억」', after: '「반들거리는 자개장 손잡이」' },
-        warmup: { task: '요약형 제목을 글 속 구체에서 따온 제목으로 바꾸게.', items: ['「나의 첫 직장 이야기」', '「여름 방학의 추억」', '「이사에 대한 생각」'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '구체에서 제목을 길어 올리는 능력', instruction: '사진이 어떤 에세이의 표지라고 생각하고, 사진 속 구체적인 사물에서 따온 제목 3개를 쓰게. 각각 한 줄로 이유를 덧붙이게.', image: 'An evocative still life suitable as an essay cover: a half-peeled tangerine on a windowsill in winter, a key on a red string, a rice cooker steaming in a small kitchen.' },
-        write: { prompt: '지난 수련 중 쓴 글 하나에 새 제목을 짓고, 첫 단락을 다시 쓰기', type: '에세이', min: 200, check: '제목이 글 속 구체에서 나왔는가' },
+        n: 18, title: '무게중심과 뼈대',
+        diagnose: '글이 산으로 가는 건 생각이 많아서가 아니다. 쓰기 전에 무게중심을 정하지 않았기 때문이다.',
+        teach: ['쓰기 전에 두 가지만 답하게. "가장 하고 싶은 말은 무엇인가", "독자가 읽고 무엇을 느끼길 바라는가".', '에세이의 뼈대는 대개 셋이다. 장면→사유→여운, 질문→탐색→미완의 답, 과거→현재→연결. 하나를 골라 그 순서대로 놓게.'],
+        steps: ['하고 싶은 말을 한 줄로, 독자가 느낄 것을 한 줄로 적는다', '뼈대 셋 중 하나를 고른다', '단락마다 그 뼈대의 어느 칸인지 확인하고, 칸 밖의 문단은 지운다'],
+        example: { before: '오늘 오랜 친구를 만났다. 밥을 먹고 커피를 마시며 얘기를 나눴다. 헤어지고 나서 깨달았다. 역시 오래된 관계가 편하다.', after: '오래된 관계가 왜 편한지, 오늘에야 알았다. 친구는 내가 국밥에 후추를 두 번 친다는 걸 아직 기억했다. 설명하지 않아도 되는 사람이 아직 한 명 남아 있다.', why: '무게중심(설명할 필요 없는 관계)을 먼저 정하자, 시간순 나열 대신 그 말을 받치는 장면만 남았다.' },
+        fix: { task: '시간순으로 나열된 글을, 무게중심을 먼저 정하고 뼈대 하나로 다시 짜 보게(세 문장 이내).', items: ['아침에 일어나 출근했다. 회의에서 의견을 냈다. 아무도 동의하지 않았다. 퇴근길에 생각해 보니 내 말이 틀리진 않았다.', '이사를 했다. 짐을 풀었다. 밤에 낯선 천장을 보며 잠이 안 왔다. 예전 집이 생각났다.'] },
+        write: { prompt: '요즘 자꾸 마음에 걸리는 질문 하나 — 질문→탐색→미완의 답 순서로', type: '에세이', min: 250, checks: ['하고 싶은 말이 한 줄로 서는가', '단락들이 고른 뼈대의 순서를 따르는가', '무게중심과 상관없는 단락이 남아 있지 않은가'] },
       },
       {
-        n: 23, title: '독자 한 사람',
-        teach: ['"모두에게" 쓰면 아무에게도 닿지 않네.', '한 사람을 정하게. 그 사람이 모르는 말은 풀고, 아는 말은 줄이게.'],
-        example: { before: '이 앱은 많은 기능이 있어 누구에게나 유용하다.', after: '퇴근 후 30분밖에 없는 당신이라면, 첫 화면의 버튼 하나만 누르면 된다.' },
-        warmup: { task: '두루뭉술한 독자를 한 사람으로 정해 다시 쓰게.', items: ['이 책은 모든 사람에게 추천한다.', '건강을 위해 누구나 물을 많이 마셔야 한다.', '여러분 모두 한 번쯤 가 보세요.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '특정한 독자에게 맞춰 쓰는 능력', instruction: '사진 속 장소를 한 사람(예: 처음 서울에 온 사촌, 은퇴한 아버지)에게 소개하는 3-4문장을 쓰게. 첫 문장에서 그 사람을 부르게.', image: 'An inviting place worth recommending: a small neighborhood bookstore, a riverside walking path at sunset, a tiny noodle shop with a counter.' },
-        write: { prompt: '내가 좋아하는 것 하나를, 그걸 모르는 한 사람에게', type: '설명문', min: 220, check: '독자 한 사람을 정하고 그에 맞춰 썼는가' },
+        n: 19, title: '흐름 잇기',
+        diagnose: '글이 뚝뚝 끊기는 건 접속사가 모자라서가 아니다. "그리고·그래서"에 기대느라 생각의 순서를 놓쳤기 때문이다.',
+        teach: ['접속사를 줄줄이 달면 흐름은 오히려 끊긴다. 앞 문장의 끝 단어를 다음 문장이 받아 이어 가게. 생각의 순서가 곧 접속사다.', '단락과 단락 사이에는 전환 문장 하나가 다리를 놓는다. "그렇다면 포기하지 않은 사람들은 어떻게 했을까."'],
+        steps: ['그리고·그래서·그런데·하지만을 모두 찾는다', '지워도 뜻이 통하면 지우고, 앞 문장의 끝말을 다음 문장 앞에서 받는다', '단락이 바뀌는 곳에 질문이나 전환 문장 하나를 놓는다'],
+        example: { before: '비가 왔다. 그래서 우산을 샀다. 그런데 우산이 비쌌다. 그래도 샀다.', after: '비가 쏟아졌다. 편의점 우산은 만 이천 원. 비싸다는 생각보다 젖은 셔츠가 먼저였다.', why: '접속사를 걷어 내고 앞 문장을 다음 문장이 받게 하자, 생각의 움직임이 그대로 보였다.' },
+        find: '그리고|그래서|그런데|하지만|그러나|그러므로',
+        fix: { task: '접속사를 빼고 문장끼리 자연스럽게 이어지도록 다시 쓰게.', items: ['나는 피곤했다. 그래서 일찍 잤다. 그런데 잠이 안 왔다. 그래서 책을 읽었다.', '회의를 했다. 그리고 결론이 났다. 하지만 아무도 만족하지 않았다.'] },
+        write: { prompt: '작은 일이 꼬리를 물고 커졌던 하루', type: '스토리텔링', min: 200, checks: ['접속사에 기대지 않고 흐름이 이어지는가', '단락이 바뀌는 곳에 다리가 되는 문장이 있는가', '원인과 결과의 순서가 뒤엉키지 않았는가'] },
+        photo: 'A scene implying a small chain of cause and effect: a spilled coffee cup and wet papers, a flat bicycle tire and a person walking the bike, a fallen umbrella in the wind.',
+      },
+      {
+        n: 20, title: '끝맺음',
+        diagnose: '글이 기억에 안 남는 건 결론이 약해서가 아니다. 결론으로 글을 닫아 버렸기 때문이다.',
+        teach: ['"결국 소중한 하루였다", "앞으로 더 열심히 살아야겠다" — 교훈과 다짐은 독자의 생각을 거기서 끝낸다.', '마지막 두 줄을 지워 보게. 그래도 글이 서면 지운 게 맞다. 끝은 첫 장면으로 돌아오거나, 답 없는 질문을 남기거나, 작은 행동 하나로 멈추게.'],
+        steps: ['마지막 문장이 교훈·요약·다짐인지 본다', '마지막 두 줄을 지우고 읽어 본다', '첫 장면으로 돌아오기·질문·작은 행동 중 하나로 다시 끝낸다'],
+        example: { before: '그날 비가 왔다. … 앞으로는 우산을 꼭 챙겨야겠다고 다짐했다.', after: '그날 비가 왔다. … 그날도 비가 왔다. 이상하게 이제는 좋았다.', why: '다짐 대신 첫 문장의 비로 돌아오자 글이 원을 그리며 닫히고 여운이 남았다.' },
+        find: 'last',
+        fix: { task: '교훈이나 다짐으로 닫는 마지막 문장을, 장면·질문·작은 행동으로 바꾸게.', items: ['결국 가족이 가장 소중하다는 것을 깨달았다.', '이번 여행은 잊지 못할 추억이 되었다.', '앞으로 더 열심히 살아야겠다고 다짐했다.'] },
+        write: { prompt: '최근 끝난 무언가(만남·일·계절)를, 여운이 남게', type: '에세이', min: 220, checks: ['교훈·요약·다짐으로 끝나지 않는가', '마지막 문장이 첫 장면과 호응하거나 질문을 남기는가', '마지막 두 줄을 지워도 되는 군더더기가 없는가'] },
+        photo: 'A quiet closing scene: lights turning off in a small shop at night, two cups left on a table after guests left, a train disappearing into the distance at dusk.',
+      },
+    ],
+    boss: {
+      id: 'eotbagi', prompt: '"매일 쓰는 것"은 정말 실력을 늘리는가 — 내 경험에서 출발해 답을 찾아가며', type: '에세이', minChars: 500, dimMin: 6,
+      taunt: ['그러니까 아무튼~', '왜냐하면 그냥~', '결론은 나중에~'],
+      lose: '엉킨다 엉킨다~',
+      win: [{ who: 'eotbagi', text: '풀렸… 다…' }, { who: 'muk', text: '다섯째 장이 돌아왔다. 자네 글은 이제 길을 잃지 않아.' }],
+    },
+  },
+
+  /* ─────────────── 6장 한 편의 에세이 (종합) ─────────────── */
+  {
+    n: 6, title: '한 편의 에세이', dim: '종합',
+    intro: [
+      { who: 'muk', text: '마지막 장은 "한 편의 에세이"다. 지금까지 익힌 것을 한 편에 모으는 법이지.' },
+      { who: 'muk', text: '그리고 이 장 끝에는 내 30년을 붙잡았던 놈이 기다리고 있다.' },
+    ],
+    sus: [
+      {
+        n: 21, title: '일기를 에세이로',
+        diagnose: '일기와 에세이의 차이는 소재가 아니다. 시선이 나를 향하느냐, 독자를 향하느냐다.',
+        teach: ['일기는 "무슨 일이 있었나"를 적고, 에세이는 "그 일이 왜 내게 남았나"를 묻는다.', '하루 전체가 아니라 걸린 장면 하나, 그 뒤에 붙은 물음표 하나. 그리고 마지막 다짐은 지우게.'],
+        steps: ['가장 마음에 걸리는 문장 뒤에 "왜?"를 붙인다', '하루를 다 쓰지 말고 그 장면 하나로 좁힌다', '마지막 결론·다짐 두 줄을 지워 독자가 생각할 자리를 남긴다'],
+        example: { before: '오늘 친구와 싸웠다. 많이 속상했다. 내일은 먼저 사과해야겠다.', after: '나는 왜 가까운 사람에게 더 쉽게 상처를 줄까. 미안하다는 말은 왜 그 사람 앞에서만 이렇게 무거울까.', why: '사건 기록에 "왜"를 붙이자 개인의 하루가 독자도 자기를 비춰 볼 질문이 됐다.' },
+        find: '오늘|했다\\.$',
+        fix: { task: '사건을 적은 일기 문장 뒤에 "왜?"를 붙여, 에세이의 문장으로 바꾸게.', items: ['오늘 친구와 싸웠다. 속상했다.', '요즘 자꾸 무기력하다. 뭘 해도 의욕이 없다.', '퇴근길에 엄마 전화를 받지 않았다.'] },
+        write: { prompt: '오늘 일기 한 편을 에세이로 — 걸린 장면 하나와 물음 하나', type: '에세이', min: 250, checks: ['하루가 아니라 걸린 장면 하나에 머물렀는가', '사건 뒤에 "왜"를 물었는가', '닫힌 결론 대신 생각할 자리를 남겼는가'] },
+      },
+      {
+        n: 22, title: '나에서 우리로',
+        diagnose: '잘 쓴 것 같은데 공감이 없는 건 이야기가 특별하지 않아서가 아니다. 독자가 그 안에서 자기를 못 찾았기 때문이다.',
+        teach: ['나만 겪은 일이라도 그 안의 감정은 누구나 안다. 특수한 경험에서 보편적인 감정을 꺼내게.', '"모두에게" 쓰면 아무에게도 안 닿는다. 읽어 줄 한 사람을 정하게. 그리고 완벽하게 정리된 문장보다 "아직 잘 모르겠다"는 빈틈이 독자를 들인다.'],
+        steps: ['이 글을 읽을 한 사람(십 년 전의 나, 후배, 친구)을 정한다', '내 경험 속에서 그 사람도 아는 감정을 찾아 앞에 놓는다', '가장 완벽하게 정리한 문장 하나를 지우거나 솔직한 빈틈으로 바꾼다'],
+        example: { before: '나는 그날 아무 말도 못 했다. 후회가 오래 남았다.', after: '말하지 못한 채 돌아선 날, 한 번쯤 있지 않나. 나에겐 그게 열일곱 살 겨울, 정류장이었다.', why: '독자도 아는 감정을 먼저 꺼내고 내 장면으로 좁히자, 독자가 자기 기억을 들고 따라온다.' },
+        find: '나는|내가|나만',
+        fix: { task: '나만의 이야기로 닫힌 문장을, 독자도 자기를 찾을 수 있는 문장으로 바꾸게.', items: ['나는 회사에서 늘 눈치를 본다.', '나는 어릴 때 이사를 많이 다녔다.', '나는 혼자 밥 먹는 게 편하다.'] },
+        write: { prompt: '내가 좋아하는 것 하나를, 그걸 모르는 한 사람에게', type: '에세이', min: 250, checks: ['읽을 한 사람이 정해져 있는가', '내 경험에서 독자도 아는 감정을 꺼냈는가', '모든 것을 정리하지 않고 빈틈을 남겼는가'] },
+        photo: 'An inviting place worth recommending: a small neighborhood bookstore, a riverside walking path at sunset, a tiny noodle shop with a counter.',
+      },
+      {
+        n: 23, title: '제목 짓기',
+        diagnose: '좋은 글이 안 읽히는 건 내용 탓이 아니다. 제목이 글을 요약해 버려 열어 볼 이유를 없앴기 때문이다.',
+        teach: ['제목은 요약이 아니라 독자가 글을 열 이유다. 「나의 여름」 말고, 글 속의 구체적인 사물이나 한 구절에서 따오게.', '다 말하지 말고 궁금증을 남기게. 숫자나 감각어 하나가 제목을 장면으로 만든다. 「오랜만의 연락」보다 「2년 만에 온 카톡 한 줄」.'],
+        steps: ['지금 제목이 글을 요약하고 있는지 본다', '글 속에서 가장 구체적인 사물·구절·숫자를 찾는다', '궁금증이 남도록 그것으로 제목을 세 개 지어 보고 하나를 고른다'],
+        example: { before: '「할머니와의 추억」', after: '「반들거리는 자개장 손잡이」', why: '주제를 요약하는 대신 글 속 사물에서 따오자, 제목만 읽어도 장면이 떠오르고 궁금해진다.' },
+        fix: { task: '요약형 제목을, 글 속 구체에서 따오고 궁금증이 남는 제목으로 바꾸게.', items: ['「나의 첫 직장 이야기」', '「여름 방학의 추억」', '「이사에 대한 생각」'] },
+        write: { prompt: '지난 수련에서 쓴 글 하나에 새 제목을 짓고, 첫 단락을 다시 쓰기', type: '에세이', min: 200, checks: ['제목이 글을 요약하지 않는가', '제목이 글 속 구체에서 나왔는가', '제목과 첫 단락이 서로를 끌어당기는가'] },
+        photo: 'An evocative still life suitable as an essay cover: a half-peeled tangerine on a windowsill in winter, a key on a red string, a rice cooker steaming in a small kitchen.',
       },
       {
         n: 24, title: '내 목소리',
-        teach: ['스물셋 수를 익혔으면 이제 다 잊어도 되네.', '남이 쓸 법한 문장 말고, 자네만 쓸 수 있는 문장 — 자네의 단어, 자네의 리듬, 자네의 사물.', '그게 목소리일세.'],
-        example: { before: '나는 평범한 회사원이다.', after: '나는 엑셀 셀 서식을 바꾸는 데 하루 중 가장 공을 들이는 사람이다.' },
-        warmup: { task: '누구나 쓸 수 있는 자기소개를, 나만 쓸 수 있는 문장으로 바꾸게.', items: ['나는 평범한 사람이다.', '나는 음악을 좋아한다.', '나는 걱정이 많은 편이다.'] },
-        drill: { name: '한 줄 통찰 훈련', purpose: '나만의 시선으로 장면을 해석하는 능력', instruction: '사진을 보고, 나만 떠올릴 수 있는 기억이나 시선을 섞어 3-4문장으로 쓰게. 남이 봐도 똑같이 쓸 문장은 지우게.', image: 'An open-ended, slightly ambiguous everyday scene that different people would read differently: an empty bus at night with one light on, laundry hanging between buildings, a door half open to a sunny room.' },
-        write: { prompt: '나는 왜 쓰는가 — 백지첩을 마치며', type: '에세이', min: 400, check: '남이 쓸 수 없는 나만의 단어·사물·리듬이 있는가' },
+        diagnose: '문체는 타고나는 게 아니다. 이미 자네 글 안에 있는데, 아직 알아보지 못했을 뿐이다.',
+        teach: ['남의 문체를 흉내 내지 말고 자네 글을 다시 읽게. 자주 쓰는 단어, 좋아하는 문장 구조, 자연스러운 호흡 — 그게 목소리의 재료다.', '좋아하는 문장은 구조만 빌리고 속은 자네 것으로 채우게. 남이 쓸 법한 문장은 지우고, 자네만 쓸 수 있는 문장을 남기게.'],
+        steps: ['지난 글에서 자주 쓴 단어 다섯 개를 찾는다', '좋아하는 문장 하나의 구조를 빌려 내 이야기로 채운다', '남이 써도 똑같을 문장을 지우고 나만의 단어·사물·리듬을 남긴다'],
+        example: { before: '나는 평범한 회사원이다.', after: '나는 엑셀 셀 서식을 바꾸는 데 하루 중 가장 공을 들이는 사람이다.', why: '누구나 쓸 자기소개를 지우고 나만 아는 습관 하나로 바꾸자 목소리가 생겼다.' },
+        find: '평범|좋아한다|사람이다|편이다',
+        fix: { task: '누구나 쓸 수 있는 문장을, 나만 쓸 수 있는 문장으로 바꾸게.', items: ['나는 평범한 사람이다.', '나는 음악을 좋아한다.', '나는 걱정이 많은 편이다.'] },
+        write: { prompt: '나는 왜 쓰는가 — 백지첩을 마치며', type: '에세이', min: 400, checks: ['남이 쓸 수 없는 나만의 단어·사물·리듬이 있는가', '지금까지 익힌 기법이 자연스럽게 녹아 있는가', '끝까지 자네의 목소리로 말하는가'] },
       },
     ],
     boss: {
@@ -368,8 +438,8 @@ export const CHAPTERS: Chapter[] = [
       lose: '…거봐. 아직 완벽하지 않잖아.',
       win: [
         { who: 'baekjigwi', text: '불완전한데… 왜… 지워지지 않는 거지…' },
-        { who: 'muk', text: '끝냈으니까. 끝낸 글은 지워지지 않네.' },
-        { who: 'muk', text: '……30년 동안 내 펜을 붙잡던 놈이 저놈이었어. 고맙네, 정말로.' },
+        { who: 'muk', text: '끝냈으니까. 끝낸 글은 지워지지 않는다.' },
+        { who: 'muk', text: '……30년 동안 내 펜을 붙잡던 놈이 저놈이었어. 고맙다, 정말로.' },
       ],
     },
   },
@@ -380,33 +450,51 @@ export const TOTAL_SU = ALL_SU.length;
 export const chapterOf = (n: number) => CHAPTERS.find(c => c.sus.some(s => s.n === n))!;
 export const suOf = (n: number) => ALL_SU.find(s => s.n === n);
 
+/** 내 글에서 이 수가 고칠 만한 문장을 찾는다 (② 고쳐 쓰기 재료) */
+export function findOwnSentences(su: Su, writings: { text: string; createdAt: string }[]): { text: string; from: string }[] {
+  if (!su.find) return [];
+  const out: { text: string; from: string }[] = [];
+  const re = su.find === 'first' || su.find === 'last' ? null : new RegExp(su.find);
+  for (const w of [...writings].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+    const sents = w.text.split(/(?<=[.!?…])\s+|\n+/).map(s => s.trim()).filter(s => s.length >= 8 && s.length <= 180);
+    if (!sents.length) continue;
+    const from = w.createdAt.slice(0, 10);
+    if (su.find === 'first') out.push({ text: sents[0], from });
+    else if (su.find === 'last') out.push({ text: sents[sents.length - 1], from });
+    else sents.filter(s => re!.test(s)).slice(0, 3).forEach(s => out.push({ text: s, from }));
+    if (out.length >= 30) break;
+  }
+  return out;
+}
+
 /* ── 이야기 (프롤로그·에필로그) ── */
 export const PROLOGUE: Line[] = [
   { who: 'narr', text: '산마루 마을에는 이상한 안개가 내린다. 아무도 기록하지 않은 날은 하얗게 지워지고, 사람들은 자기 이야기를 조금씩 잊어 간다.' },
   { who: 'narr', text: '안개 속에서 길을 잃은 당신은 언덕 꼭대기, 불이 켜진 서재의 문을 두드린다.' },
-  { who: 'muk', text: '…들어오게. 나는 묵당이라 하네. 한때 글을 썼지.' },
-  { who: 'muk', text: '이건 『백지첩』일세. 평생 모은 문장 기법 스물네 가지를 적어 둔 책이었지. 내가 펜을 놓자 전부 하얗게 지워졌어.' },
+  { who: 'muk', text: '…들어오게. 나는 묵당이라 한다. 한때 글을 썼지.' },
+  { who: 'muk', text: '이건 『백지첩』이다. 평생 모은 문장 기법 스물네 가지를 적어 둔 책이었지. 내가 펜을 놓자 전부 하얗게 지워졌어.' },
   { who: 'muk', text: '저 안개도 그날부터야. 쓰지 않은 날들이 쌓여 생긴 거지.' },
-  { who: 'muk', text: '하루 한 수씩 가르쳐 주겠네. 자네가 익힐 때마다 이 책이 한 장씩 돌아올 걸세.' },
-  { who: 'muk', text: '조건은 하나. 매일 오게. 하루 한 번 쓰면 등불이 켜지고, 등불이 켜진 날은 안개가 걷히네.' },
+  { who: 'muk', text: '하루 한 수씩 가르쳐 주겠다. 배우고, 자네 문장을 고치고, 한 편을 쓰고, 다시 고친다. 그렇게 익힐 때마다 이 책이 한 장씩 돌아올 거다.' },
+  { who: 'muk', text: '조건은 하나. 매일 오게. 하루 한 번 쓰면 등불이 켜지고, 등불이 켜진 날은 안개가 걷힌다.' },
 ];
 export const EPILOGUE: Line[] = [
   { who: 'narr', text: '마지막 장이 돌아오자, 서재 창밖의 안개가 처음으로 완전히 걷혔다.' },
   { who: 'muk', text: '백지첩이 다 돌아왔군. 스물네 장, 전부 자네 손으로.' },
-  { who: 'muk', text: '그런데 말일세, 이 책은 한 번 읽고 덮는 책이 아니야. 같은 수도 두 번째엔 다르게 보이지.' },
-  { who: 'muk', text: '다음 회차엔 기준을 올리겠네. 그리고 이번엔 나도 옆에서 같이 쓰겠어.' },
+  { who: 'muk', text: '그런데 말이지, 이 책은 한 번 읽고 덮는 책이 아니야. 같은 수도 두 번째엔 다르게 보인다.' },
+  { who: 'muk', text: '다음 회차엔 기준을 올리겠다. 그리고 이번엔 나도 옆에서 같이 쓰지.' },
 ];
 
-/* ── 짧은 글 대체 주제: 오늘의 질문 · 글감 낱말 ── */
+/* ── 한 편 쓰기 대체 주제: 오늘의 질문 ── */
 export const QUESTIONS = [
   '오늘 가장 오래 바라본 것은?', '최근 누군가에게 하지 못한 말은?', '요즘 자주 지나치는데 한 번도 들어가 보지 않은 곳은?',
   '어릴 때 믿었다가 아니라는 걸 알게 된 것은?', '내 방에서 가장 오래된 물건의 사연은?', '최근 나를 웃게 만든 사소한 일은?',
   '1년 전의 나에게 알려 주고 싶은 것 하나는?', '내가 자주 하는 말버릇과 그 이유는?', '가장 최근에 마음이 바뀐 일은?',
-  '아무도 모르는 나의 작은 습관은?', '오늘 하루를 색 하나로 고른다면, 그 이유는?', '요즘 가장 자주 듣는 소리는?',
+  '아무도 모르는 나의 작은 습관은?', '나는 왜 매일 같은 자리에서 같은 것을 할까?', '요즘 가장 자주 듣는 소리는?',
   '내가 잘하지만 아무도 칭찬하지 않는 일은?', '최근 낯선 사람에게 받은 작은 친절은?', '이번 주에 버린 것 중 가장 아까운 것은?',
-  '지금 가장 듣고 싶은 말은?', '가장 좋아하는 길과 그 길의 시간대는?', '최근 혼자 결정한 일은?',
-  '내 휴대폰 사진첩의 마지막 사진 속 이야기는?', '오늘 먹은 것 중 가장 기억에 남는 한 입은?',
+  '지금 가장 듣고 싶은 말은?', '아직도 이해하지 못한 그날의 일은?', '최근 혼자 결정한 일은?',
+  '내 휴대폰 사진첩의 마지막 사진 속 이야기는?', '오늘 들은 말 중 자꾸 남는 한마디는?',
 ];
+/** 먹물(고양이)이 물어 오는 글감 낱말 — 서재에서 받아 한 편 쓰기 주제로 쓴다 */
 export const WORDS = [
   '우산', '거스름돈', '초인종', '귤껍질', '정류장', '열쇠', '빨래집게', '형광등', '편지봉투', '연필깎이', '지하철', '보리차',
   '운동화 끈', '창문', '라디오', '바둑알', '고무줄', '영수증', '자판기', '목도리', '계단', '수첩', '손톱깎이', '전단지',

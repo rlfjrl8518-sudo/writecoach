@@ -100,11 +100,11 @@ export default function PushOptIn() {
     try {
       const perm = await Notification.requestPermission();
       if (perm !== 'granted') {
-        say(perm === 'denied' ? '알림이 막혀 있네. 브라우저 사이트 설정에서 알림을 허용해 주게.' : '허락을 받지 못했네. 다시 눌러 보게.', true);
+        say(perm === 'denied' ? '알림이 막혀 있다. 브라우저 사이트 설정에서 알림을 허용해 주게.' : '허락을 받지 못했군. 다시 눌러 보게.', true);
         return;
       }
       const kr = await fetch('/api/push/key', { cache: 'no-store' });
-      if (!kr.ok) { say('서재에 종이 아직 걸리지 않았네. (서버 알림 키 미설정)', true); return; }
+      if (!kr.ok) { say('서재에 종이 아직 걸리지 않았다. (서버 알림 키 미설정)', true); return; }
       const { publicKey } = await kr.json();
       const reg = await swReady();
       let sub = await reg.pushManager.getSubscription();
@@ -116,9 +116,9 @@ export default function PushOptIn() {
       if (!res.ok) throw new Error(String(res.status));
       st.setPrefs(await res.json());
       await st.refresh();
-      say(`좋네. 매일 ${hourLabel(hour)}까지 소식이 없으면 내가 부르겠네.`);
+      say(`좋다. 매일 ${hourLabel(hour)}까지 소식이 없으면 내가 부르지.`);
     } catch (e) {
-      say((e as Error).message === 'SW_TIMEOUT' ? '서비스 워커가 아직 깨어나지 않았네. 새로고침 뒤 다시 해 보게.' : '종을 거는 데 실패했네. 잠시 뒤 다시 해 보게.', true);
+      say((e as Error).message === 'SW_TIMEOUT' ? '서비스 워커가 아직 깨어나지 않았군. 새로고침 뒤 다시 해 보게.' : '종을 거는 데 실패했다. 잠시 뒤 다시 해 보게.', true);
     } finally { setBusy(false); }
   }
 
@@ -134,9 +134,9 @@ export default function PushOptIn() {
         await sub.unsubscribe().catch(() => {});
       }
       await st.refresh();
-      say('알겠네. 이 기기로는 부르지 않겠네.');
+      say('알았다. 이 기기로는 부르지 않겠다.');
     } catch {
-      say('끄는 데 실패했네. 다시 해 보게.', true);
+      say('끄는 데 실패했다. 다시 해 보게.', true);
     } finally { setBusy(false); }
   }
 
@@ -148,9 +148,9 @@ export default function PushOptIn() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hour: h }),
       });
-      if (res.ok) { st.setPrefs(await res.json()); say(`${hourLabel(h)}로 바꿨네.`); }
-      else say('시각을 바꾸지 못했네.', true);
-    } catch { say('시각을 바꾸지 못했네.', true); }
+      if (res.ok) { st.setPrefs(await res.json()); say(`${hourLabel(h)}로 바꿨다.`); }
+      else say('시각을 바꾸지 못했다.', true);
+    } catch { say('시각을 바꾸지 못했다.', true); }
   }
 
   async function test() {
@@ -158,11 +158,11 @@ export default function PushOptIn() {
     try {
       const res = await fetch('/api/push/test', { method: 'POST' });
       const j = await res.json().catch(() => ({}));
-      if (res.ok && j.sent > 0) say('종을 울렸네. 곧 닿을 걸세.');
-      else if (j.error === 'NO_SUBS') say('등록된 기기가 없네. 먼저 알림을 켜게.', true);
-      else if (j.error === 'PUSH_OFF') say('서버 알림 키가 없네.', true);
-      else say('종이 울리지 않았네. 알림을 껐다 다시 켜 보게.', true);
-    } catch { say('종이 울리지 않았네.', true); }
+      if (res.ok && j.sent > 0) say('종을 울렸다. 곧 닿을 걸세.');
+      else if (j.error === 'NO_SUBS') say('등록된 기기가 없군. 먼저 알림을 켜게.', true);
+      else if (j.error === 'PUSH_OFF') say('서버 알림 키가 없다.', true);
+      else say('종이 울리지 않았다. 알림을 껐다 다시 켜 보게.', true);
+    } catch { say('종이 울리지 않았다.', true); }
     finally { setBusy(false); }
   }
 
@@ -172,14 +172,14 @@ export default function PushOptIn() {
     <div className="g-panel" style={{ marginBottom: 16 }}>
       <div className="g-h">묵당의 저녁 종</div>
       <div style={{ fontSize: 12, lineHeight: 1.7, marginBottom: 12 }}>
-        정한 시각까지 오늘 한 줄도 없으면, 내가 한 번 부르겠네. 쓴 날은 조용히 있겠네.
+        정한 시각까지 오늘 한 줄도 없으면, 내가 한 번 부르지. 쓴 날은 조용히 있겠다.
       </div>
 
-      {st.unsupported === 'dev' ? hint('개발 모드에선 동작 안 함 — 서비스 워커가 꺼져 있네. 배포본(next build)에서 시험하게.')
-        : st.unsupported === 'ios-install' ? hint('아이폰·아이패드는 먼저 Safari 공유 버튼 → "홈 화면에 추가"로 서재를 설치하고, 홈 화면 아이콘으로 열어서 켜야 하네. (iOS 16.4 이상)')
-        : st.unsupported === 'no-push' ? hint('이 브라우저는 푸시 알림을 받지 못하네. 크롬·엣지·사파리(설치형)에서 열어 보게.')
+      {st.unsupported === 'dev' ? hint('개발 모드에선 동작 안 함 — 서비스 워커가 꺼져 있다. 배포본(next build)에서 시험하게.')
+        : st.unsupported === 'ios-install' ? hint('아이폰·아이패드는 먼저 Safari 공유 버튼 → "홈 화면에 추가"로 서재를 설치하고, 홈 화면 아이콘으로 열어서 켜야 한다. (iOS 16.4 이상)')
+        : st.unsupported === 'no-push' ? hint('이 브라우저는 푸시 알림을 받지 못한다. 크롬·엣지·사파리(설치형)에서 열어 보게.')
         : st.loading ? hint('종을 살피는 중…')
-        : st.serverOff ? hint('지금은 서재 서버와 닿지 않네. (로그인/동기화가 켜진 배포본에서만 쓸 수 있네.)')
+        : st.serverOff ? hint('지금은 서재 서버와 닿지 않는군. (로그인/동기화가 켜진 배포본에서만 쓸 수 있다.)')
         : (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -202,9 +202,9 @@ export default function PushOptIn() {
               )}
             </div>
             <div style={{ marginTop: 8 }}>
-              {st.permission === 'denied' && hint('알림이 브라우저에서 막혀 있네. 사이트 설정에서 허용으로 바꾼 뒤 다시 오게.')}
+              {st.permission === 'denied' && hint('알림이 브라우저에서 막혀 있다. 사이트 설정에서 허용으로 바꾼 뒤 다시 오게.')}
               {st.active && hint(`켜짐 · 매일 ${hourLabel(st.prefs!.hour)} (한국 시간) · 등록 기기 ${st.prefs!.devices}대`)}
-              {!st.active && st.prefs?.enabled && st.prefs.devices > 0 && hint(`다른 기기 ${st.prefs.devices}대에는 켜져 있네. 이 기기도 받으려면 켜게.`)}
+              {!st.active && st.prefs?.enabled && st.prefs.devices > 0 && hint(`다른 기기 ${st.prefs.devices}대에는 켜져 있다. 이 기기도 받으려면 켜게.`)}
             </div>
           </>
         )}

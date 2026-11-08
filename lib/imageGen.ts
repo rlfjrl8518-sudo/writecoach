@@ -7,7 +7,7 @@ import { IMAGE_STYLE, suOf } from './curriculum';
 
 /* ═══════════════════════════════════════════════════════════════
    훈련용 이미지 생성 — Vertex gemini-2.5-flash-image
-   - 프롬프트는 서버가 커리큘럼(lib/curriculum.ts)의 각 수 drill.image에서 만든다.
+   - 프롬프트는 서버가 커리큘럼(lib/curriculum.ts)의 각 수 photo에서 만든다.
      (그 훈련에 필요한 요소 — 셀 수 있는 사물, 감정을 암시하는 사물, 움직임 등 — 가 반드시 보이게)
    - 같은 (수, 변형 번호)는 한 번만 생성하고 GCS에 webp로 캐시한다: images/<key>.webp
    - 이 프로젝트의 Vertex에서는 Imagen·3.x 이미지 모델이 404, 2.5-flash-image만 동작(2026-11 확인).
@@ -25,10 +25,10 @@ const SHOTS = ['wide establishing shot', 'medium shot at eye level', 'slightly h
 
 export function buildPrompt(suN: number, variant: number): string | null {
   const su = suOf(suN);
-  if (!su?.drill.image) return null;
+  if (!su?.photo) return null;
   const t = TIMES[variant % TIMES.length];
   const s = SHOTS[Math.floor(variant / TIMES.length + variant) % SHOTS.length];
-  return `${IMAGE_STYLE}\nPurpose: a photo prompt for a Korean writing exercise — "${su.drill.purpose}". The writer must be able to complete this task from the photo: ${su.drill.instruction}\nSubject: ${su.drill.image}\nVariation: ${t}, ${s}. Make every detail needed for the task clearly visible.`;
+  return `${IMAGE_STYLE}\nPurpose: a picture prompt for a Korean writing exercise on the technique "${su.title}" — the writer will write a short piece from this picture, so every detail they may need must be clearly visible.\nSubject: ${su.photo}\nVariation: ${t}, ${s}. Make every detail needed for the task clearly visible.`;
 }
 
 export function imageKey(suN: number, variant: number) {

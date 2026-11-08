@@ -14,8 +14,8 @@ const TABS = [
   { href: '/practice', icon: '修',  label: '수련', matches: ['/practice'] },
   { href: '/writing',  icon: '文',  label: '글방', matches: ['/writing'] },
   { href: '/books',    icon: '冊',  label: '서고', matches: ['/books'] },
-  { href: '/journey',  icon: '錄',  label: '기록', matches: ['/journey', '/report', '/calendar'] },
-  { href: '/settings', icon: '設',  label: '설정', matches: ['/settings'] },
+  { href: '/journey',  icon: '錄',  label: '기록', matches: ['/journey', '/report', '/calendar'], minor: true },
+  { href: '/settings', icon: '設',  label: '설정', matches: ['/settings'], minor: true },
 ];
 
 function isActive(tab: typeof TABS[0], path: string) {
@@ -198,6 +198,10 @@ export default function Navigation() {
         {/* 모바일 전용: 우측 액션 */}
         <div className="nav-top-actions">
           <SyncBadge />
+          {TABS.filter(t => t.minor).map(t => (
+            <Link key={t.href} href={t.href} title={t.label}
+              className={`nav-top-link${isActive(t, path) ? ' active' : ''}`}>{t.icon}</Link>
+          ))}
           <CoachChatButton />
           <ThemeToggle />
         </div>
@@ -213,7 +217,7 @@ export default function Navigation() {
         {TABS.map(tab => {
           const active = isActive(tab, path);
           return (
-            <Link key={tab.href} href={tab.href} className={`nav-link${active ? ' active' : ''}`}>
+            <Link key={tab.href} href={tab.href} className={`nav-link${active ? ' active' : ''}${tab.minor ? ' nav-link-minor' : ''}`}>
               <span className="nav-icon">{tab.icon}</span>
               <span className="nav-label">{tab.label}</span>
             </Link>

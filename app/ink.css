@@ -227,10 +227,22 @@ img { image-rendering: auto; }
 .nav-link.active { background: var(--accent-dim) !important; color: var(--text) !important; box-shadow: none !important; }
 .nav-link.active .nav-icon { background: var(--seal); border-color: var(--seal); color: #fff7ee; transform: rotate(-4deg); }
 @media (max-width: 640px) {
-  .nav-root { border-right: none !important; border-top: 1px solid var(--card-border) !important; }
+  /* backdrop-filter가 있으면 안쪽 position:fixed가 상단 바 기준으로 붙는다 → 모바일에선 끄고 하단 바에 따로 준다 */
+  .nav-root { border-right: none !important; border-top: none !important; backdrop-filter: none !important; background: var(--bg-card) !important; }
+  .nav-tabs { background: color-mix(in srgb, var(--bg-card) 94%, transparent) !important; backdrop-filter: blur(10px);
+    padding: 8px 6px !important; padding-bottom: max(8px, env(safe-area-inset-bottom)) !important; }
+  .nav-link-minor { display: none !important; }
+  .main-layout { padding-bottom: calc(112px + env(safe-area-inset-bottom)) !important; }
+  .nav-link { flex: 1 1 0; min-width: 0 !important; gap: 5px !important; padding: 6px 4px !important; }
+  .nav-link .nav-label { font-size: 13px !important; font-weight: 700; }
   .nav-link.active { background: transparent !important; }
-  .nav-link .nav-icon { width: 28px; height: 28px; }
+  .nav-link .nav-icon { width: 38px; height: 38px; font-size: 19px !important; border-radius: 10px; }
+  .nav-top-link { font-family: var(--font-title); font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 8px; font-size: 14px; color: var(--dim-star); border: 1px solid var(--card-border);
+    background: var(--bg-input); text-decoration: none; }
+  .nav-top-link.active { background: var(--seal); border-color: var(--seal); color: #fff7ee; }
 }
+@media (min-width: 641px) { .nav-top-link { display: none; } }
 
 /* ═══════════════ 나의 문집 (인쇄용 책) ═══════════════ */
 .book { margin-top: 16px; }
@@ -379,6 +391,53 @@ img { image-rendering: auto; }
 .letter-reply { margin-top: 18px; padding-top: 14px; border-top: 1px dashed #d6c8aa; }
 
 /* 수련 머리 그림 */
-.practice-banner { aspect-ratio: 16 / 5; min-height: 150px; border: 1px solid var(--card-border); box-shadow: var(--shadow); }
+.practice-banner { width: 100%; aspect-ratio: 16 / 5; min-height: 150px; border: 1px solid var(--card-border); box-shadow: var(--shadow); }
 .practice-banner-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(20,14,8,0.78), rgba(20,14,8,0.15) 70%); }
 .practice-banner-text { position: absolute; left: 16px; right: 16px; bottom: 14px; display: flex; gap: 14px; align-items: center; color: #fbf5e6; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+
+/* ═══════════════ 오늘의 수련 (배우기·고쳐 쓰기·한 편·퇴고) ═══════════════ */
+.step-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0 8px; }
+.step-tabs button { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 4px; border-radius: 10px;
+  border: 1px solid var(--card-border); background: var(--bg-card); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.step-tabs button b { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%;
+  font-size: 11px; border: 1px solid var(--card-border); color: var(--dim-star); }
+.step-tabs button.done b { background: var(--good); border-color: var(--good); color: #fff; }
+.step-tabs button.on { border-color: var(--seal); box-shadow: 0 0 0 1px var(--seal) inset; }
+.step-tabs button.on b { border-color: var(--seal); color: var(--seal); }
+.step-tabs button.on.done b { color: #fff; background: var(--seal); }
+@media (max-width: 640px) { .step-tabs button { flex-direction: column; gap: 3px; font-size: 12px; padding: 8px 2px; } }
+
+.lesson-diagnose { font-family: var(--font-read); font-size: 16px; line-height: 1.7; padding: 12px 14px; border-left: 3px solid var(--seal);
+  background: var(--accent-dim); border-radius: 0 8px 8px 0; }
+.lesson-steps { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 6px; }
+.lesson-steps li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.6; }
+.lesson-steps li b { flex: none; width: 22px; height: 22px; border-radius: 6px; background: var(--seal); color: #fff7ee; display: inline-flex;
+  align-items: center; justify-content: center; font-size: 12px; margin-top: 1px; }
+.lesson-example { display: grid; gap: 6px; }
+.lesson-example > div { font-family: var(--font-read); font-size: 14px; line-height: 1.75; padding: 10px 12px; border-radius: 8px; }
+.lesson-example > div > span { display: inline-block; font-family: inherit; font-size: 11px; font-weight: 700; margin-right: 8px; padding: 1px 6px; border-radius: 4px; }
+.lesson-example .ex-before { background: color-mix(in srgb, var(--bad) 8%, transparent); }
+.lesson-example .ex-before > span { background: var(--bad); color: #fff; }
+.lesson-example .ex-after { background: color-mix(in srgb, var(--good) 9%, transparent); }
+.lesson-example .ex-after > span { background: var(--good); color: #fff; }
+.lesson-example .ex-why { font-size: 13px; color: var(--dim-star); padding-top: 2px; }
+
+.seg { display: flex; gap: 4px; flex-wrap: wrap; }
+.seg button { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--card-border); background: var(--bg-input); color: var(--text);
+  font: inherit; font-size: 13px; cursor: pointer; }
+.seg button small { font-size: 11px; color: var(--dim-star); margin-left: 2px; }
+.seg button.on { background: var(--text); color: var(--bg-card); border-color: var(--text); }
+.seg button.on small { color: inherit; opacity: 0.7; }
+.fix-source { font-family: var(--font-read); font-size: 15px; line-height: 1.75; }
+.fix-better { margin-top: 8px; font-family: var(--font-read); font-size: 14px; line-height: 1.7; }
+.fix-better > span { font-family: inherit; font-size: 11px; font-weight: 700; color: var(--moon); margin-right: 8px; }
+.check-list { margin: 8px 0 0; padding-left: 18px; font-family: Pretendard, sans-serif; font-size: 12.5px; line-height: 1.7; color: var(--dim-star); }
+.check-list li.pointed { color: var(--moon); }
+.compose-photo { margin-top: 8px; position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--bg-subtle);
+  display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.compose-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.compose-photo .g-btn { position: absolute; top: 6px; right: 6px; }
+.note-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: baseline; padding: 6px 0; border-top: 1px dashed var(--line-soft); font-size: 13px; }
+.note-row:first-of-type { border-top: none; }
+.toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+@media (max-width: 640px) { .toc-grid { grid-template-columns: 1fr 1fr; } .note-row { grid-template-columns: 1fr auto; } .note-row > span:first-child { grid-column: 1 / -1; } }

@@ -22,7 +22,7 @@ export function queuePendingScenes(db: DB, replay = false) {
   const g = getGame(db);
   const seen = (id: string) => !replay && hasSeen(id);
   if (g.cycle === 1 && (replay || !hasSeen('c1:prologue'))) playScene({ id: 'c1:prologue', title: '산마루 서재', lines: PROLOGUE, askName: !g.name || !g.look, bg: 'cg_prologue', replay: replay && !!g.name });
-  if (!replay && hasSeen('c1:prologue') && !g.look) playScene({ id: 'look:pick', title: '새로 단장한 서재', lines: [{ who: 'muk', text: '서재를 새로 단장했네. 창호지도 갈고, 그림도 새로 걸었지.', emo: 'happy' }, { who: 'muk', text: '자네 모습도 다시 한번 보세. 이름도 그대로면 되네.' }], askName: true });
+  if (!replay && hasSeen('c1:prologue') && !g.look) playScene({ id: 'look:pick', title: '새로 단장한 서재', lines: [{ who: 'muk', text: '서재를 새로 단장했다. 창호지도 갈고, 그림도 새로 걸었지.', emo: 'happy' }, { who: 'muk', text: '자네 모습도 다시 한번 보세. 이름도 그대로면 된다.' }], askName: true });
   if (!replay) {
     const days = practiceDays(db).size;
     unlockedMemories(days).forEach(m => {
@@ -42,7 +42,7 @@ export function queuePendingScenes(db: DB, replay = false) {
   if (!replay && (db.writings.length || (db.drillLogs ?? []).length)) {
     const t = currentTerm();
     const id = `term:${t.year}:${t.name}`;
-    if (!hasSeen(id)) playScene({ id, title: `절기 · ${t.name}`, lines: [{ who: 'muk', text: t.line, emo: 'think' }, { who: 'muk', text: `이번 절기 글감일세. "${t.prompt}" — 짧은 글에서 고를 수 있네.` }] });
+    if (!hasSeen(id)) playScene({ id, title: `절기 · ${t.name}`, lines: [{ who: 'muk', text: t.line, emo: 'think' }, { who: 'muk', text: `이번 절기 글감이다. "${t.prompt}" — 한 편 쓰기 주제가 막히면 이걸로 써도 좋다.` }] });
   }
 }
 
@@ -120,7 +120,7 @@ export default function GameLayer() {
                 <img src="/art/cg_win.webp" alt="" style={{ width: '100%', borderRadius: 10, aspectRatio: '16/9', objectFit: 'cover' }} />
                 <div className="g-dim" style={{ fontSize: 13, letterSpacing: '0.1em', margin: '14px 0 6px' }}>한 장(章)을 마쳤다</div>
                 <div className="t-title" style={{ fontSize: 22, fontFamily: 'var(--font-title)' }}><span className="seal" style={{ fontSize: 16, marginRight: 8 }}>號</span>{big.title}</div>
-                <div className="g-dim t-read" style={{ fontSize: 14, marginTop: 8 }}>묵당 선생: &ldquo;새 호(號)를 내리겠네. 어울리는군.&rdquo;</div>
+                <div className="g-dim t-read" style={{ fontSize: 14, marginTop: 8 }}>묵당 선생: &ldquo;새 호(號)를 내리지. 어울리는군.&rdquo;</div>
               </>
             )}
             <div style={{ marginTop: 16 }}>
