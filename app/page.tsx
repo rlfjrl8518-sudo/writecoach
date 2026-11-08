@@ -22,7 +22,7 @@ function recognize(db: DB): { text: string; emo: Emotion } | null {
   const when = ago <= 0 ? '오늘' : ago === 1 ? '어제' : `${ago}일 전에`;
   const avg = (x: WritingEntry) => { const s = sentences(x.text); return s.length ? Math.round(x.text.length / s.length) : 0; };
   const a = avg(w), b = prev ? avg(prev) : 0;
-  if (prev && b && a && b - a >= 6) return { text: `${when} 쓴 「${title}」, 문장 평균이 ${b}자에서 ${a}자로 줄었네. 덜어내는 손이 생겼어.`, emo: 'happy' };
+  if (prev && b && a && b - a >= 6) return { text: `${when} 쓴 「${title}」, 문장 평균이 ${b}자에서 ${a}자로 줄었군. 덜어내는 손이 생겼어.`, emo: 'happy' };
   const bd = w.analysis?.score_breakdown;
   if (bd) {
     const top = Object.entries(bd).sort((x, y) => y[1] - x[1])[0];
@@ -30,20 +30,20 @@ function recognize(db: DB): { text: string; emo: Emotion } | null {
     if (dayRand(todayKey(), 3) < 0.5) return { text: `${when} 쓴 「${title}」은 ${top[0]}이 제일 좋았어. ${w.text.length}자를 끝까지 썼고.`, emo: 'happy' };
     return { text: `「${title}」, ${low[0]}이 아직 약하더군. 오늘 수련에서 그걸 의식해 보게.`, emo: 'think' };
   }
-  return { text: `${when} 「${title}」을 ${w.text.length}자 썼더군. 끝낸 글은 지워지지 않네.`, emo: 'happy' };
+  return { text: `${when} 「${title}」을 ${w.text.length}자 썼더군. 끝낸 글은 지워지지 않는다.`, emo: 'happy' };
 }
 
 function mentorLines(db: DB, lit: boolean, done: boolean, fog: number, streak: number, name: string): { text: string; emo: Emotion }[] {
   const n = name || '자네';
   const out: { text: string; emo: Emotion }[] = [];
   const h = new Date().getHours();
-  if (!db.writings.length && !(db.drillLogs ?? []).length) out.push({ text: `${n}, 첫 수는 '사실과 해석 가르기'일세. 10분이면 되네.`, emo: 'default' });
-  else if (fog >= 0.6) out.push({ text: '안개가 짙어졌어. 며칠 등불이 꺼져 있었지. 괜찮네, 오늘 한 수면 다시 걷히네.', emo: 'sad' });
-  else if (done) out.push(streak >= 7 ? { text: `${streak}일째 등불이 켜져 있네. 안개가 마을 밖까지 물러났어.`, emo: 'happy' } : { text: '오늘 수련은 끝났네. 차 한잔 하고 쉬게. 쉬는 것도 수련이야.', emo: 'happy' });
-  else if (lit) out.push({ text: '등불은 켜졌네. 오늘 수를 끝까지 마치면 백지첩 한 장이 돌아오지.', emo: 'default' });
-  else if (h >= 21 || h < 4) out.push({ text: '밤이 깊었네. 오늘 등불은 아직이군. 워밍업 한 문장이라도 쓰고 자게.', emo: 'think' });
+  if (!db.writings.length && !(db.drillLogs ?? []).length) out.push({ text: `${n}, 첫 수는 '사실과 해석 가르기'일세. 10분이면 된다.`, emo: 'default' });
+  else if (fog >= 0.6) out.push({ text: '안개가 짙어졌어. 며칠 등불이 꺼져 있었지. 괜찮다. 오늘 한 수면 다시 걷힌다.', emo: 'sad' });
+  else if (done) out.push(streak >= 7 ? { text: `${streak}일째 등불이 켜져 있군. 안개가 마을 밖까지 물러났어.`, emo: 'happy' } : { text: '오늘 수련은 끝났다. 차 한잔 하고 쉬게. 쉬는 것도 수련이야.', emo: 'happy' });
+  else if (lit) out.push({ text: '등불은 켜졌다. 오늘 수를 끝까지 마치면 백지첩 한 장이 돌아오지.', emo: 'default' });
+  else if (h >= 21 || h < 4) out.push({ text: '밤이 깊었다. 등불은 아직이군. 한 문장이라도 쓰고 자게.', emo: 'think' });
   else if (h < 9) out.push({ text: `일찍 왔군, ${n}. 새벽 문장이 제일 정직하지.`, emo: 'happy' });
-  else out.push({ text: `${n}, 먹을 갈아 두었네. 오늘의 수를 시작하겠나?`, emo: 'default' });
+  else out.push({ text: `${n}, 먹을 갈아 두었다. 오늘의 수를 시작하겠나?`, emo: 'default' });
   const rec = recognize(db); if (rec) out.push(rec);
   const t = currentTerm();
   out.push({ text: `${t.name}일세. ${t.line}`, emo: 'think' });
@@ -75,7 +75,7 @@ export default function HubPage() {
 
   const su = tv.su;
   const ch = su ? chapterOf(su.n) : null;
-  const stepsDone = [tv.steps.warmup, tv.steps.drill, tv.steps.write].filter(Boolean).length;
+  const stepsDone = [tv.steps.warmup, tv.steps.write, tv.steps.revise].filter(Boolean).length;
   const line = lines[say % lines.length];
   const objs = studyObjects(days).map(o => o.id).filter(id => id !== 'cat');
   const today = todayKey();
@@ -116,7 +116,7 @@ export default function HubPage() {
           <img src="/art/obj_cat.webp" alt="" style={{ width: 64, height: 64, objectFit: 'contain' }} />
           <div style={{ flex: 1 }}>
             <div className="t-read" style={{ fontSize: 15 }}>먹물이 낱말 하나를 물고 왔다 — <b style={{ color: 'var(--seal)' }}>「{gift}」</b></div>
-            <div className="g-dim" style={{ fontSize: 12, marginTop: 2 }}>오늘 짧은 글의 글감으로 써 보겠나?</div>
+            <div className="g-dim" style={{ fontSize: 12, marginTop: 2 }}>오늘 한 편 쓰기의 글감으로 써 보겠나?</div>
           </div>
           <button className="g-btn primary sm" onClick={() => { try { localStorage.setItem('wc_gift_word', gift); } catch { /* */ } router.push('/practice'); }}>받아 쓰기</button>
           <button className="g-btn sm" onClick={() => setGift(null)}>나중에</button>
@@ -161,7 +161,7 @@ export default function HubPage() {
                 <span className="hub-cta-t">제{su.n}수 「{su.title}」</span>
                 <span className="hub-cta-s">{ch?.n}장 {ch?.title} · {ch?.dim}</span>
               </span>
-              <span className="hub-steps">{['가르침·워밍업', '그림 훈련', '짧은 글'].map((l, i) => <span key={l} className={i < stepsDone ? 'on' : ''}>{l}</span>)}</span>
+              <span className="hub-steps">{['고쳐 쓰기', '한 편 쓰기', '퇴고'].map((l, i) => <span key={l} className={i < stepsDone ? 'on' : ''}>{l}</span>)}</span>
             </Link>
           ) : (
             <Link href="/practice" className="hub-cta">
@@ -177,10 +177,10 @@ export default function HubPage() {
             {MEMORIES.map(m => <i key={m.id} title={m.day <= days ? m.title : `${m.day}일째`} style={{ flex: 1, height: 5, borderRadius: 3, background: m.day <= days ? 'var(--moon)' : 'var(--line-soft)' }} />)}
           </div>
           <div style={{ fontSize: 13.5 }}>
-            {mems.length ? <>최근 · 「{mems[mems.length - 1].title}」</> : '아직 열린 기억이 없네.'}
+            {mems.length ? <>최근 · 「{mems[mems.length - 1].title}」</> : '아직 열린 기억이 없다.'}
           </div>
           <div className="g-dim" style={{ fontSize: 12, marginTop: 4 }}>
-            {nm ? `수련한 날 ${days}일 · 다음 기억까지 ${nm.day - days}일` : '모든 기억이 열렸네.'}
+            {nm ? `수련한 날 ${days}일 · 다음 기억까지 ${nm.day - days}일` : '모든 기억이 열렸다.'}
           </div>
           <div style={{ display: 'flex', gap: 4, marginTop: 10, flexWrap: 'wrap' }}>
             {mems.length > 0 && <button className="g-btn sm" onClick={() => { const m = mems[mems.length - 1]; playScene({ id: `mem:${m.id}`, title: m.title, lines: m.lines, bg: m.bg, replay: true }); }}>다시 듣기</button>}
@@ -192,14 +192,14 @@ export default function HubPage() {
       {letterReady && (
         <Link href="/journey?tab=letters" className="g-panel hub-letter anim-in">
           <span className="seal" style={{ fontSize: 16, padding: '6px 8px' }}>信</span>
-          <span style={{ flex: 1 }}><b>묵당 선생의 주간 편지가 도착했네.</b><br /><span className="g-dim" style={{ fontSize: 12.5 }}>지난주 글을 다 읽고 썼다더군. 답장을 쓰면 다음 편지에서 읽어 준다네.</span></span>
+          <span style={{ flex: 1 }}><b>묵당 선생의 주간 편지가 도착했다.</b><br /><span className="g-dim" style={{ fontSize: 12.5 }}>지난주 글을 다 읽고 썼다더군. 답장을 쓰면 다음 편지에서 읽어 준다.</span></span>
           <span className="g-dim">→</span>
         </Link>
       )}
 
       <div className="hub-links">
         <Link href="/writing" className="g-panel"><b>글방</b><span className="g-dim">자유 글쓰기 · 첨삭 · 문집</span></Link>
-        <Link href="/books" className="g-panel"><b>서고</b><span className="g-dim">독서 기록 · 인용문은 워밍업 재료로</span></Link>
+        <Link href="/books" className="g-panel"><b>서고</b><span className="g-dim">독서 기록 · 인용문은 필사 분석 재료로</span></Link>
         <Link href="/journey" className="g-panel"><b>기록</b><span className="g-dim">산마루 지도 · 편지 · 성장 리포트</span></Link>
         <button className="g-panel" onClick={() => queuePendingScenes(loadDB(), true)}><b>이야기 다시 보기</b><span className="g-dim">프롤로그 · 지금 장의 도입</span></button>
       </div>

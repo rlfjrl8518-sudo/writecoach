@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     if (!prefs.subs.length) return Response.json({ error: 'NO_SUBS' }, { status: 404, headers: noStore });
     const r = await sendToSubs(prefs.subs, {
       title: '산마루 서재',
-      body: '묵당이네. 이 종이 울리면 붓을 들게. 시험 삼아 한 번 울려 보았네.',
+      body: '묵당이다. 이 종이 울리면 붓을 들게. 시험 삼아 한 번 울려 보았지.',
       url: '/practice',
       tag: 'writecoach-test',
     });

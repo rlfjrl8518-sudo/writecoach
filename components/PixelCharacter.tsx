@@ -30,7 +30,7 @@ function clamp(pos: { x: number; y: number }) {
 const TIERS = [
   // name은 lib/openai.ts COACH_PERSONAS의 키(말투 단계). bond는 화면에 보이는 '정' 단계.
   { min: 0,  max: 2,       name: '글 선생님',    bond: '서먹함',   outfitMain: '#5a6ab8', labelColor: '#8f9fe8', greeting: '어서 오시오. 오늘은 무엇을 쓰려 하오?' },
-  { min: 3,  max: 8,       name: '선생님',       bond: '반가움',   outfitMain: '#2e86c1', labelColor: '#37c4ff', greeting: '왔군. 오늘도 먹을 갈아 두었네.' },
+  { min: 3,  max: 8,       name: '선생님',       bond: '반가움',   outfitMain: '#2e86c1', labelColor: '#37c4ff', greeting: '왔군. 오늘도 먹을 갈아 두었다.' },
   { min: 9,  max: 19,      name: '선배',         bond: '편함',     outfitMain: '#3e8e41', labelColor: '#7cff6b', greeting: '또 왔나. 좋아, 그 습관이 실력이야.' },
   { min: 20, max: 35,      name: '글쟁이 아저씨', bond: '허물없음', outfitMain: '#b7770d', labelColor: '#f7e26b', greeting: '왔으면 앉아. 글이나 쓰자고.' },
   { min: 36, max: 59,      name: '영감님',        bond: '막역함',   outfitMain: '#d35400', labelColor: '#ff8c42', greeting: '에잉, 또 왔냐. …차 식기 전에 앉아.' },

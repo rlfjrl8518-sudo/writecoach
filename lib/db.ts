@@ -71,10 +71,12 @@ export interface WritingEntry {
   proofreadAt?: string;
   /** 시련(보스전)으로 쓴 글이면 'ch-<장 번호>' */
   trial?: string;
-  /** 오늘의 수련 ④ 짧은 글이면 그 수 번호(1~24) */
+  /** 오늘의 수련 ③ 한 편 쓰기면 그 수 번호(1~24) */
   su?: number;
-  /** 사진 훈련 등에서 생성된 이미지(문집에 함께 싣는다) */
+  /** 사진 글감으로 쓴 글이면 그 이미지(문집에 함께 싣는다) */
   imageUrl?: string;
+  /** ④ 퇴고 — 직접 고친 글과 고친 이유(교정 노트). 원문 text는 그대로 둔다 */
+  revised?: { text: string; note: string; at: string; feedback: string; improved: boolean; score?: number };
   createdAt: string;
 }
 

@@ -51,10 +51,10 @@ export default function BookPage() {
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cleanTitle(w)}</span>
               </label>
             ))}
-            {!list.length && <div className="g-dim" style={{ fontSize: 12 }}>고를 글이 없네.</div>}
+            {!list.length && <div className="g-dim" style={{ fontSize: 12 }}>고를 글이 없다.</div>}
           </div>
           <button className="g-btn primary" disabled={!chosen.length} onClick={() => window.print()}>📖 {chosen.length}편으로 책 만들기 (PDF로 저장)</button>
-          <div className="g-dim" style={{ fontSize: 11, marginTop: 4 }}>인쇄 창에서 &lsquo;PDF로 저장&rsquo;을 고르면 책 파일이 되네. 수련 사진도 함께 실리네.</div>
+          <div className="g-dim" style={{ fontSize: 11, marginTop: 4 }}>인쇄 창에서 &lsquo;PDF로 저장&rsquo;을 고르면 책 파일이 된다. 수련 사진도 함께 실리지.</div>
         </div>
       </div>
 

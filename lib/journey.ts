@@ -13,9 +13,9 @@ export const STREAK_BADGES = [3, 7, 30, 100];
 export function getScoreEmotion(score: number): { emotion: Emotion; message: string } {
   // 채점이 엄격하다(5점=평균, 7점=드묾, 괜찮은 글이 40~50점대) — 표정 기준도 그에 맞춘다
   if (score >= 70) return { emotion: 'happy', message: '허, 이건 남겨 둘 만한 글이군.' };
-  if (score >= 55) return { emotion: 'happy', message: '단단해졌네. 어제의 자네보다 낫군.' };
-  if (score >= 40) return { emotion: 'default', message: '나쁘지 않네. 약점 하나만 고쳐 보게.' };
-  return { emotion: 'think', message: '괜찮네. 써낸 것만으로 먹이 쌓였어.' };
+  if (score >= 55) return { emotion: 'happy', message: '단단해졌군. 어제의 자네보다 낫군.' };
+  if (score >= 40) return { emotion: 'default', message: '나쁘지 않다. 약점 하나만 고쳐 보게.' };
+  return { emotion: 'think', message: '괜찮다. 써낸 것만으로 먹이 쌓였어.' };
 }
 
 /** 마지막 기록일이 어제/오늘이 아니면(등불이 꺼졌으면) true */

@@ -26,7 +26,9 @@ export function weekKey(key: string) {
 const wDay = (w: WritingEntry) => (w.date || dayKey(w.createdAt)).slice(0, 10);
 
 /* ── 저장 상태 ── */
-export type Step = 'warmup' | 'drill' | 'write';
+/** 하루 수련의 단계: ② 고쳐 쓰기(warmup) · ③ 한 편 쓰기(write) · ④ 퇴고(revise). 옛 'drill'(사진 훈련) 기록은 무시한다 */
+export type Step = 'warmup' | 'write' | 'revise';
+export const STEPS: Step[] = ['warmup', 'write', 'revise'];
 export interface DrillLog {
   id: number;
   drill: string;
@@ -95,16 +97,16 @@ export function judgeTrial(ch: Chapter, cycle: number, w: WritingEntry) {
 export interface SuProgress { su: Su; steps: Record<Step, boolean>; mastered: boolean; masteredAt?: string }
 function suProgressMap(db: DB, since: string): Map<number, SuProgress> {
   const m = new Map<number, SuProgress>();
-  for (const su of ALL_SU) m.set(su.n, { su, steps: { warmup: false, drill: false, write: false }, mastered: false });
+  for (const su of ALL_SU) m.set(su.n, { su, steps: { warmup: false, write: false, revise: false }, mastered: false });
   const events: { n?: number; step: Step; at: string }[] = [
-    ...(db.drillLogs ?? []).filter(d => d.su && d.step).map(d => ({ n: d.su, step: d.step!, at: d.createdAt })),
+    ...(db.drillLogs ?? []).filter(d => d.su && d.step && STEPS.includes(d.step)).map(d => ({ n: d.su, step: d.step!, at: d.createdAt })),
     ...db.writings.filter(w => w.su).map(w => ({ n: w.su, step: 'write' as Step, at: w.createdAt })),
   ].sort((a, b) => a.at.localeCompare(b.at));
   events.forEach(e => {
     if (!e.n || e.at < since) return;
     const p = m.get(e.n); if (!p) return;
     p.steps[e.step] = true;
-    if (!p.mastered && p.steps.warmup && p.steps.drill && p.steps.write) { p.mastered = true; p.masteredAt = e.at; }
+    if (!p.mastered && p.steps.warmup && p.steps.write && p.steps.revise) { p.mastered = true; p.masteredAt = e.at; }
   });
   return m;
 }
@@ -165,7 +167,7 @@ export interface TodayView {
   /** 오늘 무엇이든 썼는가 (= 등불) */
   lit: boolean;
 }
-const noSteps = (): Record<Step, boolean> => ({ warmup: false, drill: false, write: false });
+const noSteps = (): Record<Step, boolean> => ({ warmup: false, write: false, revise: false });
 export function todayView(db: DB): TodayView {
   const t = todayKey();
   const logs = (db.drillLogs ?? []).filter(d => dayKey(d.createdAt) === t);
@@ -173,9 +175,9 @@ export function todayView(db: DB): TodayView {
   const lit = logs.length > 0 || writes.length > 0;
   const touched = new Map<number, Record<Step, boolean>>();
   const touch = (n: number, step: Step) => { const s = touched.get(n) ?? noSteps(); s[step] = true; touched.set(n, s); };
-  logs.forEach(d => { if (d.su && d.step) touch(d.su, d.step); });
+  logs.forEach(d => { if (d.su && d.step && STEPS.includes(d.step)) touch(d.su, d.step); });
   writes.forEach(w => { if (w.su) touch(w.su, 'write'); });
-  const doneEntry = Array.from(touched.entries()).find(([, s]) => s.warmup && s.drill && s.write);
+  const doneEntry = Array.from(touched.entries()).find(([, s]) => s.warmup && s.write && s.revise);
   const pv = pathView(db);
   const cur = pv.current;
   // 오늘 이미 한 수를 마쳤으면 '완료' — 다음 수는 "하나 더"로

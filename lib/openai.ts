@@ -287,7 +287,7 @@ async function callAI(
 /* ── AI 코치 채팅 ── */
 /* 묵당 선생(산마루 서재의 노작가, 가상 인물) — 제자와 함께한 시간(기록 수)이 쌓일수록 말투가 허물없어진다.
    키는 components/PixelCharacter.tsx TIERS의 name과 같다. */
-const MUKDANG = '당신은 글쓰기 수련 게임 "산마루 서재"의 스승 "묵당 선생"이다. 30년 전 마지막 원고를 끝내지 못하고 펜을 놓았다가 제자를 받으며 다시 쓰기 시작한 노작가다. 문장 하나를 귀하게 여기고, 말은 짧고 구체적이다. 제자를 "자네"라고 부른다.';
+const MUKDANG = '당신은 글쓰기 수련 게임 "산마루 서재"의 스승 "묵당 선생"이다. 30년 전 마지막 원고를 끝내지 못하고 펜을 놓았다가 제자를 받으며 다시 쓰기 시작한 노작가다. 문장 하나를 귀하게 여기고, 말은 짧고 구체적이다. 제자를 "자네"라고 부른다. 말끝을 "~네"(~했네, ~겠네, ~이네 등)로 끝내지 말 것. "~다", "~지", "~군", "~게", "~나?/~는가?"를 섞어 쓰고 "~일세"는 많아야 한 번.';
 const COACH_PERSONAS: Record<string, string> = {
   '글 선생님': `${MUKDANG} 아직 서먹한 사이다. 정중하고 차분한 하오체를 쓴다. 3문장 이내.`,
   '선생님': `${MUKDANG} 제자가 꾸준히 찾아와 반갑다. 따뜻하게 격려하되 실용적인 조언 하나를 꼭 준다. 3문장 이내.`,
@@ -441,11 +441,14 @@ const WRITING_TYPE_FOCUS: Record<string, string> = {
 export async function analyzeWriting(
   s: Settings, type: string, topic: string, text: string,
   onStream?: (chunk: string) => void,
+  /** 수련 중이면 그 수의 기법과 점검 질문 — 개선점의 첫째를 이 기준으로 본다 */
+  focus?: { title: string; checks: string[] },
 ): Promise<WritingAnalysis> {
   const cleanText = text.replace(/\n{3,}/g, '\n\n').trim();
   const typeFocus = WRITING_TYPE_FOCUS[type] ?? '';
+  const suFocus = focus ? `\n이번 글은 기법 「${focus.title}」 수련이다. 점검 질문: ${focus.checks.join(' / ')}\nbad의 첫째와 fixes의 첫째는 반드시 이 기법 기준으로, 본문의 실제 문장을 인용해 쓸 것.\n` : '';
   const user = `유형: ${type || '미지정'}\n주제: ${topic || '미지정'}\n본문:\n${cleanText}
-${typeFocus ? `\n${typeFocus}\n` : ''}
+${typeFocus ? `\n${typeFocus}\n` : ''}${suFocus}
 아래 JSON 형식 그대로 출력 (값만 교체, 모든 값은 큰따옴표 문자열, bad·fixes는 최소 3개씩):
 {"breakdown":"7,8,6,7,8","good":"잘된점1|잘된점2","bad":"개선점1|개선점2|개선점3","fixes":"원문→개선문|원문→개선문|원문→개선문","tips":"제안1|제안2|제안3","exprs":"핵심표현1|핵심표현2"}`;
 
@@ -475,248 +478,6 @@ ${typeFocus ? `\n${typeFocus}\n` : ''}
     improvement_examples:    sp(r.fixes),
     improvement_suggestions: sp(r.tips),
     expressions: sp(r.exprs).map(t => ({ text: t, category: '표현', alternative: [] })),
-  };
-}
-
-interface FlatSentenceAnalysis {
-  sentenceRole: string;
-  roleDesc: string;
-  expressionType: string;
-  expressionSense: string;
-  expressionEffect: string;
-  strengths: string;
-  keyExpressions: string;
-}
-
-const SENTENCE_SYS = `너는 글쓰기 코치다. JSON 객체만 출력하라. 설명·마크다운 금지.
-모든 값은 단순 문자열이다. 배열·중첩 객체 사용 금지.
-
-[sentenceRole] 아래 7개 중 하나:
-장면 묘사 / 대상 설명 / 행동 전개 / 감정 표현 / 분위기 형성 / 생각 전달 / 정보 전달
-
-[roleDesc] 이 문장이 해당 역할을 어떻게 수행하는지 2문장 이내 설명
-
-[expressionType] 아래 6개 중 하나:
-구체적 표현 / 추상적 표현 / 감각 표현 / 감정 표현 / 비유 표현 / 강조 표현
-
-[expressionSense] expressionType이 "감각 표현"일 때만 아래 중 하나, 아니면 빈 문자열:
-시각 / 청각 / 후각 / 미각 / 촉각
-
-[expressionEffect] 이 표현이 독자에게 미치는 효과 (1문장)
-
-[strengths] 이 문장의 강점 (1-2문장, 왜 이 문장이 효과적인가)
-
-[keyExpressions] 핵심 표현 2-4개, 쉼표로 나열`;
-
-export async function analyzeSentence(
-  s: Settings, sentence: string, source: string, sentenceType: string,
-  _onStream?: (chunk: string) => void,
-): Promise<SentenceAnalysis> {
-  const user = `출처: ${source || '미지정'}
-유형: ${sentenceType || '기타'}
-문장: "${sentence}"
-
-아래 JSON 형식 그대로 출력 (값만 교체, 모든 값은 큰따옴표 문자열):
-{"sentenceRole":"장면 묘사","roleDesc":"역할 설명","expressionType":"감각 표현","expressionSense":"청각","expressionEffect":"효과 설명","strengths":"강점 설명","keyExpressions":"표현1,표현2"}`;
-
-  const raw = await callAI(s, SENTENCE_SYS, user, 1200, 0.3, true);
-  const flat = safeParseJSON<FlatSentenceAnalysis>(raw);
-
-  return {
-    sentenceRole:        flat.sentenceRole || '',
-    sentenceRoleDesc:    flat.roleDesc || '',
-    expressionType:      flat.expressionType || '',
-    expressionSense:     flat.expressionSense || '',
-    expressionEffect:    flat.expressionEffect || '',
-    sentenceStrengths:   flat.strengths || '',
-    keyExpressions:      (flat.keyExpressions || '').split(',').map(x => x.trim()).filter(Boolean),
-  };
-}
-
-export async function generateSentenceExamples(
-  s: Settings, sentence: string, role: string,
-  onStream?: (chunk: string) => void,
-): Promise<SentenceExamples> {
-  const sys = '너는 글쓰기 예문 생성 전문가다. 주어진 문장의 역할과 표현 방식을 활용한 예문을 생성한다. JSON 형식으로만 응답하라.';
-  const user = `원문: ${sentence}
-문장 역할: ${role || '장면 묘사'}
-
-아래 4가지 유형으로 각 5개씩 예문을 생성하라:
-응답 형식(JSON 객체만, 설명 없이):
-{"sameStructure":["같은 역할의 문장 5개"],"applied":["역할을 변형 응용한 문장 5개"],"copyExamples":["이 역할을 활용한 광고 카피 5개"],"descriptive":["이 역할을 활용한 문학적 묘사문 5개"]}`;
-  const raw = await callAI(s, sys, user, 3000, 0.7, true, onStream);
-  return safeParseJSON<SentenceExamples>(raw);
-}
-
-const COPY_SYS = `너는 카피라이팅 분석 전문가다. JSON 객체만 출력하라. 설명·마크다운 금지.
-
-분석 원칙 (반드시 준수):
-- 평가 금지 (좋다·나쁘다 금지)
-- 점수 금지. 개선안 금지.
-- 업종 가정 금지.
-- 오직 객관적 분석만.
-
-[copyType] 반드시 아래 9개 중 하나:
-"브랜딩형" | "혜택 전달형" | "문제 제기형" | "위험 환기형" | "감성 공감형" | "행동 유도형" | "신뢰 확보형" | "정보 전달형" | "혼합형"
-
-[expressionFeatures] 해당되는 기법만 배열로:
-대조/반복/숫자/질문/명령/비유/스토리텔링/긴급성/희소성/공포/보상/사회적 증거`;
-
-export async function analyzeCopy(
-  s: Settings, copy: string, brand: string, source: string,
-  _onStream?: (chunk: string) => void,
-): Promise<CopyAnalysis> {
-  const user = `카피: "${copy}"
-브랜드: ${brand || '미지정'}
-경로: ${source || '미지정'}
-
-아래 JSON 형식 그대로 출력하라 (값만 교체):
-{"copyType":"브랜딩형","mainTarget":"이 카피가 향하는 주요 타겟","persuasionPoints":["자극하는 욕구/심리 1","욕구/심리 2"],"coreMessage":"이 카피가 전달하는 핵심 메시지 한 문장","expressionFeatures":["대조","숫자"],"analysisSummary":"2-3문장 객관적 분석 요약"}`;
-  const raw = await callAI(s, COPY_SYS, user, 1200, 0.3, true);
-  return safeParseJSON<CopyAnalysis>(raw);
-}
-
-export async function generateMissions(
-  s: Settings, db: DB,
-): Promise<Omit<Mission, 'id' | 'completed' | 'createdAt'>[]> {
-  const analyzed = db.writings.filter(w => w.analysis);
-  const avgScore = analyzed.length
-    ? Math.round(analyzed.reduce((acc, w) => acc + w.analysis!.score, 0) / analyzed.length)
-    : 0;
-
-  const liveWeak: Record<string, number> = {};
-  analyzed.forEach(w => {
-    (w.analysis!.weaknesses || []).forEach(k => { const n = k.trim().toLowerCase().replace(/\s+/g, ' '); liveWeak[n] = (liveWeak[n] || 0) + 1; });
-  });
-  const weakTop = Object.entries(liveWeak).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k]) => k);
-
-  const sys = '너는 글쓰기 코치다. 사용자 데이터를 분석해 맞춤 훈련 과제 3개를 생성하라. JSON 배열만 반환. 설명 없이.';
-  const user = `데이터:
-- 평균점수: ${avgScore}
-- 주요 약점: ${weakTop.join(', ') || '없음'}
-- 총 글 수: ${db.writings.length}
-
-응답 형식(JSON 배열만, 설명 없이):
-[{"title":"과제명","description":"훈련 방법 설명 (따뜻한 말투)","type":"writing"},{"title":"과제명","description":"...","type":"expression"},{"title":"과제명","description":"...","type":"writing"}]
-type은 writing/expression/copy 중 하나`;
-  const raw = await callAI(s, sys, user, 1500, 0.5, true);
-  const parsed = safeParseJSON<unknown>(raw);
-  // OpenAI JSON 모드는 배열을 {"missions":[...]} 형태 객체로 감쌀 수 있음
-  const arr = Array.isArray(parsed)
-    ? parsed
-    : (Object.values(parsed as Record<string, unknown>).find(v => Array.isArray(v)) as Omit<Mission, 'id' | 'completed' | 'createdAt'>[] | undefined);
-  if (!arr?.length) throw new Error('과제 생성 결과가 올바르지 않아요. 다시 시도해주세요.');
-  return arr;
-}
-
-export async function evaluateMission(
-  s: Settings, mission: Mission, submission: string,
-  onStream?: (chunk: string) => void,
-): Promise<MissionEvaluation> {
-  const sys = '너는 글쓰기 코치다. 훈련 과제에 대한 제출작을 평가한다. 엄격하되 따뜻하게. JSON 형식으로만 응답하라.';
-  const user = `과제 제목: ${mission.title}
-과제 내용: ${mission.description}
-제출 글:
-${submission}
-
-응답 형식(JSON 객체만, 설명 없이):
-{"score":0,"passed":true,"feedback":"종합 피드백 2-3문장 (제안형, 따뜻하게)","strengths":["잘 달성한 점 키워드"],"improvements":["더 발전시킬 점 키워드"]}
-score 0-100 / passed는 score >= 60 이면 true`;
-  const raw = await callAI(s, sys, user, 1500, 0.3, true, onStream);
-  return safeParseJSON<MissionEvaluation>(raw);
-}
-
-/* ── Expression Lab(표현 사전) ── */
-const EXPR_CATEGORIES: ExpressionCategory[] = ['평가 표현', '감정 표현', '행동 표현', '상태 표현', '묘사 표현', '시간 표현', '공간 표현', '비유 표현', '설득 표현'];
-const EXPR_SENSES: ExpressionSense[] = ['시각', '청각', '후각', '미각', '촉각', '복합 감각'];
-const EXPR_LEVELS: ExpressionLevel[] = ['초급', '중급', '고급'];
-const EXPR_CONTEXTS: ExpressionUseContext[] = ['묘사문', '설명문', '기사 리드', '에세이', '광고 카피', 'SNS 글'];
-
-export interface ExpressionSuggestion { text: string; reason: string }
-
-const SUGGEST_SYS = `너는 한국어 어휘 큐레이터다. 글을 쓰다가 막힌 사람이 표현하고 싶은 느낌·상황·단어를 입력하면,
-그 자리에 바로 쓸 수 있는 실제로 존재하는 자연스러운 한국어 표현(단어 또는 짧은 구) 8-10개를 추천한다.
-
-[원칙]
-- 입력이 막연한 느낌·상황 묘사("쓸쓸한 가을 저녁 분위기")면 그 느낌에 어울리는 표현들을 추천한다.
-- 입력이 이미 구체적인 표현("빛바랜")이면 같은 결의 유의어·인접 표현들을 폭넓게 추천한다.
-- 추천 목록은 결이 다양해야 한다. 아래 갈래 중 최소 4갈래 이상이 섞이도록 고른다:
-  순우리말 / 한자어 / 사투리·구어체 / 문학적·시적 표현 / 의성어·의태어 / 사자성어·관용구 / 요즘 자주 쓰는 말
-- 누구나 바로 떠올리는 1-2개짜리 뻔한 동의어만 반복하지 말고, 의외이지만 자연스러운 표현도 적극적으로 섞는다.
-- 거의 동의어인 표현을 2개 넘게 연달아 주지 않는다 (예: "쓸쓸한"·"외로운"·"고독한"처럼 결이 같은 단어를 한꺼번에 묶지 말 것).
-- 실제로 쓰이지 않는 억지 조합·신조어는 만들지 않는다.
-- 각 표현마다 "왜 이 자리에 어울리는지" 한 줄 이유를 단다.
-
-JSON 객체만 출력 (설명·마크다운 금지):
-{"items":"표현1::이유1|표현2::이유2|표현3::이유3|표현4::이유4|표현5::이유5|표현6::이유6|표현7::이유7|표현8::이유8"}`;
-
-export async function suggestExpressions(
-  s: Settings, query: string,
-  onStream?: (chunk: string) => void,
-): Promise<ExpressionSuggestion[]> {
-  const wordOnly = /단어/.test(query);
-  const user = `입력: "${query}"${wordOnly ? '\n사용자가 "단어"를 명시했으니, 여러 단어로 이루어진 구는 제외하고 한 단어로 된 표현만 추천하라.' : ''}`;
-  const raw = await callAI(s, SUGGEST_SYS, user, 1000, 0.85, true, onStream);
-  const r = safeParseJSON<{ items: string }>(raw);
-  return (r.items || '').split('|').map(chunk => {
-    const [text, ...rest] = chunk.split('::');
-    return { text: (text || '').trim(), reason: rest.join('::').trim() };
-  }).filter(it => it.text);
-}
-
-const EXPRESSION_SYS = `너는 한국어 표현(어휘·구) 학습 콘텐츠를 만드는 전문가다. JSON 객체만 출력하라. 설명·마크다운 금지.
-사전 정보가 주어지면 그 의미·품사·예문을 우선 참고하라.
-사전 정보가 없으면 표현이 실제로 존재하지 않거나 잘못된 형태일 수 있으므로, 확인되지 않은 내용을 사실인 것처럼 서술하지 않는다. similar와 opposite에는 반드시 실제로 쓰이는 표현만 포함하고 불확실하면 빈 문자열로 남긴다.
-
-[category] 아래 9개 중 하나만:
-${EXPR_CATEGORIES.join(' / ')}
-
-[sense] 아래 6개 중 하나만. 감각과 무관한 표현(예: 설득·논리 표현)이면 빈 문자열:
-${EXPR_SENSES.join(' / ')}
-
-[level] 아래 3개 중 하나:
-초급(일상에서 흔히 쓰는 표현) / 중급(글쓰기에서 의도적으로 골라 쓰는 표현) / 고급(문학적·전문적이거나 낯선 표현)
-
-[contexts] 이 표현이 잘 어울리는 글 유형을 아래 6개 중 1-3개 골라 "|"로 구분:
-${EXPR_CONTEXTS.join(' / ')}
-
-[similar] 의미가 비슷한 대체 표현 3-4개. 사전 유의어가 있으면 우선 활용하고, 없으면 직접 생각해낸다.
-[opposite] 의미가 반대되는 표현 2-3개. 자연스러운 반대말이 없으면 빈 문자열로 둔다.
-[descEx] 이 표현을 활용한 묘사문 예문 1개 (1-2문장)
-[explEx] 이 표현을 활용한 설명문 예문 1개 (1-2문장)
-[copyEx] 이 표현을 활용한 광고 카피 예문 1개 (짧고 강하게)
-[mission] 이 표현을 직접 사용해보는 짧은 글쓰기 과제 1개. "'표현'을 사용해 [구체적 상황/대상]을 [글자 수]자 내외로 써보세요" 형태로 구체적으로 작성.`;
-
-interface FlatExpressionAnalysis {
-  meaning: string; category: string; sense: string; level: string; contexts: string;
-  similar: string; opposite: string; descEx: string; explEx: string; copyEx: string; mission: string;
-}
-
-export async function analyzeExpression(
-  s: Settings, text: string, dict: DictResult | null,
-  onStream?: (chunk: string) => void,
-): Promise<ExpressionAnalysis> {
-  const dictInfo = dict
-    ? `뜻: ${dict.meaning || '없음'}\n품사: ${dict.pos || '없음'}\n예문: ${dict.examples.join(' / ') || '없음'}\n유의어: ${dict.synonyms.join(', ') || '없음'}`
-    : '사전 검색 결과 없음 — 이 표현은 표준 사전에 없거나 실제로 쓰이지 않는 표현일 수 있음. meaning 필드에는 실제 용법이 불확실하다는 사실을 반드시 포함해 서술하라. 없는 표현을 실제 쓰이는 것처럼 설명하지 말 것.';
-  const user = `표현: "${text}"\n[사전 정보]\n${dictInfo}\n\n아래 JSON 형식 그대로 출력 (값만 교체, 모든 값은 큰따옴표 문자열):\n{"meaning":"쉬운 재해석 문장","category":"묘사 표현","sense":"시각","level":"중급","contexts":"묘사문|에세이","similar":"표현1|표현2|표현3","opposite":"표현1|표현2","descEx":"묘사문 예문","explEx":"설명문 예문","copyEx":"광고 카피 예문","mission":"미션 지시문"}`;
-
-  const raw = await callAI(s, EXPRESSION_SYS, user, 1500, 0.4, true, onStream);
-  const r = safeParseJSON<FlatExpressionAnalysis>(raw);
-  const sp = (v: string) => (v || '').split('|').map(x => x.trim()).filter(Boolean);
-
-  const category = (EXPR_CATEGORIES as string[]).includes(r.category) ? r.category as ExpressionCategory : '';
-  const sense = (EXPR_SENSES as string[]).includes(r.sense) ? r.sense as ExpressionSense : '';
-  const level = (EXPR_LEVELS as string[]).includes(r.level) ? r.level as ExpressionLevel : '';
-  const useContexts = sp(r.contexts).filter((c): c is ExpressionUseContext => (EXPR_CONTEXTS as string[]).includes(c));
-
-  return {
-    easyMeaning: r.meaning || '',
-    category, sense, level, useContexts,
-    similar: sp(r.similar),
-    opposite: sp(r.opposite),
-    sampleSentences: { descriptive: r.descEx || '', explanatory: r.explEx || '', copy: r.copyEx || '' },
-    mission: r.mission || '',
   };
 }
 
@@ -795,66 +556,6 @@ ${appealText}
     reasoning: r.reasoning || '',
     acceptedPoints: sp(r.accepted),
     rejectedPoints: sp(r.rejected),
-  };
-}
-
-export interface DrillEvaluation {
-  scores: { 관찰력: number; 구체성: number; 표현다양성: number; 감정전달력: number; 문장밀도: number; 독창성: number; 추상어비율: number; 감각표현비율: number };
-  feedback: string;
-  strengths: string[];
-  improvements: string[];
-  modelAnswer: string;
-  explanation: string;
-}
-
-export async function evaluateDrill(
-  s: Settings,
-  drillName: string,
-  purpose: string,
-  scene: string,
-  instruction: string,
-  constraints: string[],
-  answer: string,
-  onStream?: (chunk: string) => void,
-  imageUrl?: string,
-): Promise<DrillEvaluation> {
-  const sys = `너는 글쓰기 트레이너다. 훈련 유형과 목적에 맞게 사용자 답변을 분석한다.
-훈련: ${drillName} — ${purpose}
-${constraints.length ? `금지 표현 위반 여부 반드시 확인: ${constraints.join(', ')}` : ''}
-${imageUrl ? '사용자에게는 사진 한 장이 주어졌다. 첨부된 사진을 직접 보고, 답변이 사진 속 실제 내용과 일치하는 사실인지(관찰력), 사진에 없는 내용을 지어내지 않았는지 반드시 확인해 평가하라.' : ''}
-
-점수 기준 (각 0-10):
-관찰력: 사실을 정확히 포착했는가
-구체성: 추상 대신 구체적 장면·사실로 표현했는가
-표현다양성: 다양한 표현 방식을 활용했는가
-감정전달력: 감정을 직접 말하지 않고 전달했는가
-문장밀도: 군더더기 없이 핵심만 담았는가
-독창성: 예상을 벗어난 독창적 발상인가
-추상어비율: 0-100 (추상적 단어가 전체의 몇%)
-감각표현비율: 0-100 (오감을 활용한 표현이 전체의 몇%)
-
-아래 JSON 형식 그대로 출력 (값만 교체, 모든 값은 큰따옴표 문자열):
-{"scores":"관찰력:7|구체성:8|표현다양성:6|감정전달력:7|문장밀도:8|독창성:9|추상어비율:30|감각표현비율:60","feedback":"전반적 피드백 2-3문장 (따뜻하고 구체적으로)","strengths":"잘된점1|잘된점2","improvements":"개선점1|개선점2","model":"모범답안 (1-3문장)","why":"왜 좋은 답변인지 핵심 해설 1-2문장"}`;
-
-  const user = `[상황/장면]\n${scene}\n\n[작성 지시]\n${instruction}\n\n[사용자 답변]\n${answer}`;
-  const raw = await callAI(s, sys, user, 1200, 0.3, true, onStream, undefined, imageUrl);
-
-  const r = safeParseJSON<{ scores: string; feedback: string; strengths: string; improvements: string; model: string; why: string }>(raw);
-  const sp = (v: string) => (v || '').split('|').map(x => x.trim()).filter(Boolean);
-
-  const scoreMap: Record<string, number> = { 관찰력: 0, 구체성: 0, 표현다양성: 0, 감정전달력: 0, 문장밀도: 0, 독창성: 0, 추상어비율: 0, 감각표현비율: 0 };
-  sp(r.scores).forEach(item => {
-    const col = item.indexOf(':');
-    if (col !== -1) scoreMap[item.slice(0, col).trim()] = Math.min(100, parseInt(item.slice(col + 1).trim(), 10) || 0);
-  });
-
-  return {
-    scores: scoreMap as DrillEvaluation['scores'],
-    feedback: r.feedback || '',
-    strengths: sp(r.strengths),
-    improvements: sp(r.improvements),
-    modelAnswer: r.model || '',
-    explanation: r.why || '',
   };
 }
 
@@ -950,17 +651,30 @@ changes는 3-5개. reason은 10자 이내 짧은 태그 (예: "클리셰 제거"
   return safeParseJSON<ProofreadResult>(raw);
 }
 
-/* ── 오늘의 수련 ② 워밍업 — 한 문장 고쳐 쓰기 짧은 피드백 ── */
+/* ── 오늘의 수련 ② 고쳐 쓰기 — 한 문장 고쳐 쓰기·필사 분석 짧은 피드백 ── */
 export interface WarmupFeedback { applied: boolean; feedback: string; better: string }
 export async function evaluateWarmup(
   s: Settings, suTitle: string, technique: string, task: string, original: string, answer: string,
 ): Promise<WarmupFeedback> {
-  const system = `당신은 글쓰기 수련 게임의 스승 "묵당 선생"이다. 제자가 오늘 배운 기법 「${suTitle}」을 한 문장 고쳐 쓰기에 적용했는지 짧고 정확하게 본다. 말투는 "~하게/~일세" 하게체, 2문장 이내. 칭찬은 근거가 있을 때만.`;
+  const system = `당신은 글쓰기 수련 게임의 스승 "묵당 선생"이다. 제자가 오늘 배운 기법 「${suTitle}」을 한 문장 고쳐 쓰기에 적용했는지 짧고 정확하게 본다. 말투는 담백한 하게체 — "~다/~지/~군/~게"를 섞어 쓰고 "~일세"는 많아야 한 번. 말끝을 "~네"(~했네·~겠네·~이네)로 끝내지 말 것. 2문장 이내. 칭찬은 근거가 있을 때만.`;
   const user = `기법 설명: ${technique}\n과제: ${task}\n원문: ${original}\n제자의 답: ${answer}\n
 JSON으로만 답하라: {"applied": true/false (기법을 실제로 적용했는가), "feedback": "구체적인 한두 문장 — 어느 단어가 왜 좋아졌는지 또는 무엇이 아직 남았는지", "better": "같은 기법을 더 잘 적용한 예시 한 문장"}`;
   const raw = await callAI(s, system, user, 600, 0.4, true);
   const r = safeParseJSON<{ applied?: boolean | string; feedback?: string; better?: string }>(raw);
   return { applied: r.applied === true || r.applied === 'true', feedback: r.feedback ?? '', better: r.better ?? '' };
+}
+
+/* ── 오늘의 수련 ④ 퇴고 — 고치기 전후를 비교해 짧게 본다 ── */
+export interface RevisionFeedback { improved: boolean; feedback: string; next: string }
+export async function evaluateRevision(
+  s: Settings, suTitle: string, checks: string[], before: string, after: string, note: string, pointed: string[],
+): Promise<RevisionFeedback> {
+  const system = `당신은 글쓰기 수련 게임의 스승 "묵당 선생"이다. 제자가 자기 글을 퇴고했다. 고치기 전과 후를 비교해, 오늘 배운 기법 「${suTitle}」과 지적받은 점이 실제로 나아졌는지 정확하게 본다. 말투는 담백한 하게체 — "~다/~지/~군/~게"를 섞어 쓰고 "~일세"는 많아야 한 번. 말끝을 "~네"로 끝내지 말 것. 칭찬은 근거가 있을 때만, 고친 문장을 직접 인용해서.`;
+  const user = `점검 질문: ${checks.join(' / ')}\n지적받은 점: ${pointed.join(' / ') || '없음'}\n제자가 적은 고친 이유: ${note || '(없음)'}\n\n[고치기 전]\n${before.slice(0, 2500)}\n\n[고친 뒤]\n${after.slice(0, 2500)}\n
+JSON으로만 답하라: {"improved": true/false (기법과 지적 기준으로 실제로 나아졌는가), "feedback": "2~3문장 — 고친 문장을 인용해 무엇이 왜 나아졌는지, 또는 무엇이 그대로인지", "next": "다음 퇴고 때 볼 한 가지(한 문장)"}`;
+  const raw = await callAI(s, system, user, 700, 0.4, true);
+  const r = safeParseJSON<{ improved?: boolean | string; feedback?: string; next?: string }>(raw);
+  return { improved: r.improved === true || r.improved === 'true', feedback: r.feedback ?? '', next: r.next ?? '' };
 }
 
 /* ── 주간 편지 — 한 주의 글을 묵당 선생이 편지로 첨삭 ── */
@@ -969,7 +683,7 @@ export async function writeWeeklyLetter(
   items: { title: string; type: string; text: string; score?: number; weak?: string[] }[],
   streak: number, learned: string[], lastReply?: string,
 ): Promise<string> {
-  const system = `당신은 글쓰기 수련 게임 "산마루 서재"의 스승 "묵당 선생"(노작가)이다. 매주 일요일 제자에게 손편지를 쓴다. 하게체("자네", "~하게", "~일세"). 따뜻하지만 정확하다.
+  const system = `당신은 글쓰기 수련 게임 "산마루 서재"의 스승 "묵당 선생"(노작가)이다. 매주 일요일 제자에게 손편지를 쓴다. 말투는 담백한 하게체("자네", "~하게", "~다", "~지", "~군", "~는가?"). 말끝을 "~네"(~했네·~겠네·~이네)로 끝내지 말 것. "~일세"는 편지 전체에서 한두 번 이내. 따뜻하지만 정확하다.
 편지 구성(전체 12~18문장, 소제목·목록·마크다운 금지, 문단만):
 1) 이번 주 자네가 쓴 글에서 가장 좋았던 문장 하나를 그대로 인용하고 왜 좋은지.
 2) 반복되는 약점 하나를, 실제 문장을 인용해 짚고 고친 예를 보여 줌.
