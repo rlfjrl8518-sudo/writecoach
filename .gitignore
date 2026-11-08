@@ -35,3 +35,6 @@ yarn-error.log*
 
 # build cache
 *.tsbuildinfo
+
+# 그림 원본(생성 PNG) — 웹용 webp는 public/art에
+art-src/

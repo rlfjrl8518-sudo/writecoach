@@ -1,3 +1,4 @@
+import type { GameState, DrillLog } from './game';
 export type WriteType = '묘사문' | '설명문' | '감상문' | '의견문' | '기사 리드' | '카피라이팅' | '에세이' | '스토리텔링';
 export type CopyType = '브랜딩형' | '혜택 전달형' | '문제 제기형' | '위험 환기형' | '감성 공감형' | '행동 유도형' | '신뢰 확보형' | '정보 전달형' | '혼합형';
 
@@ -66,6 +67,14 @@ export interface WritingEntry {
   analysis?: WritingAnalysis;
   /** 첨삭 결과 — 받으면 저장되어 다시 열어도 유지된다. "재첨삭"으로 덮어쓸 수 있다. */
   proofread?: ProofreadResult;
+  /** 첨삭 받은 시각 — 일일 숙제·장 조건 집계용 */
+  proofreadAt?: string;
+  /** 시련(보스전)으로 쓴 글이면 'ch-<장 번호>' */
+  trial?: string;
+  /** 오늘의 수련 ④ 짧은 글이면 그 수 번호(1~24) */
+  su?: number;
+  /** 사진 훈련 등에서 생성된 이미지(문집에 함께 싣는다) */
+  imageUrl?: string;
   createdAt: string;
 }
 
@@ -226,7 +235,7 @@ export interface BookNote {
   order?: number;         // manual drag-and-drop order override; falls back to createdAt when absent
 }
 
-/* ── 거북이 성장 (Journey) ── */
+/* ── 연속 기록(등불) ── */
 export interface Journey {
   lastWriteDate: string;
   streak: number;
@@ -256,6 +265,10 @@ export interface DB {
   strengthSynthesis: StrengthSynthesis[];
   strengthSynthesisAt: string;
   journey: Journey;
+  /** 산마루 서재 이야기 진행 상태 (lib/game.ts) */
+  game?: GameState;
+  /** 글쓰기 도장 훈련 기록 */
+  drillLogs?: DrillLog[];
   _deletedIds: number[];
   // legacy — 데이터 호환용, 더 이상 신규 기록 안 함
   structures: Record<string, number>;
@@ -277,10 +290,15 @@ const EMPTY: DB = {
   weaknessSynthesis: [], weaknessSynthesisAt: '',
   strengthSynthesis: [], strengthSynthesisAt: '',
   journey: { ...DEFAULT_JOURNEY },
+  drillLogs: [],
   _deletedIds: [],
   structures: {}, senses: {}, sentenceStructures: {}, sentenceCopyStructures: {},
 };
 
+/** 빠진 필드를 기본값으로 채운다 — 옛 버전·다른 기기에서 온 데이터도 안전하게 */
+export function normalizeDB(raw: Partial<DB> | null | undefined): DB {
+  return { ...EMPTY, ...(raw ?? {}), journey: { ...DEFAULT_JOURNEY, ...(raw?.journey ?? {}) } };
+}
 export function loadDB(): DB {
   if (typeof window === 'undefined') return { ...EMPTY };
   try {
@@ -289,7 +307,27 @@ export function loadDB(): DB {
     return { ...EMPTY, ...(JSON.parse(raw) as Partial<DB>) };
   } catch { return { ...EMPTY }; }
 }
-export function saveDBLocal(db: DB) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+/* ── 항목별 수정 시각(_u) — 기기 간 동기화에서 '나중에 고친 쪽'을 고르는 기준 ──
+   저장 직전, 지금 저장돼 있는 판과 비교해 새로 생기거나 바뀐 항목에만 현재 시각을 찍는다. */
+const STAMPED_COLLECTIONS = ['writings', 'sentences', 'copies', 'missions', 'images', 'expressionEntries', 'books', 'bookNotes', 'drillLogs'] as const;
+const itemKey = (x: object) => JSON.stringify({ ...x, _u: undefined });
+function stampChanges(db: DB) {
+  let prev: Partial<DB> | null = null;
+  try { prev = JSON.parse(localStorage.getItem(DB_KEY) || 'null'); } catch { /* */ }
+  const now = Date.now();
+  for (const c of STAMPED_COLLECTIONS) {
+    const list = (db[c] ?? []) as unknown as ({ id: number; _u?: number })[];
+    const before = new Map(((prev?.[c] ?? []) as unknown as ({ id: number })[]).map(x => [x.id, itemKey(x)]));
+    for (const item of list) if (before.get(item.id) !== itemKey(item)) item._u = now;
+  }
+}
+/** 사용자가 바꾼 내용을 저장 (수정 시각을 찍는다). 동기화 이벤트는 내지 않는다. */
+export function saveDBLocal(db: DB) {
+  if (typeof window !== 'undefined') stampChanges(db);
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
+/** 동기화로 합쳐진 결과를 저장 — 수정 시각을 새로 찍지 않는다 (lib/sync.ts 전용) */
+export function saveDBMerged(db: DB) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
 export function saveDB(db: DB) {
   saveDBLocal(db);
   if (typeof window !== 'undefined') {
@@ -418,25 +456,48 @@ export function saveGamification(g: GamificationStore) {
 
 /* Settings */
 const SETTINGS_KEY = 'wc_settings';
+/** 2 = 서버 GCP(Vertex AI) 기본값 도입. 그 전 저장본(provider 'openai' 등)은 한 번 'gcp'로 옮긴다. */
+const SETTINGS_VERSION = 2;
+export const GCP_MODELS = [
+  'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite',
+] as const;
 export interface Settings {
-  provider: 'openai' | 'gemini';
+  /** gcp = 서버 Vertex AI(키 불필요, 기본) · openai/gemini = 개인 API 키(BYOK) */
+  provider: 'gcp' | 'openai' | 'gemini';
+  gcpModel: string;
   apiKey: string;
   model: string;
   geminiApiKey: string;
   geminiModel: string;
   /** 선택 — 글쓰기 도장 사진을 Picsum(무작위) 대신 Unsplash(주제 검색)로 가져올 때 사용 */
   unsplashAccessKey: string;
+  settingsVersion?: number;
 }
 const DEFAULTS: Settings = {
-  provider: 'openai', apiKey: '', model: 'gpt-4o',
+  provider: 'gcp', gcpModel: 'gemini-3.8-flash',
+  apiKey: '', model: 'gpt-4o',
   geminiApiKey: '', geminiModel: 'gemini-2.0-flash',
   unsplashAccessKey: '',
+  settingsVersion: SETTINGS_VERSION,
 };
+/** AI를 바로 쓸 수 있는지 — gcp는 서버가 처리하므로 항상 true, BYOK는 키가 있어야 한다 */
+export function aiReady(s: Settings): boolean {
+  if (s.provider === 'gcp') return true;
+  return s.provider === 'gemini' ? !!s.geminiApiKey : !!s.apiKey;
+}
 export function loadSettings(): Settings {
   if (typeof window === 'undefined') return DEFAULTS;
   try {
-    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
-    return s ? { ...DEFAULTS, ...s } : DEFAULTS;
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null') as Partial<Settings> | null;
+    if (!s) return DEFAULTS;
+    const merged: Settings = { ...DEFAULTS, ...s };
+    if ((s.settingsVersion ?? 1) < SETTINGS_VERSION) {
+      // 1회 마이그레이션: 기존 BYOK 키는 남겨두고 기본 공급자만 서버 GCP로 전환
+      merged.provider = 'gcp';
+      merged.settingsVersion = SETTINGS_VERSION;
+      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged)); } catch { /* */ }
+    }
+    return merged;
   } catch { return DEFAULTS; }
 }
 export function saveSettings(s: Settings) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
