@@ -7,6 +7,9 @@ const withPWA = require('next-pwa')({
   customWorkerDir: 'worker',
   // 그림(public/art, 약 5.5MB)은 설치 때 한꺼번에 받지 않고 볼 때 캐시한다
   publicExcludes: ['!noprecache/**/*', '!art/**/*'],
+  // App Router에서는 app-build-manifest.json이 운영 서버에 없어(404) 설치가 통째로 실패한다.
+  // 글꼴 조각(woff2 수백 개)도 미리 받지 않고 볼 때 캐시한다(next-static 런타임 캐시).
+  buildExcludes: [/app-build-manifest\.json$/, /\/media\/.*\.woff2$/],
   runtimeCaching: [
     {
       urlPattern: /\/art\/.*\.webp$/i,

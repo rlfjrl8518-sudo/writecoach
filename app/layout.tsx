@@ -9,6 +9,7 @@ import ClientLayout from '@/components/ClientLayout';
 import ConfirmDialogRoot from '@/components/ConfirmDialog';
 import GameLayer from '@/components/game/GameLayer';
 import ScenePlayer from '@/components/game/ScenePlayer';
+import SWRegister from '@/components/SWRegister';
 
 const batang = Gowun_Batang({ weight: ['400', '700'], subsets: ['latin'], variable: '--font-batang', display: 'swap', preload: false });
 
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
+        <SWRegister />
         <CloudSync />
         <ConfirmDialogRoot />
         <ClientLayout>
