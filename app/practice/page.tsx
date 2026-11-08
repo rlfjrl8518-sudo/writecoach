@@ -120,7 +120,7 @@ function Fix({ su, db, onDone }: { su: Su; db: DB; onDone: () => void }) {
       <textarea ref={ta} className="px-textarea" value={answer} onChange={e => setAnswer(e.target.value)} disabled={!!fb} style={{ minHeight: 76, marginTop: 6 }}
         placeholder={mode === 'copy' ? '구조를 빌린 내 문장' : '고친 문장을 쓰게. 한두 문장이면 된다.'} />
       {!fb && <PunctBar target={ta} value={answer} onChange={setAnswer} />}
-      {!fb && <button className="g-btn primary" disabled={busy || !answer.trim() || !item} onClick={submit}>{busy ? '스승이 읽는 중…' : '스승에게 보이기'}</button>}
+      {!fb && <button className="g-btn primary" disabled={busy || !answer.trim() || !item} onClick={submit}>{busy ? '채점 중…' : '제출'}</button>}
       {msg && <div style={{ color: 'var(--bad)', fontSize: 12, marginTop: 6 }}>{msg}</div>}
       {fb && (
         <div className="anim-in" style={{ marginTop: 10 }}>
@@ -225,7 +225,7 @@ function Compose({ su, onDone }: { su: Su; onDone: () => void }) {
       {!res && <PunctBar target={ta} value={text} onChange={setText} />}
       {!res && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <button className="g-btn primary" disabled={busy || !text.trim() || (mode === 'photo' && !img)} onClick={submit}>{busy ? `스승이 읽는 중… ${stream ? `(${stream})` : ''}` : '다 썼다'}</button>
+          <button className="g-btn primary" disabled={busy || !text.trim() || (mode === 'photo' && !img)} onClick={submit}>{busy ? `채점 중…${stream ? ` ${stream}` : ''}` : '제출'}</button>
           <span style={{ fontSize: 12, color: text.trim().length >= min ? 'var(--good)' : 'var(--dim-star)' }}>{text.trim().length} / {min}자</span>
         </div>
       )}
@@ -283,9 +283,6 @@ function Revise({ su, db, onDone }: { su: Su; db: DB; onDone: () => void }) {
 
   return (
     <div>
-      <div style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 6 }}>
-        고칠 곳을 찾는 일과 고치는 일을 나누게. 먼저 소리 내어 읽으며 걸리는 곳을 찾고, 아래 기준으로 고치게.
-      </div>
       <div className="g-panel" style={{ fontSize: 13 }}>
         <div className="g-h" style={{ marginBottom: 4 }}>볼 곳</div>
         <ul className="check-list" style={{ marginTop: 0 }}>
@@ -299,7 +296,7 @@ function Revise({ su, db, onDone }: { su: Su; db: DB; onDone: () => void }) {
         <>
           <input className="px-input" value={note} onChange={e => setNote(e.target.value)} placeholder="고친 이유 한 줄 (예: '슬펐다'를 지우고 번호를 못 지운 장면으로)" style={{ width: '100%', marginTop: 6 }} />
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' }}>
-            <button className="g-btn primary" disabled={busy || !changed || !note.trim()} onClick={submit}>{busy ? '스승이 비교하는 중…' : '고친 글 보이기'}</button>
+            <button className="g-btn primary" disabled={busy || !changed || !note.trim()} onClick={submit}>{busy ? '채점 중…' : '제출'}</button>
             <button className="g-btn sm" onClick={() => setText(target.text)} disabled={!changed}>원문으로</button>
           </div>
         </>
@@ -320,10 +317,10 @@ function Revise({ su, db, onDone }: { su: Su; db: DB; onDone: () => void }) {
 function CorrectionNotes({ db }: { db: DB }) {
   const notes = db.writings.filter(w => w.revised).sort((a, b) => b.revised!.at.localeCompare(a.revised!.at)).slice(0, 8);
   return (
-    <div className="g-panel" style={{ marginTop: 12 }}>
-      <div className="g-h">교정 노트 <span className="g-dim" style={{ marginLeft: 'auto', fontSize: 10 }}>퇴고 때 남긴 이유</span></div>
+    <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--card-border)' }}>
+      <div className="g-h">교정 노트</div>
       {notes.length === 0
-        ? <div className="g-dim" style={{ fontSize: 13 }}>아직 비어 있다. 퇴고할 때마다 한 줄씩 쌓이고, 쌓이면 자네가 반복하는 실수가 보인다.</div>
+        ? <div className="g-dim" style={{ fontSize: 12 }}>퇴고 때 남긴 이유가 여기 쌓인다.</div>
         : notes.map(w => {
           const s = w.su ? ALL_SU.find(x => x.n === w.su) : null;
           return (
@@ -438,21 +435,22 @@ export default function PracticePage() {
           <div className="g-panel">
             {shown === 'teach' && <>
               <Teach su={su} />
-              <button className="g-btn primary" style={{ marginTop: 12 }} onClick={() => go('warmup')}>익혔다 → 고쳐 쓰기</button>
+              <button className="g-btn primary" style={{ marginTop: 12 }} onClick={() => go('warmup')}>다음</button>
             </>}
             {shown === 'warmup' && <>
               <div className="g-h">② 고쳐 쓰기 · 3분</div>
               <Fix su={su} db={db} onDone={() => {}} />
-              {steps.warmup && <button className="g-btn primary" style={{ marginTop: 10 }} onClick={() => go('write')}>다음 → 한 편 쓰기</button>}
+              {steps.warmup && <button className="g-btn primary" style={{ marginTop: 10 }} onClick={() => go('write')}>다음</button>}
             </>}
             {shown === 'write' && <>
               <div className="g-h">③ 한 편 쓰기 · 10분</div>
               <Compose su={su} onDone={() => {}} />
-              {steps.write && <button className="g-btn primary" style={{ marginTop: 10 }} onClick={() => go('revise')}>다음 → 퇴고</button>}
+              {steps.write && <button className="g-btn primary" style={{ marginTop: 10 }} onClick={() => go('revise')}>다음</button>}
             </>}
             {shown === 'revise' && <>
               <div className="g-h">④ 퇴고 · 5분</div>
               <Revise su={su} db={db} onDone={() => setSelected(su.n) /* 마친 수를 그대로 보여 준다 — '한 장 복원'은 GameLayer가 알린다 */} />
+              <CorrectionNotes db={db} />
             </>}
           </div>
           {allDone && (
@@ -466,34 +464,6 @@ export default function PracticePage() {
         </div>
       )}
 
-      <CorrectionNotes db={db} />
-
-      {/* 백지첩 목차 */}
-      <div className="g-panel" style={{ marginTop: 12 }}>
-        <div className="g-h">백지첩 목차 <span className="g-dim" style={{ marginLeft: 'auto', fontSize: 10 }}>익힌 수는 언제든 복습</span></div>
-        {pv.chapters.map(cv => (
-          <div key={cv.ch.n} style={{ padding: '8px 0', borderTop: '1px dashed var(--line-soft)', opacity: cv.status === 'locked' ? 0.45 : 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 13, color: cv.status === 'done' ? 'var(--good)' : cv.status === 'locked' ? 'var(--text-disabled)' : 'var(--accent)' }}>{cv.ch.n}장 {cv.ch.title}</span>
-              <span className="g-dim" style={{ fontSize: 11 }}>{cv.ch.dim}</span>
-              <Monster id={cv.ch.boss.id} size={22} style={{ marginLeft: 'auto', opacity: cv.trialPassed ? 0.3 : 1, filter: cv.status === 'locked' ? 'brightness(0)' : undefined }} />
-            </div>
-            <div className="toc-grid">
-              {cv.sus.map(sp => {
-                const unlocked = sp.mastered || pv.current?.su.n === sp.su.n;
-                const active = su?.n === sp.su.n;
-                return (
-                  <button key={sp.su.n} className={`g-btn sm ${active ? 'primary' : ''}`} disabled={!unlocked} style={{ justifyContent: 'flex-start', margin: 0 }}
-                    onClick={() => { setSelected(pv.current?.su.n === sp.su.n ? null : sp.su.n); setOpen('teach'); setNonce(n => n + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
-                    <span style={{ color: sp.mastered && !active ? 'var(--good)' : undefined }}>{sp.mastered ? '●' : '○'}</span>
-                    {sp.su.n}. {unlocked ? sp.su.title : '???'}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
